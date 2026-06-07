@@ -1332,9 +1332,27 @@ syncStrategyFields();
 let _lwcChart = null;
 let _lwcCandleSeries = null;
 let _lwcVolumeSeries = null;
+let _lwcResizeHooked = false;
+let _lwcReadyPromise = null;
 
 function _hasLightweightCharts() {
   return typeof window.LightweightCharts !== "undefined" || typeof LightweightCharts !== "undefined";
+}
+
+// 等待 lightweight-charts 脚本加载完成（defer 模式在 DOMContentLoaded 前完成）
+function _ensureLightweightCharts() {
+  if (_hasLightweightCharts()) return Promise.resolve(true);
+  if (_lwcReadyPromise) return _lwcReadyPromise;
+  _lwcReadyPromise = new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      if (_hasLightweightCharts()) return resolve(true);
+      if (Date.now() - start > 5000) return resolve(false);
+      setTimeout(check, 80);
+    };
+    check();
+  });
+  return _lwcReadyPromise;
 }
 
 function _lwcCreate() {
@@ -1371,12 +1389,13 @@ function _lwcCreate() {
   return true;
 }
 
-function renderKlineLightweight(bars, trades) {
+async function renderKlineLightweight(bars, trades) {
   if (!bars || !bars.length) {
     if (typeof drawKlineChart === "function") drawKlineChart([], []);
     return;
   }
-  if (!_hasLightweightCharts() || !_lwcCreate()) {
+  const ready = await _ensureLightweightCharts();
+  if (!ready || !_lwcCreate()) {
     drawKlineChart(bars, trades || []);
     return;
   }
@@ -1441,14 +1460,59 @@ function renderKlineLightweight(bars, trades) {
   }
 }
 
-let _lwcResizeHooked = false;
-
 
 // =============================================================================
-// Plotly 参数寻优热力图
+// Plotly 参数寻优热力图（lazy-load: 4.5MB 不进首屏，点击寻优才加载）
 // =============================================================================
 
-function renderOptimizeResult(data) {
+let _plotlyLoadPromise = null;
+
+function _ensurePlotly() {
+  if (typeof window.Plotly !== "undefined") return Promise.resolve(true);
+  if (_plotlyLoadPromise) return _plotlyLoadPromise;
+  _plotlyLoadPromise = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.plot.ly/plotly-2.35.2.min.js";
+    script.async = true;
+    script.onload = () => resolve(typeof window.Plotly !== "undefined");
+    script.onerror = () => resolve(false);
+    // 30s 加载超时
+    setTimeout(() => resolve(typeof window.Plotly !== "undefined"), 30000);
+    document.head.appendChild(script);
+  });
+  return _plotlyLoadPromise;
+}
+
+function _renderPlotlyHeatmap(container, data, heatmap, metricLabel) {
+  const x = heatmap.x_values.map((v) => String(v));
+  const y = heatmap.y_values.map((v) => String(v));
+  const z = heatmap.z_values.map((row) =>
+    row.map((v) => (v == null ? null : v * 100))
+  );
+  const trace = {
+    x, y, z,
+    type: "heatmap",
+    colorscale: "RdYlGn",
+    reversescale: metricLabel.includes("回撤"),
+    hovertemplate: `${heatmap.x_key}=%{x}<br>${heatmap.y_key}=%{y}<br>${metricLabel}=%{z:.2f}%<extra></extra>`,
+    colorbar: { title: { text: metricLabel, side: "right" } },
+  };
+  const layout = {
+    title: `${data.strategy} · ${metricLabel} 热力图<br><sub>${data.combinations} 组合 · ${data.parallel ? "并行 " + data.n_jobs + " 核" : "顺序"}</sub>`,
+    xaxis: { title: heatmap.x_key, side: "top" },
+    yaxis: { title: heatmap.y_key, autorange: "reversed" },
+    paper_bgcolor: "#0b1320",
+    plot_bgcolor: "#0b1320",
+    font: { color: "#e2e8f0" },
+    margin: { l: 80, r: 20, t: 80, b: 20 },
+  };
+  window.Plotly.newPlot(container, [trace], layout, {
+    responsive: true,
+    displaylogo: false,
+  });
+}
+
+async function renderOptimizeResult(data) {
   const container = document.getElementById("optimize-result");
   if (!container) return;
   container.innerHTML = "";
@@ -1457,38 +1521,32 @@ function renderOptimizeResult(data) {
     return;
   }
   if (data.heatmap) {
-    const hp = data.heatmap;
-    const x = hp.x_values.map((v) => String(v));
-    const y = hp.y_values.map((v) => String(v));
-    const z = hp.z_values.map((row) => row.map((v) => (v == null ? null : v * 100)));
-    const trace = {
-      x, y, z,
-      type: "heatmap",
-      colorscale: "RdYlGn",
-      reversescale: false,
-      hovertemplate: `${hp.x_key}=%{x}<br>${hp.y_key}=%{y}<br>收益=%{z:.2f}%<extra></extra>`,
-      colorbar: { title: { text: "总收益 %", side: "right" } },
-    };
-    const layout = {
-      title: `${data.strategy} 参数寻优 · 总收益热力图<br><sub>${data.combinations} 组合 · ${data.parallel ? "并行(" + data.n_jobs + "核)" : "顺序"}</sub>`,
-      xaxis: { title: hp.x_key, side: "top" },
-      yaxis: { title: hp.y_key, autorange: "reversed" },
-      paper_bgcolor: "#0b1320",
-      plot_bgcolor: "#0b1320",
-      font: { color: "#e2e8f0" },
-      margin: { l: 80, r: 20, t: 80, b: 20 },
-    };
-    if (typeof Plotly !== "undefined") {
-      Plotly.newPlot(container, [trace], layout, { responsive: true, displaylogo: false });
+    setText("#optimize-status", "正在按需加载可视化库...");
+    const ready = await _ensurePlotly();
+    if (ready && typeof window.Plotly !== "undefined") {
+      try {
+        _renderPlotlyHeatmap(container, data, data.heatmap, "总收益 %");
+        if (data.heatmap_drawdown) {
+          const dd = document.createElement("div");
+          dd.style.marginTop = "20px";
+          container.appendChild(dd);
+          _renderPlotlyHeatmap(dd, data, data.heatmap_drawdown, "最大回撤 %");
+        }
+      } catch (e) {
+        console.error("Plotly 渲染失败，回退到表格", e);
+        renderOptimizeTable(container, data);
+      }
     } else {
-      // 回退：表格
+      console.warn("Plotly 加载失败，回退到表格");
       renderOptimizeTable(container, data);
     }
   } else {
     renderOptimizeTable(container, data);
   }
-  setText("#optimize-status",
-    `${data.combinations} 组合 · ${data.parallel ? "并行 " + data.n_jobs + " 核" : "顺序"}`);
+  setText(
+    "#optimize-status",
+    `${data.combinations} 组合 · ${data.parallel ? "并行 " + data.n_jobs + " 核" : "顺序"}`
+  );
 }
 
 function renderOptimizeTable(container, data) {
@@ -1526,15 +1584,15 @@ function pct(v) {
 const _origRenderBacktest = renderBacktest;
 renderBacktest = function (data) {
   _origRenderBacktest(data);
-  try {
-    const bars = (data && data.bars) || [];
-    const trades = (data && data.trades) || [];
-    renderKlineLightweight(bars, trades);
-  } catch (e) {
+  // async 渲染（lightweight-charts defer 加载中），不阻塞后续逻辑
+  renderKlineLightweight(
+    (data && data.bars) || [],
+    (data && data.trades) || []
+  ).catch((e) => {
     console.error("lightweight-charts 渲染失败，回退到 canvas", e);
     if (typeof drawKlineChart === "function") {
       drawKlineChart((data && data.bars) || [], (data && data.trades) || []);
     }
-  }
+  });
 };
 

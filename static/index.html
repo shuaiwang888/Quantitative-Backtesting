@@ -451,9 +451,12 @@
       </section>
       <div id="chart-tooltip" class="chart-tooltip"></div>
     </main>
-    <!-- 第三方可视化：lightweight-charts (K 线) + plotly (热力图)，CDN 失败时回退到内置 canvas -->
-    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" crossorigin="anonymous"></script>
+    <!--
+      第三方可视化：均 lazy-load，避免阻塞 app.js
+      - lightweight-charts defer（163KB，加载完成后才用，回退到内置 canvas）
+      - plotly 在用户点击"参数寻优"时才按需注入（4.5MB 不进首屏）
+    -->
+    <script defer src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" crossorigin="anonymous"></script>
     <script src="/app.js"></script>
   </body>
 </html>
