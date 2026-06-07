@@ -12,7 +12,8 @@ const analysisContent = document.querySelector("#analysis-content");
 const chart = document.querySelector("#equity-chart");
 const ctx = chart.getContext("2d");
 const klineChart = document.querySelector("#kline-chart");
-const kctx = klineChart.getContext("2d");
+// klineChart 在新版本是 <div>（由 Lightweight Charts 接管），只有在 <canvas> 时才能 getContext
+const kctx = klineChart.tagName === "CANVAS" ? klineChart.getContext("2d") : null;
 const tooltip = document.querySelector("#chart-tooltip");
 let lastEquityCurve = [];
 let lastBars = [];
@@ -197,7 +198,14 @@ function renderBacktest(data) {
   lastBars = data.bars || [];
   lastTrades = data.trades || [];
   drawChart(lastEquityCurve);
-  drawKlineChart(lastBars, lastTrades);
+  // K 线：div 模式交给 Lightweight Charts 异步渲染；canvas 模式（兼容旧版）走内置 canvas
+  if (klineChart.tagName === "CANVAS") {
+    drawKlineChart(lastBars, lastTrades);
+  } else {
+    renderKlineLightweight(lastBars, lastTrades).catch((e) => {
+      console.error("lightweight-charts 渲染失败", e);
+    });
+  }
   renderRows(data.trades || [], "交易记录");
 }
 
@@ -454,6 +462,8 @@ function drawChart(points) {
 }
 
 function drawKlineChart(bars, trades) {
+  // div 模式下没有 canvas 上下文，K 线由 Lightweight Charts 接管
+  if (!kctx) return;
   lastBars = bars;
   lastTrades = trades;
   const rect = klineChart.getBoundingClientRect();
@@ -1334,6 +1344,7 @@ let _lwcCandleSeries = null;
 let _lwcVolumeSeries = null;
 let _lwcResizeHooked = false;
 let _lwcReadyPromise = null;
+let _lwcResizeObserver = null;
 
 function _hasLightweightCharts() {
   return typeof window.LightweightCharts !== "undefined" || typeof LightweightCharts !== "undefined";
@@ -1361,31 +1372,22 @@ function _lwcCreate() {
   const container = document.getElementById("kline-chart");
   if (!container) return false;
   container.innerHTML = "";
+  const initialWidth = Math.max(800, container.clientWidth || 0);
   _lwcChart = lib.createChart(container, {
-    width: container.clientWidth,
+    width: initialWidth,
     height: 460,
     layout: { background: { color: "#111823" }, textColor: "#94a3b8" },
     grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } },
     timeScale: { borderColor: "#1e293b", timeVisible: false, secondsVisible: false },
     rightPriceScale: { borderColor: "#1e293b" },
-    crosshair: { mode: lib.CrosshairMode ? lib.CrosshairMode.Normal : 0 },
   });
   _lwcCandleSeries = _lwcChart.addCandlestickSeries({
     upColor: "#ff3366",
     downColor: "#00e572",
-    borderUpColor: "#ff3366",
-    borderDownColor: "#00e572",
-    wickUpColor: "#ff3366",
-    wickDownColor: "#00e572",
+    wickColor: "#94a3b8",
+    borderColor: "#94a3b8",
   });
-  // 成交量叠加在副图（占底部 20%）
-  _lwcVolumeSeries = _lwcChart.addHistogramSeries({
-    priceFormat: { type: "volume" },
-    priceScaleId: "",
-  });
-  _lwcVolumeSeries.priceScale().applyOptions({
-    scaleMargins: { top: 0.8, bottom: 0 },
-  });
+  _lwcVolumeSeries = null;
   return true;
 }
 
@@ -1396,7 +1398,13 @@ async function renderKlineLightweight(bars, trades) {
   }
   const ready = await _ensureLightweightCharts();
   if (!ready || !_lwcCreate()) {
-    drawKlineChart(bars, trades || []);
+    // CDN 不可用：div 模式下插入提示；canvas 模式回退内置绘制
+    if (klineChart.tagName !== "CANVAS") {
+      klineChart.innerHTML =
+        '<p class="placeholder" style="padding:32px;text-align:center;color:var(--text-tertiary);">K 线加载失败：第三方 CDN 不可用，请检查网络后刷新。</p>';
+    } else {
+      drawKlineChart(bars, trades || []);
+    }
     return;
   }
   const candleData = bars.map((bar) => {
@@ -1408,7 +1416,15 @@ async function renderKlineLightweight(bars, trades) {
     const l = Number(bar.low ?? Math.min(o, c));
     return { time: date, open: o, high: h, low: l, close: c };
   });
-  _lwcCandleSeries.setData(candleData);
+  try {
+    _lwcCandleSeries.setData(candleData);
+  } catch (e) {
+    console.error("[K线] setData 失败", e);
+    klineChart.innerHTML =
+      '<p class="placeholder" style="padding:32px;color:var(--text-tertiary);">K 线数据写入失败：' +
+      String(e && e.message ? e.message : e) + '</p>';
+    return;
+  }
 
   const volData = bars.map((bar) => {
     const v = Number(bar.volume ?? 0);
@@ -1420,7 +1436,9 @@ async function renderKlineLightweight(bars, trades) {
       color: c >= o ? "rgba(255,51,102,0.55)" : "rgba(0,229,114,0.55)",
     };
   });
-  _lwcVolumeSeries.setData(volData);
+  if (_lwcVolumeSeries) {
+    try { _lwcVolumeSeries.setData(volData); } catch (e) { console.warn("volData setData 失败", e); }
+  }
 
   // 买卖点标记
   const markers = [];
@@ -1442,20 +1460,57 @@ async function renderKlineLightweight(bars, trades) {
       });
     });
   });
-  if (markers.length) {
-    _lwcCandleSeries.setMarkers(markers);
-  } else {
-    _lwcCandleSeries.setMarkers([]);
+  try {
+    if (markers.length) {
+      _lwcCandleSeries.setMarkers(markers);
+    } else {
+      _lwcCandleSeries.setMarkers([]);
+    }
+  } catch (e) {
+    console.warn("[K线] setMarkers 失败（不影响主 K 线）", e);
   }
-  _lwcChart.timeScale().fitContent();
-  // Resize handling
+  try {
+    _lwcChart.timeScale().fitContent();
+  } catch (e) {
+    console.error("[K线] fitContent 失败", e);
+  }
+
+  // 关键修复：LWC 4.x 会跳过视口外 chart 的绘制。
+  // 第一次 renderBacktest 触发时容器可能还在切 tab / 还没 layout 完成，
+  // 需要先把 K 线区域滚到视口内并强制 applyOptions 触发重绘。
+  const kcEl = document.getElementById("kline-chart");
+  if (kcEl) {
+    const rect = kcEl.getBoundingClientRect();
+    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+      kcEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+  // 延迟 100ms 等 scrollIntoView 启动 + LWC 检测可见性变化，再 applyOptions
+  setTimeout(() => {
+    if (_lwcChart && kcEl) {
+      const w = Math.max(800, kcEl.clientWidth || 0);
+      _lwcChart.applyOptions({ width: w, height: 460 });
+      _lwcChart.timeScale().fitContent();
+    }
+  }, 100);
+  // Resize handling: 监听 window resize + 容器尺寸变化 (tab 切换、panel 展开)
   if (!_lwcResizeHooked) {
     window.addEventListener("resize", () => {
       if (_lwcChart) {
         const c = document.getElementById("kline-chart");
-        if (c) _lwcChart.applyOptions({ width: c.clientWidth });
+        if (c) _lwcChart.applyOptions({ width: Math.max(800, c.clientWidth || 0) });
       }
     });
+    if (!_lwcResizeObserver && "ResizeObserver" in window) {
+      _lwcResizeObserver = new ResizeObserver((entries) => {
+        if (!_lwcChart) return;
+        for (const entry of entries) {
+          const w = Math.max(800, entry.contentRect.width || 0);
+          _lwcChart.applyOptions({ width: w });
+        }
+      });
+      _lwcResizeObserver.observe(document.getElementById("kline-chart"));
+    }
     _lwcResizeHooked = true;
   }
 }
@@ -1581,18 +1636,6 @@ function pct(v) {
 // 在 renderBacktest 末尾挂接 lightweight K 线
 // =============================================================================
 
-const _origRenderBacktest = renderBacktest;
-renderBacktest = function (data) {
-  _origRenderBacktest(data);
-  // async 渲染（lightweight-charts defer 加载中），不阻塞后续逻辑
-  renderKlineLightweight(
-    (data && data.bars) || [],
-    (data && data.trades) || []
-  ).catch((e) => {
-    console.error("lightweight-charts 渲染失败，回退到 canvas", e);
-    if (typeof drawKlineChart === "function") {
-      drawKlineChart((data && data.bars) || [], (data && data.trades) || []);
-    }
-  });
-};
+// 旧版 renderBacktest 末尾已经自己调了 K 线渲染（div 走 LWC、canvas 走内置），
+// 这里不再重复调用，避免 CDN 失败时反复回退到 drawKlineChart。
 
