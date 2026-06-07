@@ -39,6 +39,8 @@ class OptimizeRequest:
     bars: Optional[List[Bar]] = None
     initial_cash: float = 100000.0
     fee_rate: float = 0.0003
+    # 单次寻优可临时覆盖默认上限；None 时使用 Settings.optimize_max_combinations
+    max_combinations: Optional[int] = None
 
 
 def _count_combinations(ranges: Dict[str, List[Any]]) -> int:
@@ -143,10 +145,12 @@ def run_grid_search(
     settings = get_settings()
 
     n_combos = _count_combinations(req.param_ranges)
-    if n_combos > settings.optimize_max_combinations:
+    effective_limit = req.max_combinations if (req.max_combinations and req.max_combinations > 0) else settings.optimize_max_combinations
+    if n_combos > effective_limit:
         raise ValidationError(
-            f"参数组合数 {n_combos} 超过上限 {settings.optimize_max_combinations}",
-            details={"combinations": n_combos, "limit": settings.optimize_max_combinations},
+            f"参数组合数 {n_combos} 超过上限 {effective_limit}",
+            details={"combinations": n_combos, "limit": effective_limit,
+                     "default_limit": settings.optimize_max_combinations},
         )
     if len(bars) < min_bars(req.strategy):
         raise ValidationError(

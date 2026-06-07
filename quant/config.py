@@ -111,7 +111,7 @@ class Settings:
 
     # --- 寻优 ---
     optimize_max_combinations: int = field(
-        default_factory=lambda: _get_int("OPTIMIZE_MAX_COMBINATIONS", 500)
+        default_factory=lambda: _get_int("OPTIMIZE_MAX_COMBINATIONS", 2000)
     )
     optimize_timeout_seconds: int = field(
         default_factory=lambda: _get_int("OPTIMIZE_TIMEOUT_SECONDS", 120)

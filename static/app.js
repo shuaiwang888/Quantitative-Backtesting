@@ -1184,9 +1184,9 @@ function formatDate(date) {
       const form = document.querySelector("#backtest-form");
       const payload = formPayload(form);
       const strategy = payload.strategy;
-      
+
       let param_ranges = {};
-      
+
       if (strategy === "moving_average") {
         param_ranges = { fast_window: [3, 5, 7], slow_window: [15, 20, 30] };
       } else if (strategy === "momentum_atr") {
@@ -1205,21 +1205,46 @@ function formatDate(date) {
           ma_window: [3, 5, 8]
         };
       }
-      
+
       payload.param_ranges = param_ranges;
-      
+
+      // 寻优前给用户一个可见的预估（避免默认 972 组合撞墙）
+      const nCombos = Object.values(param_ranges).reduce((acc, arr) => acc * (arr?.length || 1), 1);
+      const MAX_DEFAULT = 2000;
+      const nJobs = navigator.hardwareConcurrency || 4;
+      // 经验值：单组合 ~30-80ms（含 IO 拉取），并行 4-16 核
+      const estMs = Math.ceil((nCombos * 50) / Math.max(2, nJobs / 2));
+      const estSec = Math.max(1, Math.round(estMs / 1000));
+      const warn = nCombos > MAX_DEFAULT
+        ? `\n\n⚠️ 超过默认上限 ${MAX_DEFAULT}，将一并发送 max_combinations=${Math.ceil(nCombos * 1.2)}`
+        : "";
+      if (!window.confirm(
+        `即将进行参数网格寻优：\n` +
+        `• 策略：${strategy}\n` +
+        `• 组合数：${nCombos}\n` +
+        `• 预估耗时：约 ${estSec} 秒${warn}\n\n` +
+        `是否继续？`
+      )) {
+        setStatus("已取消寻优");
+        return;
+      }
+      // 客户端传一个略大于组合数的覆盖值，避免后端再校验失败
+      if (nCombos > MAX_DEFAULT) {
+        payload.max_combinations = Math.ceil(nCombos * 1.2);
+      }
+
       try {
         const res = await postJson("/api/optimize", payload);
-        
+
         setText("#table-title", "参数网格寻优结果 (总收益逆序)");
         setText("#table-count", `${res.optimization_results.length} 条组合，${(res.optimization_errors || []).length} 条失败`);
-        
+
         const thead = document.querySelector("#table-head");
         const tbody = document.querySelector("#table-body");
-        
+
         thead.innerHTML = `<tr><th>参数组合</th><th>总收益</th><th>年化收益</th><th>最大回撤</th><th>夏普比率</th><th>胜率</th><th>交易次数</th></tr>`;
         tbody.innerHTML = "";
-        
+
         res.optimization_results.forEach(r => {
           const tr = document.createElement("tr");
           appendCell(tr, JSON.stringify(r.params));

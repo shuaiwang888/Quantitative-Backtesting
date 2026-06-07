@@ -121,3 +121,69 @@ class TestGridSearch:
             _bars(50),
         )
         assert isinstance(result["optimization_results"], list)
+
+    def test_default_limit_covers_972_combo_volume_shadow(self):
+        """回归：volume_shadow_break 默认 6 维 param_ranges = 972 组合，
+        默认上限 2000 必须能容纳。"""
+        # 强制重置 settings，确保拿到最新默认 2000
+        os.environ.pop("OPTIMIZE_MAX_COMBINATIONS", None)
+        reset_settings_cache()
+        result = run_grid_search(
+            OptimizeRequest(
+                strategy="volume_shadow_break",
+                param_ranges={
+                    "volume_window": [2, 3, 4],
+                    "volume_multiplier": [1.1, 1.2, 1.3, 1.4],
+                    "sell_volume_multiplier": [1.01, 1.03, 1.05],
+                    "upper_shadow_ratio": [0.1, 0.15, 0.2],
+                    "lower_shadow_ratio": [0.2, 0.3, 0.4],
+                    "ma_window": [3, 5, 8],
+                },
+            ),
+            _bars(80),
+        )
+        assert result["combinations"] == 972
+
+    def test_request_max_combinations_overrides_default(self):
+        """OptimizeRequest.max_combinations 临时覆盖默认上限。"""
+        os.environ["OPTIMIZE_MAX_COMBINATIONS"] = "2000"
+        reset_settings_cache()
+        try:
+            # 8 组合，默认 2000 远不会超限；但显式传 5 → 应该被拒
+            with pytest.raises(ValidationError, match="超过上限"):
+                run_grid_search(
+                    OptimizeRequest(
+                        strategy="moving_average",
+                        param_ranges={
+                            "fast_window": [3, 5, 7],
+                            "slow_window": [10, 20],
+                        },
+                        max_combinations=5,  # 6 组合超 5
+                    ),
+                    _bars(50),
+                )
+        finally:
+            os.environ.pop("OPTIMIZE_MAX_COMBINATIONS", None)
+            reset_settings_cache()
+
+    def test_request_max_combinations_zero_or_negative_uses_default(self):
+        """max_combinations <= 0 时回退到 settings 默认上限。"""
+        os.environ["OPTIMIZE_MAX_COMBINATIONS"] = "2000"
+        reset_settings_cache()
+        try:
+            # max_combinations=0 应被忽略，走默认 2000；6 组合应通过
+            result = run_grid_search(
+                OptimizeRequest(
+                    strategy="moving_average",
+                    param_ranges={
+                        "fast_window": [3, 5, 7],
+                        "slow_window": [10, 20],
+                    },
+                    max_combinations=0,
+                ),
+                _bars(50),
+            )
+            assert result["combinations"] == 6
+        finally:
+            os.environ.pop("OPTIMIZE_MAX_COMBINATIONS", None)
+            reset_settings_cache()
