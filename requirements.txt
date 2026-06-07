@@ -1,0 +1,8 @@
+# 必需依赖
+PyMySQL>=1.1.0
+DBUtils>=3.0.0
+cryptography>=42.0.0
+
+# 开发/测试
+pytest>=7.4.0
+pytest-cov>=4.1.0

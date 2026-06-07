@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A股量化回测平台</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="panel controls">
+          <div class="brand">
+            <span class="brand-mark">Q</span>
+            <div>
+              <h1>A股量化回测</h1>
+              <p>问财数据接口 + 均线策略回测</p>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-tab="dashboard" type="button">首页</button>
+            <button class="tab" data-tab="backtest" type="button">回测</button>
+            <button class="tab" data-tab="query" type="button">数据</button>
+            <button class="tab" data-tab="selector" type="button">选股</button>
+          </div>
+
+          <form id="dashboard-form" class="form-view active">
+            <div style="padding: 0 4px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; margin-bottom: 20px;">
+              <p>在首页查看大盘实时走势、主要指数涨跌情况以及自选股监控列表。</p>
+            </div>
+            <label>
+              添加自选股代码或名称
+              <div style="display: flex; gap: 8px;">
+                <input id="new-watchlist-symbol" placeholder="例如：宁德时代或300750" autocomplete="off" style="flex: 1;">
+                <button type="button" class="secondary" id="btn-add-watchlist-side" style="margin: 0; padding: 0 16px;">添加</button>
+              </div>
+            </label>
+            <button class="primary" type="button" id="btn-refresh-dashboard" style="margin-top: 16px;">刷新首页数据</button>
+            
+            <div style="margin-top: 20px; font-size: 13px; color: var(--text-tertiary); background: var(--bg-surface); padding: 12px; border-radius: 6px;">
+              <p style="margin:0 0 8px 0; font-weight: 500; color: var(--text-secondary);">查询语法参考：</p>
+              <p style="margin:0;">• 直接调用同花顺问财自然语言接口，自动提取最新行情</p>
+              <p style="margin:0;">• 自选股长期保存在浏览器本地</p>
+            </div>
+          </form>
+
+          <form id="backtest-form" class="form-view">
+            <label>
+              策略
+              <select name="strategy" id="strategy-select">
+                <option value="momentum_atr" selected>动量突破 + ATR风控</option>
+                <option value="volume_shadow_break">倍量上影线 + 跌破5日均线</option>
+                <option value="ma_rsi">均线 + RSI</option>
+                <option value="channel_reversal">6日通道反转 + 止损</option>
+                <option value="moving_average">双均线交叉</option>
+              </select>
+            </label>
+            <label>
+              回测范围
+              <select name="backtest_mode" id="mode-select">
+                <option value="single" selected>单只股票</option>
+                <option value="index">指数本身</option>
+                <option value="batch">股票池批量</option>
+              </select>
+            </label>
+            <label>
+              股票代码/名称
+              <input name="symbol" data-mode-field="single" value="300033" placeholder="例如 300033 或 同花顺" autocomplete="off">
+            </label>
+            <label>
+              股票池
+              <select name="universe" data-mode-field="batch">
+                <option value="hs300">沪深300成分股</option>
+                <option value="zz500">中证500成分股</option>
+                <option value="zz1000">中证1000成分股</option>
+                <option value="custom">自定义列表</option>
+              </select>
+            </label>
+            <label>
+              指数
+              <select name="index_symbol" data-mode-field="index">
+                <option value="hs300">沪深300</option>
+                <option value="zz500">中证500</option>
+                <option value="zz1000">中证1000</option>
+              </select>
+            </label>
+            <div class="grid-2">
+              <label>
+                抽样数量
+                <input name="max_symbols" data-mode-field="batch" type="number" min="1" max="100" value="20">
+              </label>
+              <label>
+                成分页数
+                <input name="universe_pages" data-mode-field="batch" type="number" min="1" max="10" value="5">
+              </label>
+            </div>
+            <label>
+              自定义股票列表
+              <textarea name="symbols" data-mode-field="batch" rows="3" placeholder="用逗号或换行分隔，例如：300033, 600519, 宁德时代"></textarea>
+            </label>
+            <div class="grid-2">
+              <label>
+                开始日期
+                <input name="start_date" type="date">
+              </label>
+              <label>
+                结束日期
+                <input name="end_date" type="date">
+              </label>
+            </div>
+            <label>
+              自定义查询语句
+              <textarea name="query" rows="3" placeholder="留空时自动生成历史行情查询"></textarea>
+            </label>
+            <div class="grid-2">
+              <label>
+                初始资金
+                <input name="initial_cash" type="number" min="1000" step="1000" value="100000">
+              </label>
+              <label>
+                手续费率
+                <input name="fee_rate" type="number" min="0" step="0.0001" value="0.0003">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                快均线
+                <input name="fast_window" data-strategy-field="moving_average ma_rsi" type="number" min="1" value="5">
+              </label>
+              <label>
+                慢均线
+                <input name="slow_window" data-strategy-field="moving_average ma_rsi" type="number" min="2" value="20">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                RSI窗口
+                <input name="rsi_window" data-strategy-field="ma_rsi" type="number" min="2" value="6">
+              </label>
+              <label>
+                买入RSI
+                <input name="buy_rsi" data-strategy-field="ma_rsi" type="number" min="1" max="99" step="1" value="40">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                卖出RSI
+                <input name="sell_rsi" data-strategy-field="ma_rsi" type="number" min="1" max="99" step="1" value="60">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                通道窗口
+                <input name="channel_window" data-strategy-field="channel_reversal" type="number" min="2" value="6">
+              </label>
+              <label>
+                止损百分比
+                <input name="stop_loss_pct" data-strategy-field="channel_reversal" type="number" min="0.001" max="0.5" step="0.001" value="0.05">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                突破窗口
+                <input name="breakout_window" data-strategy-field="momentum_atr" type="number" min="5" value="20">
+              </label>
+              <label>
+                趋势窗口
+                <input name="trend_window" data-strategy-field="momentum_atr" type="number" min="10" value="60">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                ATR窗口
+                <input name="atr_window" data-strategy-field="momentum_atr" type="number" min="3" value="14">
+              </label>
+              <label>
+                ATR止损倍数
+                <input name="atr_multiplier" data-strategy-field="momentum_atr" type="number" min="0.5" step="0.1" value="2.5">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                单笔风险
+                <input name="risk_per_trade" data-strategy-field="momentum_atr" type="number" min="0.001" max="1" step="0.001" value="0.02">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                倍量均量窗口
+                <input name="volume_window" data-strategy-field="volume_shadow_break" type="number" min="1" value="3">
+              </label>
+              <label>
+                倍量倍数
+                <input name="volume_multiplier" data-strategy-field="volume_shadow_break" type="number" min="1.1" step="0.1" value="1.1">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                上影线占比
+                <input name="upper_shadow_ratio" data-strategy-field="volume_shadow_break" type="number" min="0.01" max="1" step="0.01" value="0.1">
+              </label>
+              <label>
+                卖出均线
+                <input name="ma_window" data-strategy-field="volume_shadow_break" type="number" min="2" value="3">
+              </label>
+            </div>
+            <div class="grid-2">
+              <label>
+                卖出放量倍数
+                <input name="sell_volume_multiplier" data-strategy-field="volume_shadow_break" type="number" min="1.01" step="0.01" value="1.05">
+              </label>
+              <label>
+                下影线占比
+                <input name="lower_shadow_ratio" data-strategy-field="volume_shadow_break" type="number" min="0.01" max="1" step="0.01" value="0.2">
+              </label>
+            </div>
+            <button class="primary" type="submit">运行回测</button>
+            <button class="secondary" id="btn-optimize" type="button" style="margin-top: 8px;">参数寻优 (Grid Search)</button>
+          </form>
+
+          <form id="query-form" class="form-view">
+            <label>
+              查询语句
+              <textarea name="query" rows="5">300033 近一年每日行情 交易日期 开盘价 最高价 最低价 收盘价 成交量</textarea>
+            </label>
+            <div class="grid-2">
+              <label>
+                页码
+                <input name="page" type="number" min="1" value="1">
+              </label>
+              <label>
+                条数
+                <input name="limit" type="number" min="1" max="100" value="50">
+              </label>
+            </div>
+            <button class="primary" type="submit">获取数据</button>
+          </form>
+
+          <form id="selector-form" class="form-view">
+            <label>
+              选股条件
+              <textarea name="query" rows="5">市值大于100亿，近20日涨幅大于10%，换手率大于2%</textarea>
+            </label>
+            <div class="grid-2">
+              <label>
+                页码
+                <input name="page" type="number" min="1" value="1">
+              </label>
+              <label>
+                条数
+                <input name="limit" type="number" min="1" max="100" value="10">
+              </label>
+            </div>
+            <button class="primary" type="submit">开始选股</button>
+            <div class="grid-2">
+              <button class="secondary" id="selector-prev-page" type="button">上一页</button>
+              <button class="secondary" id="selector-next-page" type="button">下一页</button>
+            </div>
+            <button class="secondary" id="use-selected-symbols" type="button">加入批量回测</button>
+          </form>
+        </aside>
+
+        <section class="content">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Dashboard</p>
+              <h2 id="page-title">策略表现</h2>
+            </div>
+            <div id="status" class="status">就绪</div>
+          </header>
+
+          <section id="dashboard-panel" class="dashboard-only hidden">
+            <div class="section-title">
+              <h3>大盘指数</h3>
+              <span id="market-update-time">等待查询</span>
+            </div>
+            <div class="grid-3" id="market-indices-container" style="gap: 16px; margin-bottom: 24px;">
+              <!-- 动态插入指数卡片 -->
+              <div style="padding: 16px; background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">上证指数</div>
+                <div style="font-size: 24px; font-weight: 600;">--</div>
+                <div style="font-size: 14px;">--</div>
+              </div>
+              <div style="padding: 16px; background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">深证成指</div>
+                <div style="font-size: 24px; font-weight: 600;">--</div>
+                <div style="font-size: 14px;">--</div>
+              </div>
+              <div style="padding: 16px; background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">创业板指</div>
+                <div style="font-size: 24px; font-weight: 600;">--</div>
+                <div style="font-size: 14px;">--</div>
+              </div>
+            </div>
+
+            <div class="section-title">
+              <h3>自选股行情</h3>
+              <span>
+                <button class="inline-action" id="btn-batch-backtest-watchlist" type="button" style="margin-right: 12px;">直接进行批量回测</button>
+                <span id="watchlist-count">0 只</span>
+              </span>
+            </div>
+            <div class="table-wrap" style="max-height: none;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>代码</th>
+                    <th>名称</th>
+                    <th>最新价</th>
+                    <th>涨跌幅</th>
+                    <th>开盘价</th>
+                    <th>收盘价</th>
+                    <th>量比</th>
+                    <th>换手率</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="watchlist-body">
+                  <tr><td colspan="9" style="text-align: center; color: var(--text-tertiary);">暂无自选股，请在左侧添加</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="metrics backtest-only">
+            <article>
+              <span>总收益</span>
+              <strong id="metric-return">--</strong>
+            </article>
+            <article>
+              <span>最大回撤</span>
+              <strong id="metric-dd">--</strong>
+            </article>
+            <article>
+              <span>期末权益</span>
+              <strong id="metric-equity">--</strong>
+            </article>
+            <article>
+              <span>交易次数</span>
+              <strong id="metric-trades">--</strong>
+            </article>
+          </section>
+
+          <section id="batch-panel" class="data-grid hidden backtest-only">
+            <div class="section-title">
+              <h3>股票池回测汇总</h3>
+              <span id="batch-count">0 只</span>
+            </div>
+            <div class="batch-summary">
+              <article>
+                <span>平均收益</span>
+                <strong id="batch-avg-return">--</strong>
+              </article>
+              <article>
+                <span>标的胜率</span>
+                <strong id="batch-win-rate">--</strong>
+              </article>
+              <article>
+                <span>平均回撤</span>
+                <strong id="batch-avg-dd">--</strong>
+              </article>
+              <article>
+                <span>失败数</span>
+                <strong id="batch-errors">--</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="chart-panel backtest-only">
+            <div class="section-title">
+              <h3>权益曲线</h3>
+              <span id="range-label">等待回测</span>
+            </div>
+            <canvas id="equity-chart" width="1200" height="380"></canvas>
+          </section>
+
+          <section class="chart-panel backtest-only">
+            <div class="section-title">
+              <h3>K线与买卖点</h3>
+              <span id="kline-label">等待回测</span>
+            </div>
+            <canvas id="kline-chart" width="1200" height="460"></canvas>
+          </section>
+
+          <section class="analysis-panel backtest-only">
+            <div class="section-title">
+              <h3>AI 分析总结</h3>
+              <span id="analysis-status">等待回测</span>
+            </div>
+            <div id="analysis-content" class="analysis-content">回测完成后自动生成分析。</div>
+          </section>
+
+          <section class="data-grid backtest-only">
+            <div class="section-title">
+              <h3 id="table-title">交易记录</h3>
+              <span>
+                <span id="table-count">0 条</span>
+              </span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="data-grid query-only hidden">
+            <div class="section-title">
+              <h3 id="query-table-title">接口返回数据</h3>
+              <span>
+                <span id="query-table-count">0 条</span>
+              </span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="query-table-head"></thead>
+                <tbody id="query-table-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="data-grid selector-only hidden">
+            <div class="section-title">
+              <h3 id="selector-table-title">选股结果</h3>
+              <span>
+                <button class="inline-action hidden" id="selector-select-all-rows" type="button">全选</button>
+                <span id="selector-table-count">0 只</span>
+              </span>
+            </div>
+            <div id="selector-meta" class="selector-meta hidden"></div>
+            <div class="table-wrap">
+              <table>
+                <thead id="selector-table-head"></thead>
+                <tbody id="selector-table-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+      <div id="chart-tooltip" class="chart-tooltip"></div>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
