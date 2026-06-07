@@ -317,30 +317,86 @@ class _PayloadTooLarge(Exception):
 # --- 工具 ---
 
 
-_STRATEGY_PARAM_KEYS = {
-    "moving_average": {"fast_window", "slow_window"},
-    "momentum_atr": {"breakout_window", "trend_window", "atr_window", "atr_multiplier", "risk_per_trade"},
-    "ma_rsi": {"fast_window", "slow_window", "rsi_window", "buy_rsi", "sell_rsi"},
-    "channel_reversal": {"channel_window", "stop_loss_pct"},
-    "volume_shadow_break": {
-        "volume_window",
-        "volume_multiplier",
-        "sell_volume_multiplier",
-        "upper_shadow_ratio",
-        "lower_shadow_ratio",
-        "ma_window",
-    },
-}
+def _coerce_strategy_value(key: str, default: Any, raw: Any) -> Any:
+    """依据 default 类型把 raw 强制转换为 int / float / 其它。
+
+    - bool 必须先于 int 判断（Python 里 bool 是 int 的子类）。
+    - 转换失败抛 ValidationError，让客户端立刻知道哪个字段错。
+    """
+    from quant.errors import ValidationError
+
+    if raw is None or raw == "":
+        return default  # 由调用方在外层跳过空值
+
+    if isinstance(default, bool):
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, (int, float)):
+            return bool(raw)
+        if isinstance(raw, str):
+            return raw.strip().lower() in ("1", "true", "yes", "on")
+        return bool(raw)
+    if isinstance(default, int):
+        if isinstance(raw, bool):
+            # True/False 不想被解释为 1/0
+            raise ValidationError(
+                f"参数 {key} 应当为整数", details={"got": raw, "type": type(raw).__name__}
+            )
+        if isinstance(raw, int):
+            return raw
+        if isinstance(raw, float):
+            if not raw.is_integer():
+                raise ValidationError(
+                    f"参数 {key} 应当为整数", details={"got": raw, "type": "float"}
+                )
+            return int(raw)
+        if isinstance(raw, str):
+            try:
+                return int(raw.strip())
+            except ValueError as exc:
+                raise ValidationError(
+                    f"参数 {key} 不是合法整数: {raw!r}", details={"got": raw}
+                ) from exc
+        raise ValidationError(
+            f"参数 {key} 类型不支持", details={"got": raw, "type": type(raw).__name__}
+        )
+    if isinstance(default, float):
+        if isinstance(raw, bool):
+            return float(int(raw))
+        if isinstance(raw, (int, float)):
+            return float(raw)
+        if isinstance(raw, str):
+            try:
+                return float(raw.strip())
+            except ValueError as exc:
+                raise ValidationError(
+                    f"参数 {key} 不是合法数字: {raw!r}", details={"got": raw}
+                ) from exc
+        raise ValidationError(
+            f"参数 {key} 类型不支持", details={"got": raw, "type": type(raw).__name__}
+        )
+    return raw
 
 
 def _strategy_params(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """只挑出当前策略接受的参数，避免污染策略构造。"""
+    """从 payload 中挑出当前策略接受的参数，按 SPECS 默认值类型强制转换。
+
+    - 键白名单与类型模板都来自 SPECS[name].default_params，避免重复维护。
+    - 缺字段或空值会被跳过，回退到 SPECS 默认。
+    - 类型不匹配直接抛 ValidationError（400），不再 500。
+    """
     name = str(payload.get("strategy") or "momentum_atr")
-    allowed = _STRATEGY_PARAM_KEYS.get(name, set())
+    spec = SPECS.get(name)
+    if spec is None:
+        return {}  # 让后续路由层处理未知策略
     result: Dict[str, Any] = {}
-    for key in allowed:
-        if key in payload and payload[key] not in (None, ""):
-            result[key] = payload[key]
+    for key, default in spec.default_params.items():
+        if key not in payload:
+            continue
+        raw = payload[key]
+        if raw is None or raw == "":
+            continue
+        result[key] = _coerce_strategy_value(key, default, raw)
     return result
 
 

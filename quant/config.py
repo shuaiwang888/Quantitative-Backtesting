@@ -75,8 +75,25 @@ class Settings:
         default_factory=lambda: _get("MINIMAX_BASE_URL", "https://api.minimaxi.com/anthropic")
     )
     minimax_model: str = field(default_factory=lambda: _get("MINIMAX_MODEL", "MiniMax-M2.7"))
-    minimax_timeout: int = field(default_factory=lambda: _get_int("MINIMAX_TIMEOUT", 60))
+    minimax_timeout: int = field(default_factory=lambda: _get_int("MINIMAX_TIMEOUT", 180))
     minimax_max_tokens: int = field(default_factory=lambda: _get_int("MINIMAX_MAX_TOKENS", 4096))
+
+    def __post_init__(self) -> None:
+        """构造时校验 LLM 配置，提前发现不匹配。"""
+        if not self.minimax_api_key:
+            return  # LLM 关闭，跳过
+        url = self.minimax_base_url.rstrip("/")
+        # 客户端实现是 Anthropic 兼容协议（POST {base}/v1/messages + x-api-key）
+        if not (url.endswith("/anthropic") or url.endswith("/anthropic/v1")):
+            raise RuntimeError(
+                "MINIMAX_BASE_URL 与 LLM 客户端不匹配：当前客户端仅支持 Anthropic 兼容协议，"
+                f"应当以 /anthropic 结尾（当前值: {self.minimax_base_url}）。"
+                "如需切换到 OpenAI 兼容端点 /v1，请同步重写 quant/data/llm.py。"
+            )
+        if self.minimax_model != self.minimax_model.strip():
+            raise RuntimeError(
+                f"MINIMAX_MODEL 包含首尾空白: {self.minimax_model!r}"
+            )
 
     # --- MySQL 持久化 ---
     mysql_persist_enabled: bool = field(

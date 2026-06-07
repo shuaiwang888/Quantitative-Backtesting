@@ -83,6 +83,44 @@ class TestRunBacktest:
             assert summary["end_date"] == sample_bars[-1].date
 
 
+class TestFeeRateSeparation:
+    """fee_rate 是服务级参数，不应出现在 SPECS.default_params。"""
+
+    def test_fee_rate_not_in_spec_defaults(self):
+        for name, spec in SPECS.items():
+            assert "fee_rate" not in spec.default_params, (
+                f"策略 {name} 的 default_params 包含 fee_rate，应该独立于 SPECS"
+            )
+
+    def test_make_strategy_accepts_fee_rate_explicitly(self):
+        s = make_strategy("channel_reversal", initial_cash=1000, fee_rate=0.01)
+        assert s.fee_rate == 0.01
+
+    def test_make_strategy_default_fee_rate(self):
+        s = make_strategy("channel_reversal", initial_cash=1000)
+        assert s.fee_rate == 0.0003  # 默认值
+
+    def test_run_backtest_accepts_fee_rate(self, sample_bars):
+        result = run_backtest(
+            "channel_reversal", sample_bars, initial_cash=1000, fee_rate=0.002
+        )
+        assert "summary" in result
+
+    def test_run_backtest_uses_explicit_fee_rate(self, sample_bars):
+        # 当 fee_rate=0 时，交易成本为 0 → 期末权益应高于默认 fee_rate=0.0003
+        result_zero = run_backtest(
+            "channel_reversal", sample_bars, initial_cash=100000, fee_rate=0
+        )
+        result_default = run_backtest(
+            "channel_reversal", sample_bars, initial_cash=100000
+        )
+        # 零手续费情况下净收益应 ≥ 默认手续费情况
+        assert (
+            result_zero["summary"]["final_equity"]
+            >= result_default["summary"]["final_equity"]
+        )
+
+
 class TestMovingAverage:
     def test_initial_cash_must_be_positive(self):
         with pytest.raises(ValueError, match="初始资金"):

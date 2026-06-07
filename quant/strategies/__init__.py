@@ -59,7 +59,6 @@ SPECS: Dict[str, StrategySpec] = {
             "atr_window": 14,
             "atr_multiplier": 2.5,
             "risk_per_trade": 0.02,
-            "fee_rate": 0.0003,
         },
         grid={
             "breakout_window": [15, 20, 25],
@@ -70,7 +69,7 @@ SPECS: Dict[str, StrategySpec] = {
         "moving_average",
         "双均线交叉",
         MovingAverageStrategy,
-        defaults={"fast_window": 5, "slow_window": 20, "fee_rate": 0.0003},
+        defaults={"fast_window": 5, "slow_window": 20},
         grid={"fast_window": [3, 5, 7], "slow_window": [15, 20, 30]},
     ),
     "ma_rsi": _spec(
@@ -83,7 +82,6 @@ SPECS: Dict[str, StrategySpec] = {
             "rsi_window": 6,
             "buy_rsi": 40,
             "sell_rsi": 60,
-            "fee_rate": 0.0003,
         },
         grid={
             "fast_window": [5, 10],
@@ -97,7 +95,7 @@ SPECS: Dict[str, StrategySpec] = {
         "channel_reversal",
         "6日通道反转 + 止损",
         ChannelReversalStrategy,
-        defaults={"channel_window": 6, "stop_loss_pct": 0.05, "fee_rate": 0.0003},
+        defaults={"channel_window": 6, "stop_loss_pct": 0.05},
         grid={"channel_window": [5, 6, 10, 15], "stop_loss_pct": [0.03, 0.05, 0.08]},
     ),
     "volume_shadow_break": _spec(
@@ -111,7 +109,6 @@ SPECS: Dict[str, StrategySpec] = {
             "upper_shadow_ratio": 0.1,
             "lower_shadow_ratio": 0.2,
             "ma_window": 3,
-            "fee_rate": 0.0003,
         },
         grid={
             "volume_window": [2, 3, 4],
@@ -139,12 +136,18 @@ def make_strategy(
     name: str,
     *,
     initial_cash: float,
+    fee_rate: float = 0.0003,
     **params: Any,
 ) -> BaseStrategy:
-    """根据 name 构造策略实例。"""
+    """根据 name 构造策略实例。
+
+    - ``initial_cash`` / ``fee_rate`` 是服务级参数，独立于策略元数据。
+    - ``params`` 只覆盖策略特定的 default_params（不会污染 fee_rate）。
+    """
     spec = get_spec(name)
     merged = {**spec.default_params, **params}
     merged["initial_cash"] = initial_cash
+    merged["fee_rate"] = fee_rate
     return spec.strategy_cls(**merged)
 
 
@@ -170,6 +173,7 @@ def run_backtest(
     bars: List[Bar],
     *,
     initial_cash: float = 100000.0,
+    fee_rate: float = 0.0003,
     **params: Any,
 ) -> Dict[str, Any]:
     """便捷入口：构造 + run。"""
@@ -180,7 +184,7 @@ def run_backtest(
             f"可用K线不足，至少需要 {needed} 条",
             details={"got": len(bars), "required": needed, "strategy": name},
         )
-    strategy = make_strategy(name, initial_cash=initial_cash, **params)
+    strategy = make_strategy(name, initial_cash=initial_cash, fee_rate=fee_rate, **params)
     return strategy.run(bars)
 
 

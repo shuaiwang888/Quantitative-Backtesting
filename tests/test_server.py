@@ -6,7 +6,8 @@ import json
 
 import pytest
 
-from quant.errors import AuthError, RateLimitError
+from quant.errors import AuthError, RateLimitError, ValidationError
+from quant.server.app import _coerce_strategy_value, _strategy_params
 from quant.server.middleware import RateLimiter, check_auth, get_client_key
 
 
@@ -179,3 +180,59 @@ class TestServerEndpoints:
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             urllib.request.urlopen(req)
         assert exc_info.value.code == 404
+
+
+class TestStrategyParamCoercion:
+    """防止前端 FormData 把数值序列化为字符串后导致 500。"""
+
+    def test_int_default_accepts_numeric_string(self):
+        # 前端 FormData 传过来的 volume_window: "3"
+        assert _coerce_strategy_value("volume_window", 3, "3") == 3
+
+    def test_int_default_accepts_int(self):
+        assert _coerce_strategy_value("volume_window", 3, 3) == 3
+
+    def test_int_default_rejects_non_integer_float(self):
+        with pytest.raises(ValidationError, match="整数"):
+            _coerce_strategy_value("ma_window", 3, 3.5)
+
+    def test_int_default_rejects_garbage_string(self):
+        with pytest.raises(ValidationError, match="不是合法整数"):
+            _coerce_strategy_value("volume_window", 3, "abc")
+
+    def test_int_default_rejects_bool(self):
+        # True 不应当被解释为 1，避免歧义
+        with pytest.raises(ValidationError, match="整数"):
+            _coerce_strategy_value("volume_window", 3, True)
+
+    def test_float_default_accepts_numeric_string(self):
+        # atr_multiplier: "2.5" (来自前端字符串)
+        assert _coerce_strategy_value("atr_multiplier", 2.5, "2.5") == 2.5
+
+    def test_float_default_accepts_int_value(self):
+        assert _coerce_strategy_value("risk_per_trade", 0.02, 1) == 1.0
+
+    def test_float_default_rejects_garbage_string(self):
+        with pytest.raises(ValidationError, match="不是合法数字"):
+            _coerce_strategy_value("atr_multiplier", 2.5, "high")
+
+    def test_picks_only_keys_in_spec_defaults(self):
+        # volume_shadow_break 不接受 fee_rate 之外的字段
+        payload = {
+            "strategy": "volume_shadow_break",
+            "volume_window": "3",
+            "ma_window": "3",
+            "unknown_field": "ignored",
+        }
+        result = _strategy_params(payload)
+        assert set(result.keys()) == {"volume_window", "ma_window"}
+        assert result["volume_window"] == 3  # int
+        assert result["ma_window"] == 3
+
+    def test_skips_empty_values_falls_back_to_default(self):
+        payload = {"strategy": "volume_shadow_break", "volume_window": ""}
+        assert _strategy_params(payload) == {}
+
+    def test_unknown_strategy_returns_empty(self):
+        # 让路由层在更合适的地方报错
+        assert _strategy_params({"strategy": "no_such_strategy", "x": 1}) == {}

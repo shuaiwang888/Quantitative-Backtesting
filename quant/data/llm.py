@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -73,7 +74,13 @@ def analyze_backtest(
         body = exc.read().decode("utf-8") if exc.fp else ""
         raise LLMError(f"大模型接口错误 {exc.code}: {body[:500]}") from exc
     except urllib.error.URLError as exc:
+        # 包含 DNS / 连接拒绝 / 超时（reason 可能是 socket.timeout）
         raise LLMError(f"大模型网络错误: {exc.reason}") from exc
+    except (socket.timeout, TimeoutError) as exc:
+        # M3 thinking 模式 + 大 payload 容易超出默认 60s
+        raise LLMError(
+            f"大模型响应超时（>{timeout}s），可调大 MINIMAX_TIMEOUT 或减小 prompt 体积"
+        ) from exc
     except json.JSONDecodeError as exc:
         raise LLMError(f"大模型返回解析失败: {exc}") from exc
 
