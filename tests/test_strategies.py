@@ -43,6 +43,9 @@ class TestStrategyRegistry:
             "ma_rsi",
             "channel_reversal",
             "volume_shadow_break",
+            "factor_alpha_001",
+            "factor_alpha_038",
+            "factor_alpha_101",
         }
 
     def test_get_spec_unknown(self):

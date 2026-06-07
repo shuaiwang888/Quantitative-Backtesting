@@ -1221,8 +1221,15 @@ function formatDate(date) {
           appendCell(tr, r.trades ?? "--");
           tbody.appendChild(tr);
         });
-        
-        setStatus("寻优完成，请查看记录表格");
+
+        // 新增：参数寻优热力图
+        try {
+          renderOptimizeResult(res);
+        } catch (e) {
+          console.error("寻优热力图渲染失败", e);
+        }
+
+        setStatus(`寻优完成 · ${res.combinations} 组合 · ${res.parallel ? "并行 " + res.n_jobs + " 核" : "顺序"}`);
       } catch (err) {
         setStatus(`寻优失败: ${err.message}`);
       }
@@ -1316,3 +1323,218 @@ FORMS_TO_REMEMBER.forEach(formId => {
 // 初始化完成后更新一次依赖联动
 syncModeFields();
 syncStrategyFields();
+
+
+// =============================================================================
+// TradingView Lightweight Charts K 线（CDN 失败时回退到 drawKlineChart）
+// =============================================================================
+
+let _lwcChart = null;
+let _lwcCandleSeries = null;
+let _lwcVolumeSeries = null;
+
+function _hasLightweightCharts() {
+  return typeof window.LightweightCharts !== "undefined" || typeof LightweightCharts !== "undefined";
+}
+
+function _lwcCreate() {
+  if (!_hasLightweightCharts()) return false;
+  const lib = window.LightweightCharts || LightweightCharts;
+  const container = document.getElementById("kline-chart");
+  if (!container) return false;
+  container.innerHTML = "";
+  _lwcChart = lib.createChart(container, {
+    width: container.clientWidth,
+    height: 460,
+    layout: { background: { color: "#111823" }, textColor: "#94a3b8" },
+    grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } },
+    timeScale: { borderColor: "#1e293b", timeVisible: false, secondsVisible: false },
+    rightPriceScale: { borderColor: "#1e293b" },
+    crosshair: { mode: lib.CrosshairMode ? lib.CrosshairMode.Normal : 0 },
+  });
+  _lwcCandleSeries = _lwcChart.addCandlestickSeries({
+    upColor: "#ff3366",
+    downColor: "#00e572",
+    borderUpColor: "#ff3366",
+    borderDownColor: "#00e572",
+    wickUpColor: "#ff3366",
+    wickDownColor: "#00e572",
+  });
+  // 成交量叠加在副图（占底部 20%）
+  _lwcVolumeSeries = _lwcChart.addHistogramSeries({
+    priceFormat: { type: "volume" },
+    priceScaleId: "",
+  });
+  _lwcVolumeSeries.priceScale().applyOptions({
+    scaleMargins: { top: 0.8, bottom: 0 },
+  });
+  return true;
+}
+
+function renderKlineLightweight(bars, trades) {
+  if (!bars || !bars.length) {
+    if (typeof drawKlineChart === "function") drawKlineChart([], []);
+    return;
+  }
+  if (!_hasLightweightCharts() || !_lwcCreate()) {
+    drawKlineChart(bars, trades || []);
+    return;
+  }
+  const candleData = bars.map((bar) => {
+    // lightweight-charts 时间戳用 YYYY-MM-DD 字符串（业务日）或 Unix 秒
+    const date = String(bar.date);
+    const o = Number(bar.open ?? bar.close);
+    const c = Number(bar.close);
+    const h = Number(bar.high ?? Math.max(o, c));
+    const l = Number(bar.low ?? Math.min(o, c));
+    return { time: date, open: o, high: h, low: l, close: c };
+  });
+  _lwcCandleSeries.setData(candleData);
+
+  const volData = bars.map((bar) => {
+    const v = Number(bar.volume ?? 0);
+    const c = Number(bar.close);
+    const o = Number(bar.open ?? c);
+    return {
+      time: String(bar.date),
+      value: v,
+      color: c >= o ? "rgba(255,51,102,0.55)" : "rgba(0,229,114,0.55)",
+    };
+  });
+  _lwcVolumeSeries.setData(volData);
+
+  // 买卖点标记
+  const markers = [];
+  const tradeByDate = new Map();
+  (trades || []).forEach((t) => {
+    if (!tradeByDate.has(t.date)) tradeByDate.set(t.date, []);
+    tradeByDate.get(t.date).push(t);
+  });
+  candleData.forEach((cd) => {
+    const dayTrades = tradeByDate.get(cd.time) || [];
+    dayTrades.forEach((t, idx) => {
+      markers.push({
+        time: cd.time,
+        position: t.side === "买入" ? "belowBar" : "aboveBar",
+        color: t.side === "买入" ? "#ff3366" : "#00e572",
+        shape: t.side === "买入" ? "arrowUp" : "arrowDown",
+        text: t.side,
+        // 同一时间多笔交易做垂直偏移
+      });
+    });
+  });
+  if (markers.length) {
+    _lwcCandleSeries.setMarkers(markers);
+  } else {
+    _lwcCandleSeries.setMarkers([]);
+  }
+  _lwcChart.timeScale().fitContent();
+  // Resize handling
+  if (!_lwcResizeHooked) {
+    window.addEventListener("resize", () => {
+      if (_lwcChart) {
+        const c = document.getElementById("kline-chart");
+        if (c) _lwcChart.applyOptions({ width: c.clientWidth });
+      }
+    });
+    _lwcResizeHooked = true;
+  }
+}
+
+let _lwcResizeHooked = false;
+
+
+// =============================================================================
+// Plotly 参数寻优热力图
+// =============================================================================
+
+function renderOptimizeResult(data) {
+  const container = document.getElementById("optimize-result");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!data) {
+    container.innerHTML = '<p class="placeholder">点击"参数寻优"按钮，搜索最佳参数组合并以热力图可视化。</p>';
+    return;
+  }
+  if (data.heatmap) {
+    const hp = data.heatmap;
+    const x = hp.x_values.map((v) => String(v));
+    const y = hp.y_values.map((v) => String(v));
+    const z = hp.z_values.map((row) => row.map((v) => (v == null ? null : v * 100)));
+    const trace = {
+      x, y, z,
+      type: "heatmap",
+      colorscale: "RdYlGn",
+      reversescale: false,
+      hovertemplate: `${hp.x_key}=%{x}<br>${hp.y_key}=%{y}<br>收益=%{z:.2f}%<extra></extra>`,
+      colorbar: { title: { text: "总收益 %", side: "right" } },
+    };
+    const layout = {
+      title: `${data.strategy} 参数寻优 · 总收益热力图<br><sub>${data.combinations} 组合 · ${data.parallel ? "并行(" + data.n_jobs + "核)" : "顺序"}</sub>`,
+      xaxis: { title: hp.x_key, side: "top" },
+      yaxis: { title: hp.y_key, autorange: "reversed" },
+      paper_bgcolor: "#0b1320",
+      plot_bgcolor: "#0b1320",
+      font: { color: "#e2e8f0" },
+      margin: { l: 80, r: 20, t: 80, b: 20 },
+    };
+    if (typeof Plotly !== "undefined") {
+      Plotly.newPlot(container, [trace], layout, { responsive: true, displaylogo: false });
+    } else {
+      // 回退：表格
+      renderOptimizeTable(container, data);
+    }
+  } else {
+    renderOptimizeTable(container, data);
+  }
+  setText("#optimize-status",
+    `${data.combinations} 组合 · ${data.parallel ? "并行 " + data.n_jobs + " 核" : "顺序"}`);
+}
+
+function renderOptimizeTable(container, data) {
+  const results = (data.optimization_results || []).slice(0, 50);
+  const html = [
+    '<table><thead><tr>',
+    '<th>参数</th><th>总收益</th><th>年化</th><th>最大回撤</th><th>胜率</th><th>交易数</th>',
+    '</tr></thead><tbody>',
+  ];
+  results.forEach((r) => {
+    const params = JSON.stringify(r.params || {});
+    html.push(
+      `<tr><td><code>${params}</code></td>` +
+      `<td>${pct(r.total_return)}</td>` +
+      `<td>${pct(r.annual_return)}</td>` +
+      `<td>${pct(r.max_drawdown)}</td>` +
+      `<td>${pct(r.win_rate)}</td>` +
+      `<td>${r.trade_count}</td></tr>`
+    );
+  });
+  html.push("</tbody></table>");
+  container.innerHTML = html.join("");
+}
+
+function pct(v) {
+  if (v == null || isNaN(v)) return "-";
+  return (v * 100).toFixed(2) + "%";
+}
+
+
+// =============================================================================
+// 在 renderBacktest 末尾挂接 lightweight K 线
+// =============================================================================
+
+const _origRenderBacktest = renderBacktest;
+renderBacktest = function (data) {
+  _origRenderBacktest(data);
+  try {
+    const bars = (data && data.bars) || [];
+    const trades = (data && data.trades) || [];
+    renderKlineLightweight(bars, trades);
+  } catch (e) {
+    console.error("lightweight-charts 渲染失败，回退到 canvas", e);
+    if (typeof drawKlineChart === "function") {
+      drawKlineChart((data && data.bars) || [], (data && data.trades) || []);
+    }
+  }
+};
+

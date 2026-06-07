@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Type
 from quant.data.normalization import Bar
 from quant.strategies.base import BaseStrategy
 from quant.strategies.channel_reversal import ChannelReversalStrategy
+from quant.strategies.factor_strategy import FactorStrategy
 from quant.strategies.ma_rsi import MARSIStrategy
 from quant.strategies.momentum_atr import MomentumATRStrategy
 from quant.strategies.moving_average import MovingAverageStrategy
@@ -119,6 +120,54 @@ SPECS: Dict[str, StrategySpec] = {
             "ma_window": [3, 5, 8],
         },
     ),
+    "factor_alpha_001": _spec(
+        "factor_alpha_001",
+        "因子Alpha1-均值回归(波动率加权)",
+        FactorStrategy,
+        defaults={
+            "factor_name": "alpha_001",
+            "lookback": 20,
+            "buy_z": 1.0,
+            "sell_z": -0.5,
+        },
+        grid={
+            "lookback": [10, 20, 30],
+            "buy_z": [0.5, 1.0, 1.5],
+            "sell_z": [-1.0, -0.5, 0.0],
+        },
+    ),
+    "factor_alpha_038": _spec(
+        "factor_alpha_038",
+        "因子Alpha38-收位ts_rank×收开比",
+        FactorStrategy,
+        defaults={
+            "factor_name": "alpha_038",
+            "lookback": 20,
+            "buy_z": 1.0,
+            "sell_z": -0.5,
+        },
+        grid={
+            "lookback": [10, 20, 30],
+            "buy_z": [0.5, 1.0, 1.5],
+            "sell_z": [-1.0, -0.5, 0.0],
+        },
+    ),
+    "factor_alpha_101": _spec(
+        "factor_alpha_101",
+        "因子Alpha101-K线实体/振幅",
+        FactorStrategy,
+        defaults={
+            "factor_name": "alpha_101",
+            "lookback": 20,
+            "buy_z": 1.0,
+            "sell_z": -0.5,
+        },
+        grid={
+            "lookback": [10, 20, 30],
+            "buy_z": [0.5, 1.0, 1.5],
+            "sell_z": [-1.0, -0.5, 0.0],
+        },
+    ),
 }
 
 
@@ -165,6 +214,8 @@ def min_bars(name: str) -> int:
         return defaults["channel_window"] + 1
     if name == "volume_shadow_break":
         return max(defaults["volume_window"], defaults["ma_window"]) + 1
+    if name.startswith("factor_"):
+        return max(defaults.get("lookback", 20) + 5, 30)
     return 1
 
 

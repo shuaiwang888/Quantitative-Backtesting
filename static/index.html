@@ -380,7 +380,17 @@
               <h3>K线与买卖点</h3>
               <span id="kline-label">等待回测</span>
             </div>
-            <canvas id="kline-chart" width="1200" height="460"></canvas>
+            <div id="kline-chart" style="position: relative; width: 100%; height: 460px;"></div>
+          </section>
+
+          <section class="chart-panel backtest-only">
+            <div class="section-title">
+              <h3>参数寻优热力图</h3>
+              <span id="optimize-status">运行寻优后显示</span>
+            </div>
+            <div id="optimize-result" style="position: relative; width: 100%; min-height: 420px;">
+              <p class="placeholder">点击"参数寻优"按钮，搜索最佳参数组合并以热力图可视化。</p>
+            </div>
           </section>
 
           <section class="analysis-panel backtest-only">
@@ -441,6 +451,9 @@
       </section>
       <div id="chart-tooltip" class="chart-tooltip"></div>
     </main>
+    <!-- 第三方可视化：lightweight-charts (K 线) + plotly (热力图)，CDN 失败时回退到内置 canvas -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" crossorigin="anonymous"></script>
     <script src="/app.js"></script>
   </body>
 </html>

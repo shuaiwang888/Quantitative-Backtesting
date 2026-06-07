@@ -116,6 +116,9 @@ class Settings:
     optimize_timeout_seconds: int = field(
         default_factory=lambda: _get_int("OPTIMIZE_TIMEOUT_SECONDS", 120)
     )
+    optimize_n_jobs: int = field(
+        default_factory=lambda: _get_int("OPTIMIZE_N_JOBS", max(1, __import__("os").cpu_count() or 1))
+    )
 
     # --- 批量回测 ---
     batch_max_symbols: int = field(default_factory=lambda: _get_int("BATCH_MAX_SYMBOLS", 100))
