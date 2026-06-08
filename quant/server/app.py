@@ -246,6 +246,9 @@ class BacktestHandler(SimpleHTTPRequestHandler):
             query=str(payload.get("query", "")).strip(),
             initial_cash=float(payload.get("initial_cash") or 100000),
             fee_rate=float(payload.get("fee_rate") or 0.0003),
+            max_combinations=(int(payload["max_combinations"])
+                              if payload.get("max_combinations") not in (None, "", 0)
+                              else None),
         )
         symbol = str(payload.get("symbol", "")).strip()
         mode = str(payload.get("backtest_mode") or "single")

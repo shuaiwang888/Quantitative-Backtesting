@@ -236,3 +236,133 @@ class TestStrategyParamCoercion:
     def test_unknown_strategy_returns_empty(self):
         # 让路由层在更合适的地方报错
         assert _strategy_params({"strategy": "no_such_strategy", "x": 1}) == {}
+
+
+class TestOptimizeMaxCombinationsHandler:
+    """回归：server._handle_optimize 必须把 payload['max_combinations'] 传给 OptimizeRequest。
+    之前漏了这一行，前端在 payload 里塞了覆盖值但 server 忽略了，仍然按默认上限校验。"""
+
+    @pytest.fixture
+    def server(self, monkeypatch):
+        """启一个真 server（避免 BacktestHandler 初始化时复杂的父类参数）。"""
+        monkeypatch.setenv("IWENCAI_API_KEY", "test")
+        monkeypatch.setenv("MYSQL_PERSIST_ENABLED", "0")
+        monkeypatch.setenv("PORT", "0")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+        from quant.server.app import BacktestHandler, run_server
+        from http.server import ThreadingHTTPServer
+        from quant.server.middleware import RateLimiter
+        import threading
+
+        settings = __import__("quant.config", fromlist=["get_settings"]).get_settings()
+        BacktestHandler.limiter = RateLimiter(
+            limit=settings.rate_limit, window_seconds=settings.rate_window
+        )
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), BacktestHandler)
+        port = srv.server_address[1]
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        yield f"http://127.0.0.1:{port}"
+        srv.shutdown()
+
+    def _bars_payload(self, n: int = 100):
+        out = []
+        for i in range(n):
+            out.append({
+                "日期": f"2024-{(i // 30) + 1:02d}-{(i % 30) + 1:02d}",
+                "开盘价": 10.0 + 0.04 * i,
+                "最高价": 10.0 + 0.06 * i,
+                "最低价": 10.0 + 0.03 * i,
+                "收盘价": 10.0 + 0.05 * i,
+                "成交量": 1000.0 + i * 10,
+            })
+        return out
+
+    def _post_optimize(self, base_url, payload, monkeypatch):
+        """用 monkeypatch 替换 iwencai.fetch_all，POST /api/optimize。"""
+        import json as _json
+        import urllib.request
+
+        from quant.data import iwencai as iwc
+        monkeypatch.setattr(iwc, "fetch_all",
+                            lambda *a, **k: {"datas": self._bars_payload(100)})
+        body = _json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{base_url}/api/optimize",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return _json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return _json.loads(e.read().decode("utf-8"))
+
+    def test_handler_threads_max_combinations_to_service(self, server, monkeypatch):
+        """显式 max_combinations=4 收紧上限 → 6 组合应被拒。"""
+        monkeypatch.setenv("OPTIMIZE_MAX_COMBINATIONS", "2000")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+
+        payload = {
+            "strategy": "moving_average",
+            "query": "mock",
+            "param_ranges": {
+                "fast_window": [3, 5, 7],
+                "slow_window": [10, 20],  # 3×2 = 6
+            },
+            "max_combinations": 4,  # 6 > 4 → 期望拒
+        }
+        data = self._post_optimize(server, payload, monkeypatch)
+        assert data.get("success") is False
+        assert "超过上限" in (data.get("error") or "")
+        assert data.get("details", {}).get("limit") == 4
+
+    def test_handler_without_max_combinations_uses_default(self, server, monkeypatch):
+        """不传 max_combinations → 走默认 2000。972 组合应通过。"""
+        monkeypatch.setenv("OPTIMIZE_MAX_COMBINATIONS", "2000")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+
+        payload = {
+            "strategy": "volume_shadow_break",
+            "query": "mock",
+            "param_ranges": {
+                "volume_window": [2, 3, 4],
+                "volume_multiplier": [1.1, 1.2, 1.3, 1.4],
+                "sell_volume_multiplier": [1.01, 1.03, 1.05],
+                "upper_shadow_ratio": [0.1, 0.15, 0.2],
+                "lower_shadow_ratio": [0.2, 0.3, 0.4],
+                "ma_window": [3, 5, 8],
+            },
+        }
+        data = self._post_optimize(server, payload, monkeypatch)
+        assert data.get("success") is True, f"failed: {data}"
+        assert data["combinations"] == 972
+
+    def test_handler_max_combinations_zero_falls_back_to_default(self, server, monkeypatch):
+        """max_combinations=0 / "" / None → 走默认上限（不收紧）。"""
+        monkeypatch.setenv("OPTIMIZE_MAX_COMBINATIONS", "2000")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+
+        for falsy in (0, "", None):
+            payload = {
+                "strategy": "volume_shadow_break",
+                "query": "mock",
+                "param_ranges": {
+                    "volume_window": [2, 3, 4],
+                    "volume_multiplier": [1.1, 1.2, 1.3, 1.4],
+                    "sell_volume_multiplier": [1.01, 1.03, 1.05],
+                    "upper_shadow_ratio": [0.1, 0.15, 0.2],
+                    "lower_shadow_ratio": [0.2, 0.3, 0.4],
+                    "ma_window": [3, 5, 8],
+                },
+                "max_combinations": falsy,
+            }
+            data = self._post_optimize(server, payload, monkeypatch)
+            assert data.get("success") is True, f"max_combinations={falsy!r} failed: {data}"
+            assert data["combinations"] == 972, \
+                f"max_combinations={falsy!r} should fall back to default"
