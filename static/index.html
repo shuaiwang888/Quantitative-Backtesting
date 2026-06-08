@@ -385,8 +385,17 @@
 
           <section class="chart-panel backtest-only">
             <div class="section-title">
-              <h3>参数寻优热力图</h3>
-              <span id="optimize-status">运行寻优后显示</span>
+              <h3>参数寻优可视化</h3>
+              <div class="optimize-header-right">
+                <div class="metric-toggle" id="optimize-metric-toggle" hidden>
+                  <button class="secondary active" data-metric="total_return" type="button">总收益</button>
+                  <button class="secondary" data-metric="annual_return" type="button">年化</button>
+                  <button class="secondary" data-metric="max_drawdown" type="button">回撤</button>
+                  <button class="secondary" data-metric="sharpe_ratio" type="button">夏普</button>
+                  <button class="secondary" data-metric="win_rate" type="button">胜率</button>
+                </div>
+                <span id="optimize-status">运行寻优后显示</span>
+              </div>
             </div>
             <div id="optimize-result" style="position: relative; width: 100%; min-height: 420px;">
               <p class="placeholder">点击"参数寻优"按钮，搜索最佳参数组合并以热力图可视化。</p>

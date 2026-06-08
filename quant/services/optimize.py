@@ -28,6 +28,73 @@ _LOG = get_logger("optimize_service")
 # 低于此组合数直接顺序跑，避免进程池启动开销得不偿失
 MIN_PARALLEL_THRESHOLD = 8
 
+# 2 参数热力图要展示的 6 个指标（顺序就是前端 toggle 按钮的顺序）
+OPTIMIZE_HEATMAP_METRICS = (
+    "total_return",
+    "annual_return",
+    "max_drawdown",
+    "sharpe_ratio",
+    "win_rate",
+    "trade_count",
+)
+
+
+def _calmar(r: Dict[str, Any]) -> Optional[float]:
+    """Calmar = total_return / max(|max_drawdown|, 0.01)。None 透传。
+
+    用 0.01 而不是 0 做下界，避免 max_drawdown=0 时触发 ZeroDivisionError。
+    """
+    ret = r.get("total_return")
+    dd = r.get("max_drawdown")
+    if ret is None or dd is None:
+        return None
+    return ret / max(abs(dd), 0.01)
+
+
+def _compute_param_importance(
+    results: List[Dict[str, Any]],
+    param_keys: List[str],
+) -> List[Dict[str, Any]]:
+    """用边际效应法估算每个参数对 total_return 的影响。
+
+    算法：对每个参数 k，按 k 的取值分组后求 total_return 的均值，
+    importance = (组均值的极差) / |全局均值|。所有 importance 再做
+    max-normalize 到 [0, 1]，让最重要的参数 = 1.0。
+
+    返回 ``[{param, importance, values, means}, ...]``。
+    """
+    if not results or not param_keys:
+        return []
+    valid = [r for r in results if r.get("total_return") is not None]
+    if not valid:
+        return [{"param": k, "importance": 0.0, "values": [], "means": []} for k in param_keys]
+    global_mean = sum(r["total_return"] for r in valid) / len(valid)
+    out: List[Dict[str, Any]] = []
+    for k in param_keys:
+        groups: Dict[Any, List[float]] = {}
+        for r in valid:
+            v = r.get("params", {}).get(k)
+            if v is None:
+                continue
+            groups.setdefault(v, []).append(r["total_return"])
+        if not groups:
+            out.append({"param": k, "importance": 0.0, "values": [], "means": []})
+            continue
+        means = [sum(g) / len(g) for g in groups.values()]
+        rng = max(means) - min(means)
+        raw = rng / abs(global_mean) if global_mean else 0.0
+        out.append({
+            "param": k,
+            "importance": raw,
+            "values": list(groups.keys()),
+            "means": means,
+        })
+    # max-normalize（保持最显眼的 = 1.0）
+    mx = max((x["importance"] for x in out), default=0.0) or 1.0
+    for x in out:
+        x["importance"] = x["importance"] / mx
+    return out
+
 
 @dataclass
 class OptimizeRequest:
@@ -235,9 +302,28 @@ def run_grid_search(
         "parallel": use_parallel,
         "n_jobs": n_jobs if use_parallel else 1,
     }
+
+    # 2 参数：6 个 metric 都生成 heatmap，前端可一键切换
     if len(keys) == 2:
-        response["heatmap"] = _build_heatmap(results, keys, metric="total_return")
-        response["heatmap_drawdown"] = _build_heatmap(results, keys, metric="max_drawdown")
+        for metric in OPTIMIZE_HEATMAP_METRICS:
+            response[f"heatmap_{metric}"] = _build_heatmap(results, keys, metric=metric)
+
+    # 双重"最佳"：纯收益最高 + Calmar（收益/回撤）最高
+    # 前端用这两个分别打金色 ⭐ 和青色 🎯
+    response["best_by_return"] = results[0]["params"] if results else None
+    calmar_ranked = sorted(
+        [r for r in results if _calmar(r) is not None],
+        key=lambda r: _calmar(r),  # type: ignore[arg-type,return-value]
+        reverse=True,
+    )
+    response["best_by_calmar"] = calmar_ranked[0]["params"] if calmar_ranked else None
+    response["top_robust"] = [
+        {**r, "calmar": _calmar(r)}
+        for r in calmar_ranked[:10]
+    ]
+
+    # 参数重要性：哪个参数最影响总收益（所有维度都生成）
+    response["param_importance"] = _compute_param_importance(results, keys)
     return response
 
 

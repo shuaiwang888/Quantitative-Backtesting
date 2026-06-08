@@ -22,6 +22,18 @@ let equityLayout = null;
 let klineLayout = null;
 let selectorRows = [];
 
+// 参数寻优可视化的 metric 元数据。
+// usePercent: true → Y 轴/单元格值要乘 100 加 % 号
+// higherIsBetter: true → 用 RdYlGn（红=差绿=好），回撤/亏损类指标用 RdYlGn_r
+// key 与后端 result 字段名严格一致
+const OPTIMIZE_METRICS = [
+  { key: "total_return",  label: "总收益",   usePercent: true,  higherIsBetter: true  },
+  { key: "annual_return", label: "年化收益", usePercent: true,  higherIsBetter: true  },
+  { key: "max_drawdown",  label: "最大回撤", usePercent: true,  higherIsBetter: false },
+  { key: "sharpe_ratio",  label: "夏普比率", usePercent: false, higherIsBetter: true  },
+  { key: "win_rate",      label: "胜率",     usePercent: true,  higherIsBetter: true  },
+];
+
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
@@ -1253,7 +1265,7 @@ function formatDate(date) {
           appendCell(tr, percent(r.max_drawdown));
           appendCell(tr, numberOrDash(r.sharpe_ratio, 2));
           appendCell(tr, percent(r.win_rate));
-          appendCell(tr, r.trades ?? "--");
+          appendCell(tr, r.trade_count ?? "--");
           tbody.appendChild(tr);
         });
 
@@ -1594,61 +1606,345 @@ function _renderPlotlyHeatmap(container, data, heatmap, metricLabel) {
 
 async function renderOptimizeResult(data) {
   const container = document.getElementById("optimize-result");
+  const toggle = document.getElementById("optimize-metric-toggle");
   if (!container) return;
   container.innerHTML = "";
-  if (!data) {
+  if (!data || !data.optimization_results || data.optimization_results.length === 0) {
     container.innerHTML = '<p class="placeholder">点击"参数寻优"按钮，搜索最佳参数组合并以热力图可视化。</p>';
+    if (toggle) toggle.hidden = true;
     return;
   }
-  if (data.heatmap) {
-    setText("#optimize-status", "正在按需加载可视化库...");
-    const ready = await _ensurePlotly();
-    if (ready && typeof window.Plotly !== "undefined") {
-      try {
-        _renderPlotlyHeatmap(container, data, data.heatmap, "总收益 %");
-        if (data.heatmap_drawdown) {
-          const dd = document.createElement("div");
-          dd.style.marginTop = "20px";
-          container.appendChild(dd);
-          _renderPlotlyHeatmap(dd, data, data.heatmap_drawdown, "最大回撤 %");
-        }
-      } catch (e) {
-        console.error("Plotly 渲染失败，回退到表格", e);
-        renderOptimizeTable(container, data);
-      }
-    } else {
-      console.warn("Plotly 加载失败，回退到表格");
-      renderOptimizeTable(container, data);
-    }
-  } else {
-    renderOptimizeTable(container, data);
+
+  const firstParams = data.optimization_results[0].params || {};
+  const nParams = Object.keys(firstParams).length;
+  // 3+ 参时 toggle 没意义（没有热力图可切）
+  if (toggle) toggle.hidden = (nParams >= 3);
+
+  // 状态栏
+  const statusParts = [
+    `${data.combinations} 组合`,
+    data.parallel ? `并行 ${data.n_jobs} 核` : "顺序",
+  ];
+  if (data.best_by_calmar && data.best_by_return &&
+      JSON.stringify(data.best_by_calmar) !== JSON.stringify(data.best_by_return)) {
+    statusParts.push("Calmar 最佳与收益最佳不同");
   }
-  setText(
-    "#optimize-status",
-    `${data.combinations} 组合 · ${data.parallel ? "并行 " + data.n_jobs + " 核" : "顺序"}`
-  );
+  setText("#optimize-status", statusParts.join(" · "));
+
+  // 分派到 1 / 2 / 3+ 参的不同渲染器
+  if (nParams === 1) {
+    await _renderOptimizeLineChart(container, data);
+  } else if (nParams === 2) {
+    await _renderOptimizeHeatmapV2(container, data);
+  } else {
+    _renderOptimizeImportance(container, data);
+    _renderOptimizeRobustTable(container, data);
+  }
+
+  // 1 / 2 参下方都附带完整指标表，3+ 参的 RobusTable 已经是 Top 10
+  if (nParams <= 2) {
+    const sep = document.createElement("div");
+    sep.className = "optimize-subtitle";
+    sep.textContent = `完整指标表（按总收益降序 · ⭐ 收益最高 · 🎯 Calmar 最高）`;
+    container.appendChild(sep);
+    _renderOptimizeTable(container, data);
+  }
 }
 
-function renderOptimizeTable(container, data) {
-  const results = (data.optimization_results || []).slice(0, 50);
-  const html = [
-    '<table><thead><tr>',
-    '<th>参数</th><th>总收益</th><th>年化</th><th>最大回撤</th><th>胜率</th><th>交易数</th>',
-    '</tr></thead><tbody>',
-  ];
-  results.forEach((r) => {
-    const params = JSON.stringify(r.params || {});
-    html.push(
-      `<tr><td><code>${params}</code></td>` +
-      `<td>${pct(r.total_return)}</td>` +
-      `<td>${pct(r.annual_return)}</td>` +
-      `<td>${pct(r.max_drawdown)}</td>` +
-      `<td>${pct(r.win_rate)}</td>` +
-      `<td>${r.trade_count}</td></tr>`
-    );
+// ---- 1 参数折线图 ----
+async function _renderOptimizeLineChart(container, data) {
+  const results = data.optimization_results;
+  const key = Object.keys(results[0].params)[0];
+  const xs = results.map((r) => r.params[key]);
+
+  // 不同 metric → 数值数组
+  const yByMetric = {};
+  OPTIMIZE_METRICS.forEach((m) => {
+    yByMetric[m.key] = results.map((r) => r[m.key]);
   });
-  html.push("</tbody></table>");
-  container.innerHTML = html.join("");
+
+  // 双重最佳：results[0] = total_return 最高；top_robust[0] = Calmar 最高
+  const bestReturn = results[0];
+  const bestCalmar = (data.top_robust && data.top_robust[0]) || bestReturn;
+  const isDual = bestCalmar !== bestReturn;
+
+  const trace = (metric) => ({
+    x: xs,
+    y: yByMetric[metric.key].map((v) =>
+      v == null ? null : (metric.usePercent ? v * 100 : v)
+    ),
+    type: "scatter",
+    mode: "lines+markers",
+    name: metric.label,
+    line: { color: metric.higherIsBetter ? "#00f0ff" : "#ff3366", width: 2 },
+    marker: { size: 7 },
+    hovertemplate: `${key}=%{x}<br>${metric.label}=%{y:.2f}${metric.usePercent ? "%" : ""}<extra></extra>`,
+  });
+
+  const annotations = [];
+  if (bestReturn && bestReturn.total_return != null) {
+    annotations.push({
+      x: bestReturn.params[key],
+      y: bestReturn.total_return * 100,
+      text: "⭐ 收益最高",
+      showarrow: true, arrowcolor: "#fcee0a", arrowhead: 2,
+      font: { color: "#fcee0a", size: 12 },
+      ax: 0, ay: -45,
+    });
+  }
+  if (isDual && bestCalmar && bestCalmar.total_return != null) {
+    annotations.push({
+      x: bestCalmar.params[key],
+      y: bestCalmar.total_return * 100,
+      text: "🎯 Calmar 最高",
+      showarrow: true, arrowcolor: "#00f0ff", arrowhead: 2,
+      font: { color: "#00f0ff", size: 12 },
+      ax: 0, ay: 45,
+    });
+  }
+
+  const ready = await _ensurePlotly();
+  if (!ready || !window.Plotly) {
+    _renderOptimizeTable(container, data);
+    return;
+  }
+
+  const div = document.createElement("div");
+  div.style.height = "320px";
+  container.appendChild(div);
+
+  const baseLayout = (metric) => ({
+    title: `${data.strategy} · ${metric.label} vs ${key}<br>` +
+           `<sub>${data.combinations} 组合 · ⭐ 收益最高 · 🎯 Calmar 最高</sub>`,
+    paper_bgcolor: "#0b1320", plot_bgcolor: "#0b1320",
+    font: { color: "#e2e8f0" },
+    xaxis: { title: key, gridcolor: "#1e293b" },
+    yaxis: {
+      title: metric.label + (metric.usePercent ? " %" : ""),
+      gridcolor: "#1e293b",
+      zerolinecolor: "#334155",
+    },
+    annotations,
+    margin: { t: 80, l: 60, r: 20, b: 50 },
+  });
+
+  await window.Plotly.newPlot(
+    div, [trace(OPTIMIZE_METRICS[0])], baseLayout(OPTIMIZE_METRICS[0]),
+    { responsive: true, displaylogo: false }
+  );
+
+  // 切换 metric：react 而不是 newPlot，保留 zoom/pan 状态
+  _attachMetricToggle((metric) => {
+    window.Plotly.react(div, [trace(metric)], baseLayout(metric), {
+      responsive: true, displaylogo: false,
+    });
+  });
+}
+
+// ---- 2 参数热力图（带 metric toggle） ----
+async function _renderOptimizeHeatmapV2(container, data) {
+  const ready = await _ensurePlotly();
+  if (!ready || !window.Plotly) {
+    _renderOptimizeTable(container, data);
+    return;
+  }
+
+  const div = document.createElement("div");
+  div.style.height = "420px";
+  container.appendChild(div);
+
+  const bestReturn = data.optimization_results[0];
+  const bestCalmar = (data.top_robust && data.top_robust[0]) || bestReturn;
+  const isDual = bestCalmar !== bestReturn;
+
+  const render = (metric) => {
+    const heatmap = data[`heatmap_${metric.key}`];
+    if (!heatmap) return;
+    const x = heatmap.x_values.map(String);
+    const y = heatmap.y_values.map(String);
+    const z = heatmap.z_values.map((row) =>
+      row.map((v) => (v == null ? null : (metric.usePercent ? v * 100 : v)))
+    );
+    const traces = [{
+      x, y, z, type: "heatmap",
+      colorscale: metric.higherIsBetter ? "RdYlGn" : "RdYlGn_r",
+      reversescale: !metric.higherIsBetter,
+      hovertemplate:
+        `${heatmap.x_key}=%{x}<br>${heatmap.y_key}=%{y}<br>` +
+        `${metric.label}=%{z:.2f}${metric.usePercent ? "%" : ""}<extra></extra>`,
+      colorbar: { title: { text: metric.label, side: "right" } },
+    }];
+    const annotations = [];
+    if (bestReturn && bestReturn.params) {
+      annotations.push({
+        x: String(bestReturn.params[heatmap.x_key]),
+        y: String(bestReturn.params[heatmap.y_key]),
+        text: "⭐", showarrow: false,
+        font: { size: 22, color: "#fcee0a" },
+      });
+    }
+    if (isDual && bestCalmar && bestCalmar.params) {
+      annotations.push({
+        x: String(bestCalmar.params[heatmap.x_key]),
+        y: String(bestCalmar.params[heatmap.y_key]),
+        text: "🎯", showarrow: false,
+        font: { size: 20, color: "#00f0ff" },
+      });
+    }
+    window.Plotly.react(div, traces, {
+      title: `${data.strategy} · ${metric.label} 热力图<br>` +
+             `<sub>${data.combinations} 组合 · ⭐ 收益最高 · 🎯 Calmar 最高</sub>`,
+      xaxis: { title: heatmap.x_key, side: "top" },
+      yaxis: { title: heatmap.y_key, autorange: "reversed" },
+      paper_bgcolor: "#0b1320", plot_bgcolor: "#0b1320",
+      font: { color: "#e2e8f0" },
+      annotations,
+      margin: { t: 80, l: 80, r: 20, b: 20 },
+    }, { responsive: true, displaylogo: false });
+  };
+
+  render(OPTIMIZE_METRICS[0]);
+  _attachMetricToggle(render);
+}
+
+// ---- 3+ 参数：参数重要性条形图 ----
+function _renderOptimizeImportance(container, data) {
+  const importance = data.param_importance || [];
+  if (!importance.length) return;
+
+  const title = document.createElement("div");
+  title.className = "optimize-subtitle";
+  title.textContent = "参数重要性（哪个参数最影响总收益？）";
+  container.appendChild(title);
+
+  const wrap = document.createElement("div");
+  wrap.className = "importance-wrap";
+  container.appendChild(wrap);
+
+  // 按 importance 降序展示
+  const sorted = importance.slice().sort((a, b) => b.importance - a.importance);
+  sorted.forEach((item) => {
+    const bar = document.createElement("div");
+    bar.className = "importance-bar";
+    const detail = item.values
+      .map((v, i) => `${v}=${pct(item.means[i])}`)
+      .join("，");
+    bar.title = `${item.param} · 重要性 ${item.importance.toFixed(2)}\n各取值平均收益: ${detail}`;
+    bar.innerHTML =
+      `<div class="name">${escapeHtml(item.param)}</div>` +
+      `<div class="track"><div class="fill" style="width: ${(item.importance * 100).toFixed(1)}%"></div></div>` +
+      `<div class="val">${item.importance.toFixed(2)}</div>`;
+    wrap.appendChild(bar);
+  });
+}
+
+// ---- 3+ 参数：Top 10 鲁棒表（按 Calmar 排序） ----
+function _renderOptimizeRobustTable(container, data) {
+  const top = data.top_robust || [];
+  if (!top.length) return;
+
+  const title = document.createElement("div");
+  title.className = "optimize-subtitle";
+  title.textContent = "Top 10 鲁棒组合（按 Calmar 排序）";
+  container.appendChild(title);
+
+  const bestReturn = data.best_by_return;
+  const bestCalmar = data.best_by_calmar;
+
+  const table = document.createElement("table");
+  table.innerHTML =
+    "<thead><tr>" +
+    "<th>#</th><th>参数</th><th>总收益</th><th>最大回撤</th>" +
+    "<th>Calmar</th><th>夏普</th><th>胜率</th><th>交易数</th>" +
+    "</tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+
+  top.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    const isReturnBest = bestReturn && _paramsEqual(r.params, bestReturn);
+    const isCalmarBest = bestCalmar && _paramsEqual(r.params, bestCalmar);
+    if (isReturnBest) tr.classList.add("best-combo");
+    if (isCalmarBest) tr.classList.add("calmar", "best-combo");
+
+    let rankCell = `<td>${i + 1}`;
+    if (isReturnBest) rankCell += ' <span class="gold-star" title="总收益最高">⭐</span>';
+    if (isCalmarBest) rankCell += ' <span class="cyan-star" title="Calmar 最高">🎯</span>';
+    rankCell += "</td>";
+
+    tr.innerHTML = rankCell +
+      `<td><code>${escapeHtml(JSON.stringify(r.params))}</code></td>` +
+      `<td class="${(r.total_return != null && r.total_return >= 0) ? "up" : "down"}">${pct(r.total_return)}</td>` +
+      `<td>${pct(r.max_drawdown)}</td>` +
+      `<td><b>${r.calmar.toFixed(2)}</b></td>` +
+      `<td>${numberOrDash(r.sharpe_ratio, 2)}</td>` +
+      `<td>${pct(r.win_rate)}</td>` +
+      `<td>${r.trade_count ?? "--"}</td>`;
+    tbody.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+
+// ---- 完整指标表（1 / 2 参下方使用 + Plotly 失败 fallback） ----
+function _renderOptimizeTable(container, data) {
+  const results = data.optimization_results || [];
+  if (!results.length) {
+    container.innerHTML = '<p class="placeholder">无可用结果</p>';
+    return;
+  }
+  const bestReturn = data.best_by_return;
+  const bestCalmar = data.best_by_calmar;
+
+  const table = document.createElement("table");
+  table.innerHTML =
+    "<thead><tr>" +
+    "<th>参数</th><th>总收益</th><th>年化</th><th>最大回撤</th>" +
+    "<th>夏普</th><th>胜率</th><th>交易数</th>" +
+    "</tr></thead><tbody></tbody>";
+  const tbody = table.querySelector("tbody");
+
+  results.forEach((r) => {
+    const tr = document.createElement("tr");
+    const isReturnBest = bestReturn && _paramsEqual(r.params, bestReturn);
+    const isCalmarBest = bestCalmar && _paramsEqual(r.params, bestCalmar);
+    if (isReturnBest) tr.classList.add("best-combo");
+    if (isCalmarBest) tr.classList.add("calmar", "best-combo");
+
+    let paramsCell = `<code>${escapeHtml(JSON.stringify(r.params))}</code>`;
+    if (isReturnBest) paramsCell = '<span class="gold-star">⭐</span>' + paramsCell;
+    if (isCalmarBest) paramsCell = '<span class="cyan-star">🎯</span>' + paramsCell;
+
+    tr.innerHTML = `<td>${paramsCell}</td>` +
+      `<td class="${(r.total_return != null && r.total_return >= 0) ? "up" : "down"}">${pct(r.total_return)}</td>` +
+      `<td class="${(r.annual_return != null && r.annual_return >= 0) ? "up" : "down"}">${pct(r.annual_return)}</td>` +
+      `<td>${pct(r.max_drawdown)}</td>` +
+      `<td>${numberOrDash(r.sharpe_ratio, 2)}</td>` +
+      `<td>${pct(r.win_rate)}</td>` +
+      `<td>${r.trade_count ?? "--"}</td>`;
+    tbody.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+
+// 比较两个 param 字典（键顺序无关）。用于"最佳"标记对齐。
+function _paramsEqual(a, b) {
+  if (!a || !b) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every((k) => String(a[k]) === String(b[k]));
+}
+
+// 把 section-title 上的按钮组接到 onChange（切换时 react 重画）
+function _attachMetricToggle(onChange) {
+  const toggle = document.getElementById("optimize-metric-toggle");
+  if (!toggle) return;
+  toggle.querySelectorAll("button[data-metric]").forEach((btn) => {
+    btn.onclick = () => {
+      toggle.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const metric = OPTIMIZE_METRICS.find((m) => m.key === btn.dataset.metric);
+      if (metric) onChange(metric);
+    };
+  });
 }
 
 function pct(v) {

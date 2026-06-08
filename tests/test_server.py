@@ -366,3 +366,34 @@ class TestOptimizeMaxCombinationsHandler:
             assert data.get("success") is True, f"max_combinations={falsy!r} failed: {data}"
             assert data["combinations"] == 972, \
                 f"max_combinations={falsy!r} should fall back to default"
+
+    def test_optimize_response_includes_smart_extras(self, server, monkeypatch):
+        """回归：优化响应包含 best_by_return / best_by_calmar / param_importance / 6 个 heatmap（2 参时）。
+
+        这些字段是前端智能可视化（双重星标、参数重要性条形图、metric 切换）的依赖，
+        缺一个前端的展示就会降级。
+        """
+        payload = {
+            "strategy": "moving_average",
+            "query": "mock",
+            "param_ranges": {
+                "fast_window": [3, 5],
+                "slow_window": [10, 20],
+            },
+        }
+        data = self._post_optimize(server, payload, monkeypatch)
+        assert data.get("success") is True, f"failed: {data}"
+        # 双重最佳
+        assert "best_by_return" in data and isinstance(data["best_by_return"], dict)
+        assert "best_by_calmar" in data
+        # Top 10 鲁棒表
+        assert "top_robust" in data and isinstance(data["top_robust"], list)
+        assert all("calmar" in r for r in data["top_robust"])
+        # 参数重要性
+        assert "param_importance" in data
+        params_in_order = [x["param"] for x in data["param_importance"]]
+        assert params_in_order == ["fast_window", "slow_window"]
+        # 2 参：6 个 metric 的 heatmap
+        for m in ("total_return", "annual_return", "max_drawdown",
+                  "sharpe_ratio", "win_rate", "trade_count"):
+            assert f"heatmap_{m}" in data, f"missing heatmap_{m}"

@@ -210,10 +210,12 @@ class TestOptimizeParallelAndHeatmap:
             param_ranges={"channel_window": [3, 6, 9], "stop_loss_pct": [0.05, 0.1]},
         )
         result = run_grid_search(req, bars)
-        assert "heatmap" in result
-        hp = result["heatmap"]
+        # 2 参时 6 个 metric 都生成 heatmap_<metric>
+        assert "heatmap_total_return" in result
+        hp = result["heatmap_total_return"]
         assert hp["x_key"] == "channel_window"
         assert hp["y_key"] == "stop_loss_pct"
+        assert hp["metric"] == "total_return"
         assert len(hp["x_values"]) == 3
         assert len(hp["y_values"]) == 2
         assert len(hp["z_values"]) == 2
@@ -226,7 +228,7 @@ class TestOptimizeParallelAndHeatmap:
             OptimizeRequest(strategy="channel_reversal", param_ranges={"channel_window": [3, 6]}),
             bars,
         )
-        assert "heatmap" not in r1
+        assert "heatmap_total_return" not in r1
         # 3 个参数（用 momentum_atr，5 个有效参数可选 3 个）
         r3 = run_grid_search(
             OptimizeRequest(
@@ -239,7 +241,7 @@ class TestOptimizeParallelAndHeatmap:
             ),
             bars,
         )
-        assert "heatmap" not in r3
+        assert "heatmap_total_return" not in r3
 
     def test_build_heatmap_with_sparse_data(self):
         # 部分位置是 None，build_heatmap 应当正确处理
