@@ -33,10 +33,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # enablement: true 让 action 自动启用 Pages（首次部署友好）。
-      # 如果已经启用，这个参数是 no-op；不会破坏现有 Pages 配置。
-      - name: Setup Pages
+      # 用 `continue-on-error` 兜底：即使 configure-pages 在已启用 Pages 的 repo
+      # 上偶发失败，也不阻断后续部署。如果之前有人手动在 Settings 启用过
+      # Pages，这里会跳过 enablement；否则才尝试 enable。
+      - name: Setup Pages (idempotent)
+        id: setup
         uses: actions/configure-pages@v5
+        continue-on-error: true
         with:
           enablement: true
 
@@ -44,6 +47,11 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: static
+
+      # 给 GitHub 一点时间消化 Pages 状态变更（enablement 后首次部署常需要）
+      - name: Wait for Pages ready
+        if: steps.setup.outcome == 'success'
+        run: sleep 5
 
       - id: deployment
         name: Deploy to GitHub Pages
