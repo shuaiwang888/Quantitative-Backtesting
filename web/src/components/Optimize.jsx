@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { postJson, money, percent, numberOrDash, formatPercentText } from "../api.js";
+import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const METRICS = [
   { key: "total_return",  label: "总收益",   fmt: formatPercentText, higherIsBetter: true },
@@ -30,17 +31,30 @@ const METRICS = [
 
 const metricByKey = (k) => METRICS.find((m) => m.key === k) || METRICS[0];
 
+// 默认近 2 年
+function defaultDateRange() {
+  const end = new Date();
+  const start = new Date();
+  start.setFullYear(start.getFullYear() - 2);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
 export default function Optimize({ hasIwencaiKey, onError, onStatus }) {
+  const _initRange = defaultDateRange();
   const [strategies, setStrategies] = useState([]);
   const [strategy, setStrategy] = useState("moving_average");
   const [symbol, setSymbol] = useState("000001.SZ");
-  const [startDate, setStartDate] = useState("2024-01-01");
-  const [endDate, setEndDate] = useState("2024-12-31");
+  const [startDate, setStartDate] = useState(_initRange.start);
+  const [endDate, setEndDate] = useState(_initRange.end);
   // 每参数对应的"取值列表" (从 default_grid 拉默认，用户可改)
   const [paramRanges, setParamRanges] = useState({});
   const [metric, setMetric] = useState("total_return");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const cache = useCachedResult("optimize");
+  const [result, setResult] = useState(cache.data);
 
   // 拉策略
   useEffect(() => {
@@ -76,6 +90,7 @@ export default function Optimize({ hasIwencaiKey, onError, onStatus }) {
       });
       if (data && Array.isArray(data.optimization_results)) {
         setResult(data);
+        cache.save(data);
         const n = data.combinations;
         onStatus?.(`寻优完成：${n} 组合 · ${data.parallel ? `并行 ${data.n_jobs} 核` : "顺序"}`);
       } else {
@@ -162,7 +177,7 @@ export default function Optimize({ hasIwencaiKey, onError, onStatus }) {
       </form>
 
       {/* ===== 寻优结果 ===== */}
-      {result && <OptimizeResult data={result} nParams={nParams} metric={metric} setMetric={setMetric} />}
+      {result && <OptimizeResult data={result} nParams={nParams} metric={metric} setMetric={setMetric} cacheTs={cache.ts} />}
     </section>
   );
 }
@@ -186,11 +201,18 @@ function countCombinations(ranges) {
 
 // ---- 结果区 ----
 
-function OptimizeResult({ data, nParams, metric, setMetric }) {
+function OptimizeResult({ data, nParams, metric, setMetric, cacheTs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
       <div className="optimize-header">
-        <h3 style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>寻优结果</h3>
+        <h3 style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>
+          寻优结果
+          {cacheTs > 0 && (
+            <span className="hint" style={{ marginLeft: 12, fontSize: 11 }} title={new Date(cacheTs).toLocaleString()}>
+              📦 已缓存 {formatCacheTime(cacheTs)}
+            </span>
+          )}
+        </h3>
         <span className="metric-toggle" hidden={nParams !== 1 && nParams !== 2}>
           {METRICS.map((m) => (
             <button

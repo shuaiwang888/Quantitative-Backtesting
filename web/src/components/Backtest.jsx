@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { postJson, money, percent, numberOrDash, formatPercentText } from "../api.js";
+import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const INDEX_OPTIONS = [
   { value: "hs300", label: "沪深300 (000300.SH)" },
@@ -18,20 +19,35 @@ const INDEX_OPTIONS = [
   { value: "zz1000", label: "中证1000 (000852.SH)" },
 ];
 
+// 默认近 2 年（~500 个交易日）
+function defaultDateRange() {
+  const end = new Date();
+  const start = new Date();
+  start.setFullYear(start.getFullYear() - 2);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
 export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStatus, pendingBatchNames }) {
+  const _initRange = defaultDateRange();
   const [strategies, setStrategies] = useState([]);
   const [strategy, setStrategy] = useState("moving_average");
   const [backtestMode, setBacktestMode] = useState("single");
   const [symbol, setSymbol] = useState("000001.SZ");
   const [indexSymbol, setIndexSymbol] = useState("hs300");
-  const [startDate, setStartDate] = useState("2024-01-01");
-  const [endDate, setEndDate] = useState("2024-12-31");
+  const [startDate, setStartDate] = useState(_initRange.start);
+  const [endDate, setEndDate] = useState(_initRange.end);
   const [initialCash, setInitialCash] = useState(100000);
   const [feeRate, setFeeRate] = useState(0.0003);
   const [paramValues, setParamValues] = useState({});
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
   const [strategiesErr, setStrategiesErr] = useState("");
+  const cache = useCachedResult("backtest");
+  const [result, setResult] = useState(cache.data);
+  // 切到本 tab 时 cache 可能变化（跨 tab 同步），同步到 result
+  useEffect(() => { if (cache.data && !result) setResult(cache.data); }, [cache.data]);
 
   // 拉策略列表
   useEffect(() => {
@@ -80,6 +96,7 @@ export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStat
       });
       if (data && data.success) {
         setResult(data);
+        cache.save(data);
       } else {
         throw new Error(data?.error || "回测失败");
       }
@@ -234,6 +251,7 @@ export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStat
           hasMinimaxKey={hasMinimaxKey}
           onError={onError}
           onStatus={onStatus}
+          cacheTs={cache.ts}
         />
       )}
     </section>
@@ -242,7 +260,7 @@ export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStat
 
 // ---- 结果区 ----
 
-function BacktestResult({ result, hasMinimaxKey, onError, onStatus }) {
+function BacktestResult({ result, hasMinimaxKey, onError, onStatus, cacheTs }) {
   const summary = result.summary || {};
   const [analysis, setAnalysis] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
@@ -278,12 +296,19 @@ function BacktestResult({ result, hasMinimaxKey, onError, onStatus }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
-      <h3 style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>
-        回测结果
-        <span className="hint" style={{ marginLeft: 12, fontSize: 11 }}>
-          {summary.start_date} ~ {summary.end_date} · {summary.bar_count} K线
-        </span>
-      </h3>
+      <div className="optimize-header">
+        <h3 style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>
+          回测结果
+          <span className="hint" style={{ marginLeft: 12, fontSize: 11 }}>
+            {summary.start_date} ~ {summary.end_date} · {summary.bar_count} K线
+          </span>
+        </h3>
+        {cache.ts > 0 && (
+          <span className="hint" style={{ fontSize: 11 }} title={new Date(cache.ts).toLocaleString()}>
+            📦 已缓存 {formatCacheTime(cache.ts)}
+          </span>
+        )}
+      </div>
 
       <div className="metric-grid">
         <MetricCard label="总收益" value={formatPercentText(summary.total_return)} kind={pctKind(summary.total_return)} />

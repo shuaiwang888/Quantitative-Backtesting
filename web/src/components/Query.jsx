@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { postJson, fuzzyFind } from "../api.js";
+import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const SAMPLE_QUERIES = [
   "沪深300 成分股 股票代码 股票简称",
@@ -22,7 +23,9 @@ export default function Query({ hasIwencaiKey, onError, onStatus }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState(null);
+  const cache = useCachedResult("query");
+  const [data, setData] = useState(cache.data);
+  const [lastParams, setLastParams] = useState(() => cache.data ? { query: cache.data.__query || "", page: 1, limit: cache.data.__limit || 20 } : null);
 
   // 从响应推导出"列前缀"（去掉日期后缀）
   const columns = useMemo(() => {
@@ -50,7 +53,11 @@ export default function Query({ hasIwencaiKey, onError, onStatus }) {
         limit,
       });
       if (res && Array.isArray(res.datas)) {
+        // 缓存时记录一下请求参数（恢复用）
+        const toCache = { ...res, __query: query.trim(), __limit: limit };
         setData(res);
+        cache.save(toCache);
+        setLastParams({ query: query.trim(), page, limit });
         onStatus?.(`查询完成：${res.datas.length} 行 · 共 ${res.code_count ?? "?"} 条`);
       } else {
         throw new Error(res?.error || "查询失败");
@@ -132,6 +139,11 @@ export default function Query({ hasIwencaiKey, onError, onStatus }) {
               <span className="hint" style={{ marginLeft: 12, fontSize: 11 }}>
                 当前页 {data.datas.length} 行 · 全量 {data.code_count ?? "?"} 条
               </span>
+              {cache.ts > 0 && (
+                <span className="hint" style={{ marginLeft: 12, fontSize: 11 }} title={new Date(cache.ts).toLocaleString()}>
+                  📦 已缓存 {formatCacheTime(cache.ts)}
+                </span>
+              )}
             </h3>
           </div>
 

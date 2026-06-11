@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { postJson, fuzzyFind } from "../api.js";
+import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const POOL_STORAGE = "quant_stockpool";
 
@@ -35,7 +36,8 @@ export default function Selector({ hasIwencaiKey, onError, onStatus }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(30);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState(null);
+  const cache = useCachedResult("selector");
+  const [data, setData] = useState(cache.data);
   const [pool, setPoolState] = useState(getPool());
   const [selected, setSelected] = useState(new Set());
 
@@ -57,6 +59,7 @@ export default function Selector({ hasIwencaiKey, onError, onStatus }) {
       const res = await postJson("/api/query", { query: query.trim(), page, limit });
       if (res && Array.isArray(res.datas)) {
         setData(res);
+        cache.save(res);
         onStatus?.(`选股返回：${res.datas.length} 行 · 全量 ${res.code_count ?? "?"} 条`);
       } else {
         throw new Error(res?.error || "查询失败");
@@ -215,6 +218,11 @@ export default function Selector({ hasIwencaiKey, onError, onStatus }) {
               <span className="hint" style={{ marginLeft: 12, fontSize: 11 }}>
                 当前页 {data.datas.length} · 全量 {data.code_count ?? "?"}
               </span>
+              {cache.ts > 0 && (
+                <span className="hint" style={{ marginLeft: 12, fontSize: 11 }} title={new Date(cache.ts).toLocaleString()}>
+                  📦 已缓存 {formatCacheTime(cache.ts)}
+                </span>
+              )}
             </h3>
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" className="btn" onClick={addSelectedToPool} disabled={selected.size === 0}>

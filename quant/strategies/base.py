@@ -28,7 +28,7 @@ from quant.indicators import (
 @dataclass
 class Trade:
     date: str
-    side: str  # "买入" / "卖出"
+    side: str  # "buy" / "sell"
     shares: int
     price: float
     fee: float
@@ -98,7 +98,7 @@ class BaseStrategy(ABC):
         self.trades.append(
             Trade(
                 date=bar.date,
-                side="买入",
+                side="buy",
                 shares=shares,
                 price=price,
                 fee=fee,
@@ -118,7 +118,7 @@ class BaseStrategy(ABC):
         self.trades.append(
             Trade(
                 date=bar.date,
-                side="卖出",
+                side="sell",
                 shares=sold_shares,
                 price=price,
                 fee=fee,
@@ -246,9 +246,9 @@ def _trade_win_stats(trades: List[Trade]) -> tuple[int, int]:
     closed = 0
     entry_price: Optional[float] = None
     for trade in trades:
-        if trade.side == "买入":
+        if trade.side == "buy":
             entry_price = trade.price
-        elif trade.side == "卖出" and entry_price is not None:
+        elif trade.side == "sell" and entry_price is not None:
             closed += 1
             if trade.price > entry_price:
                 wins += 1
