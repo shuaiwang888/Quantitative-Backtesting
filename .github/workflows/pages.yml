@@ -33,8 +33,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # enablement: true 让 action 自动启用 Pages（首次部署友好）。
+      # 如果已经启用，这个参数是 no-op；不会破坏现有 Pages 配置。
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload static/ as artifact
         uses: actions/upload-pages-artifact@v3
