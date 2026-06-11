@@ -63,6 +63,7 @@ export default function App() {
   }, [activeTab]);
 
   const hasIwencaiKey = Boolean(keys.iwencai);
+  const hasMinimaxKey = Boolean(keys.minimax);
   const onError = (e) => showStatus("❌ " + (e.message || "请求失败"));
 
   return (
@@ -115,6 +116,7 @@ export default function App() {
         {activeTab === "backtest" && (
           <Backtest
             hasIwencaiKey={hasIwencaiKey}
+            hasMinimaxKey={hasMinimaxKey}
             onError={onError}
             onStatus={showStatus}
             pendingBatchNames={pendingBatchNames}

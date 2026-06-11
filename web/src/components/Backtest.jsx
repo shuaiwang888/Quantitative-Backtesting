@@ -18,7 +18,7 @@ const INDEX_OPTIONS = [
   { value: "zz1000", label: "中证1000 (000852.SH)" },
 ];
 
-export default function Backtest({ hasIwencaiKey, onError, onStatus, pendingBatchNames }) {
+export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStatus, pendingBatchNames }) {
   const [strategies, setStrategies] = useState([]);
   const [strategy, setStrategy] = useState("moving_average");
   const [backtestMode, setBacktestMode] = useState("single");
@@ -228,15 +228,54 @@ export default function Backtest({ hasIwencaiKey, onError, onStatus, pendingBatc
       </form>
 
       {/* ===== 结果 ===== */}
-      {result && <BacktestResult result={result} />}
+      {result && (
+        <BacktestResult
+          result={result}
+          hasMinimaxKey={hasMinimaxKey}
+          onError={onError}
+          onStatus={onStatus}
+        />
+      )}
     </section>
   );
 }
 
 // ---- 结果区 ----
 
-function BacktestResult({ result }) {
+function BacktestResult({ result, hasMinimaxKey, onError, onStatus }) {
   const summary = result.summary || {};
+  const [analysis, setAnalysis] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisErr, setAnalysisErr] = useState("");
+
+  const runAnalysis = async () => {
+    if (analyzing) return;
+    setAnalyzing(true);
+    setAnalysisErr("");
+    setAnalysis("");
+    try {
+      const res = await postJson("/api/analyze", {
+        query: result.query,
+        strategy: summary.strategy,
+        summary,
+        trades: result.trades || [],
+        bars: result.bars || [],
+        equity_curve: result.equity_curve || [],
+      });
+      if (res && res.analysis) {
+        setAnalysis(res.analysis);
+        onStatus?.("AI 复盘已生成");
+      } else {
+        throw new Error(res?.error || "未返回复盘内容");
+      }
+    } catch (e) {
+      setAnalysisErr(e.message || "复盘失败");
+      onError?.(e);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
       <h3 style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>
@@ -272,8 +311,126 @@ function BacktestResult({ result }) {
         <h4>交易记录 ({result.trades?.length || 0})</h4>
         <TradesTable trades={result.trades || []} />
       </div>
+
+      {/* ===== AI 复盘 ===== */}
+      <div className="chart-panel">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <h4 style={{ margin: 0 }}>AI 复盘 <span className="hint" style={{ fontSize: 11, marginLeft: 4 }}>(MiniMax M2.7)</span></h4>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={runAnalysis}
+            disabled={analyzing}
+            title={hasMinimaxKey ? "调用 MiniMax M2.7 生成中文复盘" : "需先在右上角配置 MiniMax key"}
+          >
+            {analyzing ? <><span className="loader" /> 生成中（约 10-30s）</> : (analysis ? "重新生成" : "AI 复盘")}
+          </button>
+        </div>
+        {!hasMinimaxKey && (
+          <div className="error-box" style={{ marginBottom: analysis ? 10 : 0 }}>
+            未配置 MiniMax Key —— 请在右上角"API 密钥"里填入（每个访客自带 key，不会上传）
+          </div>
+        )}
+        {analysisErr && <div className="error-box">{analysisErr}</div>}
+        {analyzing && (
+          <div className="chart-empty">
+            <span className="loader" /> MiniMax M2.7 正在结合 K 线、策略参数和回测结果生成分析…
+          </div>
+        )}
+        {analysis && !analyzing && <MarkdownView text={analysis} />}
+      </div>
     </div>
   );
+}
+
+// ---- 简易 Markdown 渲染器（不引外部库） ----
+// 支持：# / ## / ### 标题，**粗体**，*斜体*，`code`，```围栏```，- / * / 1. 列表，> 引用，链接
+
+function MarkdownView({ text }) {
+  const html = useMemo(() => renderMarkdown(text), [text]);
+  return (
+    <div
+      className="markdown-body"
+      style={{
+        fontSize: 13,
+        lineHeight: 1.7,
+        color: "var(--text-primary)",
+        fontFamily: "var(--font-sans)",
+      }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+function renderMarkdown(src) {
+  if (!src) return "";
+  // 转义 HTML
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // 先抽 code block
+  const codeBlocks = [];
+  src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(code);
+    return ` CODE${codeBlocks.length - 1} `;
+  });
+
+  const lines = src.split("\n");
+  const out = [];
+  let inUl = false, inOl = false;
+  const closeLists = () => {
+    if (inUl) { out.push("</ul>"); inUl = false; }
+    if (inOl) { out.push("</ol>"); inOl = false; }
+  };
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, (_, c) => `<code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:12px;">${c}</code>`)
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<i>$1</i>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+
+  for (const line of lines) {
+    if (/^\s*$/.test(line)) { closeLists(); out.push(""); continue; }
+    // 标题
+    const h = line.match(/^(#{1,4})\s+(.+)$/);
+    if (h) {
+      closeLists();
+      const lvl = h[1].length;
+      const sizes = { 1: 16, 2: 15, 3: 14, 4: 13 };
+      const margin = lvl === 1 ? "8px 0 6px" : "6px 0 4px";
+      out.push(`<h${lvl} style="font-size:${sizes[lvl]}px;color:var(--ink);margin:${margin};font-weight:600;">${inline(h[2])}</h${lvl}>`);
+      continue;
+    }
+    // 引用
+    if (/^>\s+/.test(line)) {
+      closeLists();
+      out.push(`<blockquote style="margin:6px 0;padding:4px 10px;border-left:2px solid var(--accent);background:var(--accent-soft);color:var(--text-secondary);">${inline(line.replace(/^>\s+/, ""))}</blockquote>`);
+      continue;
+    }
+    // 无序列表
+    const ul = line.match(/^[-*]\s+(.+)$/);
+    if (ul) {
+      if (inOl) { out.push("</ol>"); inOl = false; }
+      if (!inUl) { out.push('<ul style="margin:4px 0 4px 20px;color:var(--text-primary);">'); inUl = true; }
+      out.push(`<li>${inline(ul[1])}</li>`);
+      continue;
+    }
+    // 有序列表
+    const ol = line.match(/^\d+\.\s+(.+)$/);
+    if (ol) {
+      if (inUl) { out.push("</ul>"); inUl = false; }
+      if (!inOl) { out.push('<ol style="margin:4px 0 4px 20px;color:var(--text-primary);">'); inOl = true; }
+      out.push(`<li>${inline(ol[1])}</li>`);
+      continue;
+    }
+    closeLists();
+    out.push(`<p style="margin:4px 0;">${inline(line)}</p>`);
+  }
+  closeLists();
+  let html = out.join("\n");
+  // 还原 code blocks
+  html = html.replace(/ CODE(\d+) /g, (_, i) => {
+    const code = codeBlocks[Number(i)] || "";
+    return `<pre style="background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px;overflow-x:auto;margin:6px 0;font-family:var(--font-mono);font-size:12px;line-height:1.5;"><code>${esc(code)}</code></pre>`;
+  });
+  return html;
 }
 
 function MetricCard({ label, value, kind }) {
@@ -376,11 +533,14 @@ function EquityChart({ equity, bars }) {
   );
 }
 
-// ---- K线图 ----
+// ---- K线图（专业版：MA 均线 + 涨实心/跌空心 + 三角买卖点 + hover tooltip + Volume 副图） ----
 
 function CandleChart({ bars, trades }) {
   const wrapRef = useRef(null);
   const [w, setW] = useState(900);
+  const [hoverIdx, setHoverIdx] = useState(null);
+  const [showMA, setShowMA] = useState({ ma5: true, ma10: true, ma20: true });
+
   useEffect(() => {
     if (!wrapRef.current) return;
     const ro = new ResizeObserver((entries) => {
@@ -390,11 +550,17 @@ function CandleChart({ bars, trades }) {
     return () => ro.disconnect();
   }, []);
 
-  const h = 360;
-  const pad = { l: 50, r: 60, t: 20, b: 30 };
+  // 主图 320 / 间距 16 / 副图 120 / 顶 30 / 底 30
+  const h = 516;
+  const pad = { l: 56, r: 70, t: 30, b: 30 };
+  const mainTop = pad.t;
+  const mainH = 320;
+  const volTop = mainTop + mainH + 16;
+  const volH = 120;
   const innerW = w - pad.l - pad.r;
-  const innerH = h - pad.t - pad.b;
+  const innerH = mainH;
 
+  // 按日期 trade 分桶
   const tradeMap = useMemo(() => {
     const m = new Map();
     for (const t of trades || []) {
@@ -404,46 +570,167 @@ function CandleChart({ bars, trades }) {
     return m;
   }, [trades]);
 
+  // MA 均线
+  const ma = useMemo(() => {
+    const out = { ma5: [], ma10: [], ma20: [] };
+    if (!bars.length) return out;
+    const closeOf = (i) => Number(bars[i].close ?? 0);
+    for (let i = 0; i < bars.length; i++) {
+      out.ma5.push(i >= 4 ? (closeOf(i) + closeOf(i-1) + closeOf(i-2) + closeOf(i-3) + closeOf(i-4)) / 5 : null);
+      out.ma10.push(i >= 9 ? Array.from({length: 10}, (_, k) => closeOf(i - k)).reduce((a, b) => a + b, 0) / 10 : null);
+      out.ma20.push(i >= 19 ? Array.from({length: 20}, (_, k) => closeOf(i - k)).reduce((a, b) => a + b, 0) / 20 : null);
+    }
+    return out;
+  }, [bars]);
+
   const data = useMemo(() => {
     if (!bars.length) return null;
     const n = bars.length;
-    const highs = bars.map((b) => b.high);
-    const lows = bars.map((b) => b.low);
-    const maxV = Math.max(...highs);
-    const minV = Math.min(...lows);
-    const range = maxV - minV || 1;
-    const candleW = Math.max(1, (innerW / n) * 0.6);
-    const x = (i) => pad.l + ((i + 0.5) / n) * innerW;
-    const y = (v) => pad.t + (1 - (v - minV) / range) * innerH;
-    return { n, x, y, candleW, maxV, minV };
-  }, [bars, innerW, innerH, pad.l, pad.t]);
+    const highs = bars.map((b) => Number(b.high ?? b.close));
+    const lows = bars.map((b) => Number(b.low ?? b.close));
+    const maVals = [...ma.ma5, ...ma.ma10, ...ma.ma20].filter((v) => v != null);
+    const maxV = Math.max(...highs, ...maVals);
+    const minV = Math.min(...lows, ...maVals);
+    const padRatio = (maxV - minV) * 0.05 || 1;
+    const yMax = maxV + padRatio;
+    const yMin = minV - padRatio;
+    const range = yMax - yMin || 1;
+    const step = innerW / n;
+    const candleW = Math.max(2, Math.min(12, step * 0.62));
+    const x = (i) => pad.l + step * (i + 0.5);
+    const y = (v) => mainTop + (1 - (v - yMin) / range) * innerH;
+
+    // Volume scale
+    const vols = bars.map((b) => Number(b.volume ?? 0));
+    const maxVol = Math.max(...vols, 1);
+    const yVol = (v) => volTop + volH - (v / maxVol) * volH;
+    const volW = Math.max(1, step * 0.62);
+
+    return { n, x, y, candleW, yMax, yMin, yVol, volW, maxVol, step };
+  }, [bars, ma, innerW, innerH, pad.l, mainTop, volTop, volH]);
 
   if (!data) return <div className="chart-empty">无数据</div>;
 
-  // Y 轴 ticks
-  const yTicks = 4;
+  // Y 轴 ticks（5 段）
+  const yTicks = 5;
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => ({
-    v: data.minV + (data.maxV - data.minV) * (1 - i / yTicks),
-    y: pad.t + (i / yTicks) * innerH,
+    v: data.yMin + (data.yMax - data.yMin) * (1 - i / yTicks),
+    y: mainTop + (i / yTicks) * innerH,
   }));
 
+  // X 轴日期：5 段
+  const xTickCount = Math.min(6, bars.length);
+  const xTicks = Array.from({ length: xTickCount }, (_, i) => {
+    const idx = Math.round((i / (xTickCount - 1)) * (bars.length - 1));
+    return { idx, x: data.x(idx), label: (bars[idx].date || "").slice(2, 10) };
+  });
+
+  // hover 处理
+  const onMove = (e) => {
+    if (!data) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const idx = Math.max(0, Math.min(bars.length - 1, Math.floor((px - pad.l) / data.step)));
+    setHoverIdx(idx);
+  };
+  const onLeave = () => setHoverIdx(null);
+
+  // hover 工具
+  const hover = hoverIdx != null ? bars[hoverIdx] : null;
+  const hoverTrades = hover ? (tradeMap.get(hover.date) || []) : [];
+  const cx = hover ? data.x(hoverIdx) : 0;
+  const cy = hover ? data.y(hover.close) : 0;
+
+  // MA 折线路径
+  const maPath = (arr) => {
+    let started = false;
+    return arr.map((v, i) => {
+      if (v == null) return null;
+      const s = `${started ? "L" : "M"}${data.x(i).toFixed(1)},${data.y(v).toFixed(1)}`;
+      started = true;
+      return s;
+    }).filter(Boolean).join(" ");
+  };
+  const ma5Path = showMA.ma5 ? maPath(ma.ma5) : "";
+  const ma10Path = showMA.ma10 ? maPath(ma.ma10) : "";
+  const ma20Path = showMA.ma20 ? maPath(ma.ma20) : "";
+
   return (
-    <div ref={wrapRef} style={{ width: "100%", overflowX: "auto" }}>
-      <svg width={w} height={h} style={{ display: "block" }}>
+    <div ref={wrapRef} style={{ width: "100%", overflowX: "auto", position: "relative" }}>
+      {/* MA 切换 */}
+      <div style={{ position: "absolute", top: 6, right: 80, display: "flex", gap: 4, zIndex: 2 }}>
+        {[["ma5", "MA5", "#fbbf24"], ["ma10", "MA10", "#4ea8ff"], ["ma20", "MA20", "#c084fc"]].map(([k, label, color]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setShowMA({ ...showMA, [k]: !showMA[k] })}
+            style={{
+              padding: "2px 8px",
+              fontSize: 11,
+              border: `1px solid ${showMA[k] ? color : "var(--line)"}`,
+              background: showMA[k] ? `${color}22` : "transparent",
+              color: showMA[k] ? color : "var(--text-tertiary)",
+              borderRadius: 3,
+              cursor: "pointer",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <svg
+        width={w}
+        height={h}
+        style={{ display: "block" }}
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}
+      >
+        {/* ===== 主图网格 + Y 轴 ===== */}
         {ticks.map((t, i) => (
           <g key={i}>
             <line x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} stroke="var(--line)" strokeWidth="0.5" />
-            <text x={pad.l - 6} y={t.y + 4} textAnchor="end" fontSize="10" fill="var(--text-tertiary)">
+            <text x={pad.l - 6} y={t.y + 4} textAnchor="end" fontSize="10" fill="var(--text-tertiary)" className="mono">
               {t.v.toFixed(2)}
             </text>
           </g>
         ))}
+
+        {/* ===== Volume 副图 ===== */}
+        <g>
+          {/* 副图分隔线 */}
+          <line x1={pad.l} x2={w - pad.r} y1={volTop - 4} y2={volTop - 4} stroke="var(--line)" strokeWidth="0.5" strokeDasharray="2,3" />
+          <text x={pad.l - 6} y={volTop + 12} textAnchor="end" fontSize="9" fill="var(--text-tertiary)">VOL</text>
+          {bars.map((b, i) => {
+            const up = b.close >= b.open;
+            const color = up ? "var(--up-color)" : "var(--down-color)";
+            const v = Number(b.volume ?? 0);
+            return (
+              <rect
+                key={i}
+                x={data.x(i) - data.volW / 2}
+                y={data.yVol(v)}
+                width={data.volW}
+                height={Math.max(1, volTop + volH - data.yVol(v))}
+                fill={color}
+                opacity={0.55}
+              />
+            );
+          })}
+          {/* Volume Y 刻度（最高值） */}
+          <text x={w - pad.r + 4} y={volTop + 10} fontSize="9" fill="var(--text-tertiary)" className="mono">
+            {data.maxVol >= 1e8 ? (data.maxVol / 1e8).toFixed(1) + "亿" : data.maxVol >= 1e4 ? (data.maxVol / 1e4).toFixed(0) + "万" : data.maxVol}
+          </text>
+        </g>
+
+        {/* ===== K线（先 wick 后 body） ===== */}
         {bars.map((b, i) => {
-          const cx = data.x(i);
-          const yo = data.y(b.open);
-          const yc = data.y(b.close);
-          const yh = data.y(b.high);
-          const yl = data.y(b.low);
+          const cx0 = data.x(i);
+          const yo = data.y(Number(b.open));
+          const yc = data.y(Number(b.close));
+          const yh = data.y(Number(b.high ?? Math.max(b.open, b.close)));
+          const yl = data.y(Number(b.low ?? Math.min(b.open, b.close)));
           const up = b.close >= b.open;
           const color = up ? "var(--up-color)" : "var(--down-color)";
           const bodyTop = Math.min(yo, yc);
@@ -451,49 +738,195 @@ function CandleChart({ bars, trades }) {
           return (
             <g key={i}>
               {/* 影线 */}
-              <line x1={cx} x2={cx} y1={yh} y2={yl} stroke={color} strokeWidth="0.8" />
-              {/* 实体 */}
-              <rect
-                x={cx - data.candleW / 2}
-                y={bodyTop}
-                width={data.candleW}
-                height={bodyH}
-                fill={color}
-                opacity={up ? 0.85 : 0.85}
-              />
-              {/* 买卖点 */}
-              {tradeMap.has(b.date) && tradeMap.get(b.date).map((t, j) => (
-                <g key={j}>
-                  <circle
-                    cx={cx + (j - 0.5) * 6}
-                    cy={t.side === "buy" ? data.y(b.low) - 8 : data.y(b.high) + 8}
-                    r="3"
-                    fill={t.side === "buy" ? "var(--down-color)" : "var(--up-color)"}
-                    stroke="var(--bg)" strokeWidth="0.5"
-                  />
-                </g>
-              ))}
+              <line x1={cx0} x2={cx0} y1={yh} y2={yl} stroke={color} strokeWidth="1" />
+              {/* 实体：A 股惯例 涨=实心红，跌=空心绿 */}
+              {up ? (
+                <rect
+                  x={cx0 - data.candleW / 2}
+                  y={bodyTop}
+                  width={data.candleW}
+                  height={bodyH}
+                  fill={color}
+                  stroke={color}
+                  strokeWidth="0.5"
+                />
+              ) : (
+                <rect
+                  x={cx0 - data.candleW / 2}
+                  y={bodyTop}
+                  width={data.candleW}
+                  height={bodyH}
+                  fill="var(--bg-surface)"
+                  stroke={color}
+                  strokeWidth="1"
+                />
+              )}
             </g>
           );
         })}
-        {/* X 轴日期（首尾 + 中间） */}
-        {(() => {
-          if (!bars.length) return null;
-          const idxs = [0, Math.floor(bars.length / 2), bars.length - 1].filter((i) => i >= 0);
-          return idxs.map((i) => (
-            <text key={i} x={data.x(i)} y={h - 8} textAnchor="middle" fontSize="10" fill="var(--text-tertiary)">
-              {(bars[i].date || "").slice(0, 10)}
+
+        {/* ===== MA 均线 ===== */}
+        {ma5Path && <path d={ma5Path} fill="none" stroke="#fbbf24" strokeWidth="1.2" opacity="0.9" />}
+        {ma10Path && <path d={ma10Path} fill="none" stroke="#4ea8ff" strokeWidth="1.2" opacity="0.9" />}
+        {ma20Path && <path d={ma20Path} fill="none" stroke="#c084fc" strokeWidth="1.2" opacity="0.9" />}
+
+        {/* ===== 买卖点三角 ===== */}
+        {bars.map((b, i) => {
+          if (!tradeMap.has(b.date)) return null;
+          const cx0 = data.x(i);
+          const yh = data.y(Number(b.high));
+          const yl = data.y(Number(b.low));
+          return tradeMap.get(b.date).map((t, j) => {
+            const isBuy = t.side === "buy";
+            // 买：在 wick 下沿外 12px 画上三角 ▲
+            // 卖：在 wick 上沿外 12px 画下三角 ▼
+            const cx1 = cx0 + (j - 0.5) * 10;
+            const cy1 = isBuy ? yl + 14 : yh - 14;
+            const size = 5;
+            const color = isBuy ? "var(--down-color)" : "var(--up-color)";
+            // ▲ 上三角（买） / ▼ 下三角（卖）
+            const points = isBuy
+              ? `${cx1},${cy1 - size} ${cx1 - size},${cy1 + size} ${cx1 + size},${cy1 + size}`
+              : `${cx1},${cy1 + size} ${cx1 - size},${cy1 - size} ${cx1 + size},${cy1 - size}`;
+            return (
+              <g key={`${i}-${j}`}>
+                <polygon
+                  points={points}
+                  fill={color}
+                  stroke="var(--bg)"
+                  strokeWidth="0.5"
+                />
+                <text
+                  x={cx1}
+                  y={isBuy ? cy1 + size + 11 : cy1 - size - 4}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fill={color}
+                  className="mono"
+                >
+                  {isBuy ? "B" : "S"}
+                </text>
+              </g>
+            );
+          });
+        })}
+
+        {/* ===== X 轴日期 ===== */}
+        {xTicks.map((t, i) => (
+          <text key={i} x={t.x} y={h - 10} textAnchor="middle" fontSize="10" fill="var(--text-tertiary)" className="mono">
+            {t.label}
+          </text>
+        ))}
+
+        {/* ===== 右侧 Y 轴（百分比涨跌幅） ===== */}
+        {ticks.map((t, i) => {
+          const pct = (t.v / bars[0].close - 1) * 100;
+          return (
+            <text
+              key={`r-${i}`}
+              x={w - pad.r + 4}
+              y={t.y + 4}
+              fontSize="10"
+              fill={pct >= 0 ? "var(--up-color)" : "var(--down-color)"}
+              className="mono"
+            >
+              {pct >= 0 ? "+" : ""}{pct.toFixed(2)}%
             </text>
-          ));
-        })()}
-        {/* 图例 */}
-        <g fontSize="11" fill="var(--text-secondary)">
-          <circle cx={w - pad.r + 12} cy={pad.t + 4} r="3" fill="var(--down-color)" />
-          <text x={w - pad.r + 20} y={pad.t + 7}>买</text>
-          <circle cx={w - pad.r + 12} cy={pad.t + 20} r="3" fill="var(--up-color)" />
-          <text x={w - pad.r + 20} y={pad.t + 23}>卖</text>
+          );
+        })}
+
+        {/* ===== Hover 十字光标 ===== */}
+        {hover && (
+          <g pointerEvents="none">
+            {/* 竖线（主图 + 副图） */}
+            <line x1={cx} x2={cx} y1={mainTop} y2={volTop + volH} stroke="var(--text-tertiary)" strokeWidth="0.5" strokeDasharray="2,3" />
+            {/* 横线（主图） */}
+            <line x1={pad.l} x2={w - pad.r} y1={cy} y2={cy} stroke="var(--text-tertiary)" strokeWidth="0.5" strokeDasharray="2,3" />
+            {/* 价格标签 */}
+            <rect x={w - pad.r + 1} y={cy - 8} width={pad.r - 2} height={16} fill="var(--accent)" />
+            <text x={w - pad.r + 4} y={cy + 4} fontSize="10" fill="#06121f" className="mono" fontWeight="600">
+              {hover.close.toFixed(2)}
+            </text>
+            {/* 当前 K 框 */}
+            <rect
+              x={cx - data.candleW / 2 - 1}
+              y={mainTop}
+              width={data.candleW + 2}
+              height={innerH}
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth="1"
+              opacity="0.4"
+            />
+          </g>
+        )}
+
+        {/* ===== 图例（右上） ===== */}
+        <g fontSize="10" fill="var(--text-secondary)">
+          {/* 涨/跌样例 */}
+          <rect x={pad.l + 4} y={pad.t - 18} width="10" height="6" fill="var(--up-color)" />
+          <text x={pad.l + 18} y={pad.t - 13}>涨</text>
+          <rect x={pad.l + 36} y={pad.t - 18} width="10" height="6" fill="var(--bg-surface)" stroke="var(--down-color)" />
+          <text x={pad.l + 50} y={pad.t - 13}>跌</text>
+          {/* MA */}
+          {showMA.ma5 && <><line x1={pad.l + 70} y1={pad.t - 15} x2={pad.l + 80} y2={pad.t - 15} stroke="#fbbf24" strokeWidth="1.2" /><text x={pad.l + 84} y={pad.t - 13}>MA5</text></>}
+          {showMA.ma10 && <><line x1={pad.l + 116} y1={pad.t - 15} x2={pad.l + 126} y2={pad.t - 15} stroke="#4ea8ff" strokeWidth="1.2" /><text x={pad.l + 130} y={pad.t - 13}>MA10</text></>}
+          {showMA.ma20 && <><line x1={pad.l + 166} y1={pad.t - 15} x2={pad.l + 176} y2={pad.t - 15} stroke="#c084fc" strokeWidth="1.2" /><text x={pad.l + 180} y={pad.t - 13}>MA20</text></>}
         </g>
       </svg>
+
+      {/* ===== Hover tooltip（HTML 浮层） ===== */}
+      {hover && (
+        <div
+          style={{
+            position: "absolute",
+            left: Math.min(cx + 12, w - 220),
+            top: mainTop + 8,
+            background: "var(--bg-elev)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            padding: "8px 10px",
+            fontSize: 11,
+            color: "var(--text-primary)",
+            pointerEvents: "none",
+            zIndex: 5,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            minWidth: 180,
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          <div style={{ color: "var(--text-tertiary)", marginBottom: 4, fontSize: 10 }}>{hover.date}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 10, rowGap: 2 }}>
+            <span style={{ color: "var(--text-secondary)" }}>开</span>
+            <span>{Number(hover.open).toFixed(2)}</span>
+            <span style={{ color: "var(--text-secondary)" }}>收</span>
+            <span style={{ color: hover.close >= hover.open ? "var(--up-color)" : "var(--down-color)", fontWeight: 600 }}>
+              {Number(hover.close).toFixed(2)}
+            </span>
+            <span style={{ color: "var(--text-secondary)" }}>高</span>
+            <span style={{ color: "var(--up-color)" }}>{Number(hover.high).toFixed(2)}</span>
+            <span style={{ color: "var(--text-secondary)" }}>低</span>
+            <span style={{ color: "var(--down-color)" }}>{Number(hover.low).toFixed(2)}</span>
+            <span style={{ color: "var(--text-secondary)" }}>量</span>
+            <span>{Number(hover.volume).toLocaleString()}</span>
+            <span style={{ color: "var(--text-secondary)" }}>MA5</span>
+            <span>{ma.ma5[hoverIdx] != null ? ma.ma5[hoverIdx].toFixed(2) : "--"}</span>
+            <span style={{ color: "var(--text-secondary)" }}>MA10</span>
+            <span>{ma.ma10[hoverIdx] != null ? ma.ma10[hoverIdx].toFixed(2) : "--"}</span>
+            <span style={{ color: "var(--text-secondary)" }}>MA20</span>
+            <span>{ma.ma20[hoverIdx] != null ? ma.ma20[hoverIdx].toFixed(2) : "--"}</span>
+          </div>
+          {hoverTrades.length > 0 && (
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--line)" }}>
+              {hoverTrades.map((t, i) => (
+                <div key={i} style={{ color: t.side === "buy" ? "var(--down-color)" : "var(--up-color)" }}>
+                  {t.side === "buy" ? "买" : "卖"} {t.shares}股 @ {Number(t.price).toFixed(2)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
