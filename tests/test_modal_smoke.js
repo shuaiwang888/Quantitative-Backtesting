@@ -114,26 +114,53 @@ const stored = window.localStorage.getItem("quant_keys");
 check("localStorage.quant_keys 已写入", !!stored);
 check("写入值含 iwencai key", stored && stored.includes("test-iwencai-key-1234567890"));
 
-console.log("\n[4] 重新打开 → 字段被预填");
+console.log("\n[4] 重新打开 → 字段被预填 + auto-focus 不清空");
 btnKeys2.click();
 const iwInput2 = document.querySelector("#input-iwencai-key");
 check("重新打开后输入框预填了 key", iwInput2 && iwInput2.value === "test-iwencai-key-1234567890");
+// 关键回归：openModal 50ms 后会 iw.focus()，旧的 focus 监听器会把 value 清掉。
+// 现在改用 setSelectionRange（不清空），所以 modal 重新打开时 iw 应该保留。
+// JSDOM 里 setTimeout 不会自动 fire，需要等它跑完。
+setTimeout(() => {
+  const iwAfterAutoFocus = document.querySelector("#input-iwencai-key");
+  check(
+    "auto-focus 后 iwencai value 不被清空（关键回归）",
+    iwAfterAutoFocus && iwAfterAutoFocus.value === "test-iwencai-key-1234567890"
+  );
 
-console.log("\n[5] 清除按钮可用");
-const btnClear = document.querySelector("#btn-clear-keys");
-check("#btn-clear-keys 存在", !!btnClear);
-btnClear.click();
-const storedAfter = window.localStorage.getItem("quant_keys");
-check("清除后 localStorage.quant_keys 已删除", storedAfter === null);
-const btnKeys3 = document.querySelector("#btn-keys");
-check("按钮回到 keys-status--unset", btnKeys3 && btnKeys3.classList.contains("keys-status--unset"));
+  console.log("\n[4b] 二次打开时填入 minimax → 两个都存");
+  // 模拟"加 minimax 而不动 iwencai"
+  const mnInput = document.querySelector("#input-minimax-key");
+  mnInput.value = "test-minimax-key-9876543210";
+  // 不要点 iw 触发 focus 监听器（现在的行为是 setSelectionRange，不清空，但保险起见也再触发一次）
+  // 直接点保存
+  btnSave.click();
+  const storedBoth = JSON.parse(window.localStorage.getItem("quant_keys") || "{}");
+  check(
+    "保存后 iwencai 没丢",
+    storedBoth.iwencai === "test-iwencai-key-1234567890"
+  );
+  check(
+    "保存后 minimax 也存了",
+    storedBoth.minimax === "test-minimax-key-9876543210"
+  );
 
-console.log("\n[6] 没填 key 时保存应弹窗警告");
-btnKeys3.click();
-const iwInput3 = document.querySelector("#input-iwencai-key");
-iwInput3.value = "";
-btnSave.click();
-check("空 iwencai 触发 alert", window.__lastAlert && window.__lastAlert.includes("必填"));
+  console.log("\n[5] 清除按钮可用");
+  const btnClear = document.querySelector("#btn-clear-keys");
+  check("#btn-clear-keys 存在", !!btnClear);
+  btnClear.click();
+  const storedAfter = window.localStorage.getItem("quant_keys");
+  check("清除后 localStorage.quant_keys 已删除", storedAfter === null);
+  const btnKeys3 = document.querySelector("#btn-keys");
+  check("按钮回到 keys-status--unset", btnKeys3 && btnKeys3.classList.contains("keys-status--unset"));
 
-console.log("\n" + (failures === 0 ? "🎉 全部通过" : `❌ ${failures} 个失败`));
-process.exit(failures === 0 ? 0 : 1);
+  console.log("\n[6] 没填 key 时保存应弹窗警告");
+  btnKeys3.click();
+  const iwInput3 = document.querySelector("#input-iwencai-key");
+  iwInput3.value = "";
+  btnSave.click();
+  check("空 iwencai 触发 alert", window.__lastAlert && window.__lastAlert.includes("必填"));
+
+  console.log("\n" + (failures === 0 ? "🎉 全部通过" : `❌ ${failures} 个失败`));
+  process.exit(failures === 0 ? 0 : 1);
+}, 100); // 等 openModal 里的 setTimeout(50) 跑完

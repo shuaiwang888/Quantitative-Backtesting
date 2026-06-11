@@ -2115,13 +2115,16 @@ function pct(v) {
       });
     }
 
-    // 输入框聚焦时清空（方便修改）
+    // 输入框聚焦时全选（用户直接输入会覆盖；不输入则保留原值）
+    // 千万不要在 focus 时清空 —— openModal 50ms 后会自动 iw.focus()，
+    // 会把已保存的 key 静默擦掉（用户不知道 → 触发"必填" alert 或丢 key）。
     ["input-iwencai-key", "input-minimax-key"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("focus", () => {
-        // 只在确实已有值时清空（避免空打开 modal 时被清掉）
-        if (el.value) el.value = "";
+        if (el.value) {
+          try { el.setSelectionRange(0, el.value.length); } catch (_e) { /* type=number 等不支持 */ }
+        }
       });
     });
 
