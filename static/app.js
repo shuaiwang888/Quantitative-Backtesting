@@ -60,11 +60,11 @@ document.querySelector("#backtest-form").addEventListener("submit", async (event
   try {
     if (payload.backtest_mode === "batch") {
       setStatus("正在批量回测股票池...");
-      const data = await postJson("/api/batch_backtest", payload);
+      const data = await postJson(window.API_BASE + "/api/batch_backtest", payload);
       renderBatchBacktest(data);
       setStatus(`完成: ${data.summary.tested_count} 只标的`);
     } else {
-      const data = await postJson("/api/backtest", payload);
+      const data = await postJson(window.API_BASE + "/api/backtest", payload);
       renderBacktest(data);
       setStatus(`完成: ${data.summary.bar_count} 条K线`);
       analyzeBacktest(data);
@@ -79,7 +79,7 @@ document.querySelector("#query-form").addEventListener("submit", async (event) =
   setStatus("正在请求数据接口...");
   const payload = formPayload(event.currentTarget);
   try {
-    const data = await postJson("/api/query", payload);
+    const data = await postJson(window.API_BASE + "/api/query", payload);
     renderRows(data.datas || [], "接口返回数据", "query-");
     setStatus(`完成: ${data.datas ? data.datas.length : 0} 条`);
   } catch (error) {
@@ -121,7 +121,7 @@ async function runSelectorQuery() {
   const payload = formPayload(form);
   payload.parser_logic = true;
   try {
-    const data = await postJson("/api/query", payload);
+    const data = await postJson(window.API_BASE + "/api/query", payload);
     selectorRows = normalizeSelectorRows(data.datas || []);
     renderSelectorRows(selectorRows, data);
     setStatus(`选股完成: ${selectorRows.length} 只`);
@@ -173,7 +173,7 @@ async function analyzeBacktest(data) {
       bars: data.bars,
       equity_curve: data.equity_curve,
     };
-    const result = await postJson("/api/analyze", payload);
+    const result = await postJson(window.API_BASE + "/api/analyze", payload);
     setHtml("#analysis-content", renderMarkdown(result.analysis || "没有返回分析内容。"));
     setText("#analysis-status", "已生成");
   } catch (error) {
@@ -926,9 +926,9 @@ async function refreshDashboard(silent = false) {
   try {
     // 并发查询大盘和自选股
     const [marketData, watchData] = await Promise.all([
-      postJson("/api/query", { query: "上证指数 深证成指 创业板指 最新行情", limit: 3 }),
+      postJson(window.API_BASE + "/api/query", { query: "上证指数 深证成指 创业板指 最新行情", limit: 3 }),
       watchQuery
-        ? postJson("/api/query", { query: watchQuery, limit: Math.max(1, watchlist.length) })
+        ? postJson(window.API_BASE + "/api/query", { query: watchQuery, limit: Math.max(1, watchlist.length) })
         : Promise.resolve({ datas: [] })
     ]);
     
@@ -1246,7 +1246,7 @@ function formatDate(date) {
       }
 
       try {
-        const res = await postJson("/api/optimize", payload);
+        const res = await postJson(window.API_BASE + "/api/optimize", payload);
 
         setText("#table-title", "参数网格寻优结果 (总收益逆序)");
         setText("#table-count", `${res.optimization_results.length} 条组合，${(res.optimization_errors || []).length} 条失败`);

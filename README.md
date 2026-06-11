@@ -158,6 +158,67 @@ rg "function setText|selector-meta|code_count" /tmp/quant_app_check.js
 Cmd + Shift + R
 ```
 
+## 部署到云端（GitHub Pages + Render）
+
+GitHub Pages 只能托管静态文件，Python 后端必须单独部署。下面是推荐架构：
+
+```
+浏览器 → GitHub Pages (静态前端) → Render (Python 后端) → iwencai / MiniMax
+```
+
+### 一、部署后端到 Render
+
+1. 注册 [render.com](https://render.com)（GitHub 账号直接登录）
+2. Dashboard → **New +** → **Blueprint** → 连 GitHub repo
+3. Render 读取 `render.yaml` 自动创建 web service
+4. **关键步骤**：Environment 页面手动填：
+   - `IWENCAI_API_KEY`（必填）
+   - `MINIMAX_API_KEY`（可选，用于 AI 复盘）
+   - `CORS_ORIGIN`：填你的 GitHub Pages URL，如 `https://<user>.github.io`
+     - 注意 Render 默认 `*`，部署后必须收窄到 Pages 域名
+5. 等 3-5 分钟部署完成，记下后端 URL：`https://quant-backtest-xxx.onrender.com`
+   - 免费层 15 分钟无活动会休眠，冷启动 ~30 秒
+   - 可用 [UptimeRobot](https://uptimerobot.com/) 免费 ping 防休眠
+
+### 二、部署前端到 GitHub Pages
+
+1. GitHub repo → **Settings** → **Pages** → **Build and deployment**
+2. Source 选 **GitHub Actions**
+3. push 到 `main`，`.github/workflows/pages.yml` 自动把 `static/` 部署到 Pages
+4. 访问 `https://<user>.github.io/<repo>/`
+
+### 三、把前端指向后端
+
+首次访问时在 URL 后加 `?api=...`：
+
+```
+https://<user>.github.io/<repo>/?api=https://quant-backtest-xxx.onrender.com
+```
+
+`config.js` 会把 URL 存到 localStorage，以后免带参数。本地开发保持 `?api=` 为空即同源。
+
+### 安全原则
+
+| 风险 | 缓解 |
+|---|---|
+| `.env` 进 git | 已 gitignore；CI / Render 都不读 .env |
+| API key 进 yaml | `sync: false` 阻止 Render 从 .env 同步，改为 dashboard 手动填 |
+| API key 进 Pages | Pages 只托管静态文件，无密钥 |
+| CORS 滥用 | 部署后必须把 `CORS_ORIGIN` 收窄到 Pages 域名 |
+| 公开部署被刷 API | 用 `RATE_LIMIT` + `RATE_WINDOW` 限流；考虑加 `API_KEY` 静态鉴权 |
+| iwencai key 绑本地 IP | 联系 iwencai 把 Render 出口 IP 加白，或改用 IP-无关的鉴权方式 |
+
+### 成本
+
+- GitHub Pages：100GB 带宽 / 月（个人用绰绰有余），$0
+- Render Free：750 小时 / 月，512MB RAM，$0
+- iwencai / MiniMax：按你的账号套餐计费
+- UptimeRobot 防休眠：50 个监控免费
+
+正常个人使用 **$0**。
+
+---
+
 ## 页面模块
 
 ### 回测

@@ -1,0 +1,51 @@
+# Render 部署配置
+# 用法：
+#   1. render.com → New → Blueprint → 连 GitHub repo
+#   2. Render 读这个 yaml 自动创建 web service
+#   3. **关键**：Environment 页面手动填 IWENCAI_API_KEY 等敏感值
+#      （sync: false 阻止 Render 从 .env 自动同步，确保密钥不进 git）
+
+services:
+  - type: web
+    name: quant-backtest
+    runtime: python
+    plan: free
+    rootDir: .
+    # Render 默认用 gunicorn，但本项目是 stdlib http.server，单 worker 即可
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    # 健康检查：GET /api/strategies 永远返回 200
+    healthCheckPath: /api/strategies
+    autoDeploy: true
+    envVars:
+      # === 必填：敏感信息（sync: false → 必须在 Render Dashboard 手动设置） ===
+      - key: IWENCAI_API_KEY
+        sync: false
+      - key: MINIMAX_API_KEY
+        sync: false
+      # === 可选：默认值 ===
+
+      # 后端监听（Render 要求绑 0.0.0.0:10000）
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "10000"
+
+      # CORS：允许 GitHub Pages 域名调用（部署后改成你的 Pages URL）
+      # 多个域名用逗号分隔；如果暂时不填，默认允许所有 origin
+      - key: CORS_ORIGIN
+        value: "*"
+
+      # 日志
+      - key: LOG_LEVEL
+        value: INFO
+
+      # 关闭 MySQL 持久化（如果没配数据库）
+      - key: MYSQL_PERSIST_ENABLED
+        value: "0"
+
+      # 寻优
+      - key: OPTIMIZE_MAX_COMBINATIONS
+        value: "2000"
+      - key: OPTIMIZE_TIMEOUT_SECONDS
+        value: "120"

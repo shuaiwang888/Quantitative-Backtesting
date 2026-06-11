@@ -466,6 +466,8 @@
       - plotly 在用户点击"参数寻优"时才按需注入（4.5MB 不进首屏）
     -->
     <script defer src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" crossorigin="anonymous"></script>
+    <!-- config.js 必须在 app.js 之前：它把 API base URL 写到 window.API_BASE -->
+    <script src="/config.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>
