@@ -2068,8 +2068,18 @@ function pct(v) {
     setStatus("已清除本浏览器 API 密钥");
   }
 
-  // 接线
-  document.addEventListener("DOMContentLoaded", () => {
+  // 接线 —— 关键：app.js 在 <body> 末尾，DOM 解析完才执行，
+  // 此时 DOMContentLoaded 已经 fire 了，用 addEventListener 永远等不到。
+  // 改用 readyState 判断：已就绪就直接跑，未就绪（head 内 defer）才等事件。
+  function ready(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn);
+    } else {
+      fn();
+    }
+  }
+
+  ready(() => {
     updateIndicator();
     updateBanner();
 
@@ -2114,5 +2124,8 @@ function pct(v) {
         if (el.value) el.value = "";
       });
     });
+
+    // 暴露给手动测试（控制台可调 openKeysModal() / saveKeys()）
+    window.__quantKeysModal = { open: openModal, save: saveFromModal, clear: clearFromModal };
   });
 })();
