@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>A股量化回测平台</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="app-shell">
@@ -525,7 +525,8 @@
     -->
     <script defer src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" crossorigin="anonymous"></script>
     <!-- config.js 必须在 app.js 之前：它把 API base URL 写到 window.API_BASE -->
-    <script src="/config.js"></script>
-    <script src="/app.js"></script>
+    <!-- 用相对路径（去掉前导 /）兼容 GitHub Pages 子路径部署 + 本地同源 -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>
