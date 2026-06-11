@@ -303,9 +303,9 @@ function BacktestResult({ result, hasMinimaxKey, onError, onStatus, cacheTs }) {
             {summary.start_date} ~ {summary.end_date} · {summary.bar_count} K线
           </span>
         </h3>
-        {cache.ts > 0 && (
-          <span className="hint" style={{ fontSize: 11 }} title={new Date(cache.ts).toLocaleString()}>
-            📦 已缓存 {formatCacheTime(cache.ts)}
+        {cacheTs > 0 && (
+          <span className="hint" style={{ fontSize: 11 }} title={new Date(cacheTs).toLocaleString()}>
+            📦 已缓存 {formatCacheTime(cacheTs)}
           </span>
         )}
       </div>
