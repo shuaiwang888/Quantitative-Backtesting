@@ -183,6 +183,11 @@ async function analyzeBacktest(data) {
 }
 
 async function postJson(url, payload) {
+  // 自动注入访客在浏览器里配的 API key（localStorage → payload）。
+  // payload 显式带 api_key / minimax_api_key 的会保留原值（不被覆盖）。
+  if (window.quantKeys && typeof window.quantKeys.inject === "function") {
+    window.quantKeys.inject(payload);
+  }
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1960,3 +1965,154 @@ function pct(v) {
 // 旧版 renderBacktest 末尾已经自己调了 K 线渲染（div 走 LWC、canvas 走内置），
 // 这里不再重复调用，避免 CDN 失败时反复回退到 drawKlineChart。
 
+
+// ============================================================
+// 访客 API 密钥：模态框 / 状态指示器 / 横幅
+// 依赖：window.quantKeys (config.js) 提供的 load/save/clear/mask
+// ============================================================
+
+(function () {
+  const BANNER_DISMISSED = "quant_banner_dismissed";
+
+  function $(sel) { return document.querySelector(sel); }
+
+  function updateIndicator() {
+    const btn = $("#btn-keys");
+    if (!btn) return;
+    const k = window.quantKeys.load();
+    if (k.iwencai || k.minimax) {
+      btn.classList.remove("keys-status--unset");
+      btn.classList.add("keys-status--set");
+      const dot = btn.querySelector(".keys-status-text");
+      if (dot) dot.textContent = "密钥✓";
+      btn.title =
+        "问财: " + (k.iwencai ? window.quantKeys.mask(k.iwencai) : "(未填)") +
+        "\nMiniMax: " + (k.minimax ? window.quantKeys.mask(k.minimax) : "(未填)") +
+        "\n点击修改";
+    } else {
+      btn.classList.remove("keys-status--set");
+      btn.classList.add("keys-status--unset");
+      const dot = btn.querySelector(".keys-status-text");
+      if (dot) dot.textContent = "API 密钥";
+      btn.title = "未配置 API 密钥，点击配置";
+    }
+  }
+
+  function updateBanner() {
+    const banner = $("#keys-banner");
+    if (!banner) return;
+    if (window.quantKeys.isConfigured()) {
+      banner.hidden = true;
+      return;
+    }
+    try {
+      if (localStorage.getItem(BANNER_DISMISSED) === "1") {
+        banner.hidden = true;
+        return;
+      }
+    } catch (_e) { /* ignore */ }
+    banner.hidden = false;
+  }
+
+  function openModal() {
+    const modal = $("#keys-modal");
+    if (!modal) return;
+    const k = window.quantKeys.load();
+    const iw = $("#input-iwencai-key");
+    const mn = $("#input-minimax-key");
+    if (iw) iw.value = k.iwencai || "";
+    if (mn) mn.value = k.minimax || "";
+    renderMasked();
+    modal.hidden = false;
+    setTimeout(() => { if (iw) iw.focus(); }, 50);
+  }
+
+  function closeModal() {
+    const modal = $("#keys-modal");
+    if (modal) modal.hidden = true;
+  }
+
+  function renderMasked() {
+    const k = window.quantKeys.load();
+    const m1 = $("#mask-iwencai");
+    const m2 = $("#mask-minimax");
+    if (m1) m1.textContent = k.iwencai ? window.quantKeys.mask(k.iwencai) : "";
+    if (m2) m2.textContent = k.minimax ? window.quantKeys.mask(k.minimax) : "";
+  }
+
+  function saveFromModal() {
+    const iw = ($("#input-iwencai-key")?.value || "").trim();
+    const mn = ($("#input-minimax-key")?.value || "").trim();
+    if (!iw) {
+      alert("问财 OpenAPI Key 是必填项（用于查数据 / 回测）。");
+      return;
+    }
+    window.quantKeys.save({ iwencai: iw, minimax: mn });
+    updateIndicator();
+    updateBanner();
+    closeModal();
+    setStatus("✓ API 密钥已保存到本浏览器");
+  }
+
+  function clearFromModal() {
+    if (!confirm("确认清除本浏览器保存的所有 API 密钥？")) return;
+    window.quantKeys.clear();
+    const iw = $("#input-iwencai-key");
+    const mn = $("#input-minimax-key");
+    if (iw) iw.value = "";
+    if (mn) mn.value = "";
+    renderMasked();
+    updateIndicator();
+    updateBanner();
+    closeModal();
+    setStatus("已清除本浏览器 API 密钥");
+  }
+
+  // 接线
+  document.addEventListener("DOMContentLoaded", () => {
+    updateIndicator();
+    updateBanner();
+
+    const btnKeys = $("#btn-keys");
+    if (btnKeys) btnKeys.addEventListener("click", openModal);
+
+    const btnSave = $("#btn-save-keys");
+    if (btnSave) btnSave.addEventListener("click", saveFromModal);
+
+    const btnClear = $("#btn-clear-keys");
+    if (btnClear) btnClear.addEventListener("click", clearFromModal);
+
+    // 关闭按钮（背景 / X / 取消）
+    document.querySelectorAll("[data-modal-close]").forEach((el) => {
+      el.addEventListener("click", closeModal);
+    });
+
+    // ESC 关闭
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const modal = $("#keys-modal");
+        if (modal && !modal.hidden) closeModal();
+      }
+    });
+
+    // 横幅关闭
+    const bannerClose = $("#btn-banner-dismiss");
+    if (bannerClose) {
+      bannerClose.addEventListener("click", () => {
+        const banner = $("#keys-banner");
+        if (banner) banner.hidden = true;
+        try { localStorage.setItem(BANNER_DISMISSED, "1"); } catch (_e) {}
+      });
+    }
+
+    // 输入框聚焦时清空（方便修改）
+    ["input-iwencai-key", "input-minimax-key"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("focus", () => {
+        // 只在确实已有值时清空（避免空打开 modal 时被清掉）
+        if (el.value) el.value = "";
+      });
+    });
+  });
+})();

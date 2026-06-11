@@ -673,3 +673,232 @@ tbody tr:hover {
   background: rgba(0, 240, 255, 0.05);
   box-shadow: inset 2px 0 0 var(--accent);
 }
+
+/* ============================================================
+   访客 API 密钥：状态指示器 / 模态框 / 横幅
+   ============================================================ */
+
+/* 顶部 brand 区右侧的 key 状态按钮 */
+.keys-status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--line);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.keys-status:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.keys-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+/* 未配置：红点 + 醒目 */
+.keys-status--unset {
+  color: #ffb4b4;
+  border-color: rgba(255, 51, 102, 0.4);
+  background: rgba(255, 51, 102, 0.06);
+}
+.keys-status--unset .keys-status-dot {
+  background: var(--up-color);
+  box-shadow: 0 0 6px var(--up-color);
+  animation: pulse 1.6s infinite;
+}
+/* 已配置：绿点 + 收敛 */
+.keys-status--set {
+  color: var(--down-color);
+  border-color: rgba(0, 229, 114, 0.4);
+}
+.keys-status--set .keys-status-dot {
+  background: var(--down-color);
+  box-shadow: 0 0 4px var(--down-color);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* 顶部横幅：未配置时高亮提醒 */
+.keys-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  max-width: 720px;
+  background: linear-gradient(135deg, rgba(255, 51, 102, 0.12), rgba(255, 0, 85, 0.08));
+  border: 1px solid rgba(255, 51, 102, 0.4);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  animation: slideDown 0.3s ease;
+}
+@keyframes slideDown {
+  from { transform: translate(-50%, -20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.keys-banner-icon { font-size: 18px; }
+.keys-banner-text { flex: 1; line-height: 1.5; }
+.keys-banner-text strong { color: var(--up-color); }
+.keys-banner-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.keys-banner-close:hover { color: var(--ink); }
+
+/* 模态框 */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+}
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+.modal-panel {
+  position: relative;
+  width: min(480px, calc(100% - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: scaleIn 0.18s ease;
+}
+@keyframes scaleIn {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-header h3 {
+  font-size: 16px;
+  color: var(--accent);
+}
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+.modal-close:hover { color: var(--ink); }
+.modal-body {
+  padding: 20px;
+}
+.modal-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding: 10px 12px;
+  background: rgba(0, 240, 255, 0.04);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+.modal-label {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.modal-label input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: var(--mono, ui-monospace, "SF Mono", Menlo, monospace);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.modal-label input:focus { border-color: var(--accent); }
+.modal-required {
+  color: var(--up-color);
+  font-size: 11px;
+  margin-left: 4px;
+}
+.modal-optional {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-left: 4px;
+}
+.modal-masked {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--mono, ui-monospace, "SF Mono", Menlo, monospace);
+}
+.modal-masked:not(:empty)::before {
+  content: "已保存：";
+  color: var(--down-color);
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.modal-actions button { margin: 0; }
+.modal-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--text-tertiary);
+  line-height: 1.6;
+}
+.modal-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.modal-footer a:hover { text-decoration: underline; }
+
+/* 在窄屏上 brand 区一行排不下时，状态按钮换到第二行 */
+@media (max-width: 420px) {
+  .brand {
+    flex-wrap: wrap;
+  }
+  .keys-status {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}

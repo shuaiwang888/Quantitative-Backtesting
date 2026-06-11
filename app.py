@@ -34,9 +34,14 @@ def _load_dotenv() -> None:
 
 def main() -> int:
     _load_dotenv()
+    # IWENCAI_API_KEY 不再硬性必填：
+    # - 本地开发：填 .env 方便；
+    # - 公开部署：把 key 留空，访客在浏览器里填自己的（POST 时通过 payload.api_key 透传）。
     if not os.environ.get("IWENCAI_API_KEY"):
-        print("错误: 缺少 IWENCAI_API_KEY 环境变量（请在 .env 中设置）", file=sys.stderr)
-        return 1
+        print(
+            "提示: IWENCAI_API_KEY 未配置 —— 访客需在浏览器里填入自己的 key 才能调用 /api/*",
+            file=sys.stderr,
+        )
     try:
         from quant.server import run_server
     except ImportError as exc:

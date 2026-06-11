@@ -16,6 +16,11 @@
               <h1>A股量化回测</h1>
               <p>问财数据接口 + 均线策略回测</p>
             </div>
+            <!-- API 密钥状态指示器：访客点击配置/查看 -->
+            <button type="button" id="btn-keys" class="keys-status keys-status--unset" title="配置 API 密钥">
+              <span class="keys-status-dot"></span>
+              <span class="keys-status-text">API 密钥</span>
+            </button>
           </div>
 
           <div class="tabs" role="tablist">
@@ -460,6 +465,59 @@
       </section>
       <div id="chart-tooltip" class="chart-tooltip"></div>
     </main>
+
+    <!-- 首次访问横幅：未配置 API 密钥时显示 -->
+    <div id="keys-banner" class="keys-banner" hidden>
+      <span class="keys-banner-icon">🔑</span>
+      <span class="keys-banner-text">
+        请先在 <strong>左上方「API 密钥」</strong> 处填入你自己的问财 key（MiniMax 可选）。
+        key 只保存在你的浏览器，不会上传到任何地方。
+      </span>
+      <button type="button" id="btn-banner-dismiss" class="keys-banner-close" aria-label="关闭">×</button>
+    </div>
+
+    <!-- API 密钥配置模态框 -->
+    <div id="keys-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="keys-modal-title">
+        <div class="modal-header">
+          <h3 id="keys-modal-title">API 密钥配置</h3>
+          <button type="button" class="modal-close" data-modal-close aria-label="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-hint">
+            key <strong>只保存在你浏览器的 localStorage</strong>，绝不上传（除 POST 请求时由浏览器发给目标后端）。
+            本页面部署在 GitHub Pages，公开部署时 owner 不会用自己的 key。
+          </p>
+
+          <label class="modal-label">
+            问财 OpenAPI Key <span class="modal-required">*必填</span>
+            <input type="password" id="input-iwencai-key" placeholder="iwencai_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+            <span class="modal-masked" id="mask-iwencai"></span>
+          </label>
+
+          <label class="modal-label">
+            MiniMax Key <span class="modal-optional">可选（用于 AI 复盘）</span>
+            <input type="password" id="input-minimax-key" placeholder="eyJxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+            <span class="modal-masked" id="mask-minimax"></span>
+          </label>
+
+          <div class="modal-actions">
+            <button type="button" id="btn-save-keys" class="primary">保存</button>
+            <button type="button" id="btn-clear-keys" class="secondary">清除</button>
+            <button type="button" class="secondary" data-modal-close>取消</button>
+          </div>
+
+          <p class="modal-footer">
+            <small>
+              key 长度建议 ≥ 16 位；不要在公用电脑保存。
+              <a href="https://www.iwencai.com/" target="_blank" rel="noopener noreferrer">申请问财 key</a> ·
+              <a href="https://api.minimaxi.com/" target="_blank" rel="noopener noreferrer">申请 MiniMax key</a>
+            </small>
+          </p>
+        </div>
+      </div>
+    </div>
     <!--
       第三方可视化：均 lazy-load，避免阻塞 app.js
       - lightweight-charts defer（163KB，加载完成后才用，回退到内置 canvas）

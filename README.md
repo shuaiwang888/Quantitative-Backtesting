@@ -163,22 +163,28 @@ Cmd + Shift + R
 GitHub Pages 只能托管静态文件，Python 后端必须单独部署。下面是推荐架构：
 
 ```
-浏览器 → GitHub Pages (静态前端) → Render (Python 后端) → iwencai / MiniMax
+访客浏览器 → GitHub Pages (静态前端) → Render (Python 后端) → iwencai / MiniMax
+                                          ↑ 没有 owner 的 key
+                              访客在浏览器填自己的 key（localStorage）
 ```
+
+**关键设计**：后端**不持有 owner 的 key**。访客首次打开页面时，在左上方"API 密钥"按钮里填入自己的问财 key（MiniMax 可选），key 只保存在访客自己的浏览器 localStorage，每次 POST 时由 `config.js` 注入到 `payload.api_key` / `payload.minimax_api_key`。后端读到这些字段就用访客的，否则用 env var 的（如果有）。这样部署到公网后，**owner 完全不用暴露自己的密钥**。
 
 ### 一、部署后端到 Render
 
 1. 注册 [render.com](https://render.com)（GitHub 账号直接登录）
 2. Dashboard → **New +** → **Blueprint** → 连 GitHub repo
 3. Render 读取 `render.yaml` 自动创建 web service
-4. **关键步骤**：Environment 页面手动填：
-   - `IWENCAI_API_KEY`（必填）
-   - `MINIMAX_API_KEY`（可选，用于 AI 复盘）
+4. **可选步骤**：Environment 页面填：
+   - `IWENCAI_API_KEY`：**可选**，不填也能启动；填了就作为兜底（访客没填 key 时 fallback 用）
+   - `MINIMAX_API_KEY`：**可选**，仅当你希望访客没填 MiniMax key 时还能用 AI 复盘
    - `CORS_ORIGIN`：填你的 GitHub Pages URL，如 `https://<user>.github.io`
      - 注意 Render 默认 `*`，部署后必须收窄到 Pages 域名
 5. 等 3-5 分钟部署完成，记下后端 URL：`https://quant-backtest-xxx.onrender.com`
    - 免费层 15 分钟无活动会休眠，冷启动 ~30 秒
    - 可用 [UptimeRobot](https://uptimerobot.com/) 免费 ping 防休眠
+
+> **如果你希望公开部署的 backend 完全不持有你的 key**（最安全）：第 4 步留空即可。访客必须自己填 key 才能用。
 
 ### 二、部署前端到 GitHub Pages
 
@@ -197,13 +203,24 @@ https://<user>.github.io/<repo>/?api=https://quant-backtest-xxx.onrender.com
 
 `config.js` 会把 URL 存到 localStorage，以后免带参数。本地开发保持 `?api=` 为空即同源。
 
+### 四、访客配置自己的 API 密钥
+
+首次访问时，**左上方"API 密钥"按钮是红色脉冲状态**，页面顶部还有横幅提醒。点击按钮 → 弹出模态框 → 填入自己的问财 OpenAPI Key（必填）+ MiniMax Key（可选）→ 保存。
+
+- key 只存在访客浏览器 `localStorage.quant_keys`，绝不上传到任何地方
+- 关闭浏览器后仍在；点模态框里的"清除"按钮才能删
+- 后续所有 `/api/*` 请求自动带上 `api_key` / `minimax_api_key`
+- 后端优先用访客的 key，没有时再 fallback 到 Settings / env var
+
 ### 安全原则
 
 | 风险 | 缓解 |
 |---|---|
 | `.env` 进 git | 已 gitignore；CI / Render 都不读 .env |
 | API key 进 yaml | `sync: false` 阻止 Render 从 .env 同步，改为 dashboard 手动填 |
+| Owner key 进 Render | **可选**；不填则 backend 完全无 owner key，访客必须自带 |
 | API key 进 Pages | Pages 只托管静态文件，无密钥 |
+| 访客 key 泄漏 | key 只在访客浏览器 localStorage；HTTPS 才能防中间人 |
 | CORS 滥用 | 部署后必须把 `CORS_ORIGIN` 收窄到 Pages 域名 |
 | 公开部署被刷 API | 用 `RATE_LIMIT` + `RATE_WINDOW` 限流；考虑加 `API_KEY` 静态鉴权 |
 | iwencai key 绑本地 IP | 联系 iwencai 把 Render 出口 IP 加白，或改用 IP-无关的鉴权方式 |
@@ -212,7 +229,7 @@ https://<user>.github.io/<repo>/?api=https://quant-backtest-xxx.onrender.com
 
 - GitHub Pages：100GB 带宽 / 月（个人用绰绰有余），$0
 - Render Free：750 小时 / 月，512MB RAM，$0
-- iwencai / MiniMax：按你的账号套餐计费
+- iwencai / MiniMax：按访客各自的账号套餐计费（owner 不承担）
 - UptimeRobot 防休眠：50 个监控免费
 
 正常个人使用 **$0**。
