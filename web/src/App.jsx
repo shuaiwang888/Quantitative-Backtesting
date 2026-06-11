@@ -1,26 +1,31 @@
 /**
- * App —— Phase 2 / Step 4
+ * App —— Phase 2 全 tab 完整版
  *
- * 当前已实现：
- *   - 全站 Threads 动画背景
- *   - 4 tab 切换
- *   - KeysModal（API 密钥配置）
- *   - Dashboard tab（大盘 + 自选股）
+ * Tab：
+ *   - 首页 (Dashboard)      大盘指数 + 自选股
+ *   - 回测 (Backtest)       单标的 / 指数回测（指标卡 + 净值曲线 + K线 + 交易表）
+ *   - 寻优 (Optimize)       1/2/3+ 参可视化（折线/热力/重要性 + Top 10）
+ *   - 数据 (Query)          自然语言问财 + 分页
+ *   - 选股 (Selector)       条件选股 + 股票池
  *
- * Phase 2 / Step 5+ 待办：
- *   - Backtest.jsx（回测表单 + 指标卡 + 净值曲线 + K 线）
- *   - Optimize.jsx（参数寻优可视化）
- *   - Query.jsx / Selector.jsx
+ * 跨 tab 通信：
+ *   - "quant:batch-watchlist" CustomEvent：从 Dashboard/Selector 跳到 Backtest 时，
+ *     把股票池的 names 注入到 Backtest 的 symbol
  */
 
 import { useState, useEffect, useRef } from "react";
 import KeysModal from "./components/KeysModal.jsx";
 import Dashboard from "./components/Dashboard.jsx";
+import Backtest from "./components/Backtest.jsx";
+import Optimize from "./components/Optimize.jsx";
+import Query from "./components/Query.jsx";
+import Selector from "./components/Selector.jsx";
 import useKeys from "./hooks/useKeys.js";
 
 const TABS = [
   { id: "dashboard", label: "首页" },
   { id: "backtest", label: "回测" },
+  { id: "optimize", label: "寻优" },
   { id: "query", label: "数据" },
   { id: "selector", label: "选股" },
 ];
@@ -29,6 +34,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [keysOpen, setKeysOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [pendingBatchNames, setPendingBatchNames] = useState(null);
   const statusTimerRef = useRef(null);
   const { keys, isConfigured } = useKeys();
 
@@ -38,12 +44,12 @@ export default function App() {
     statusTimerRef.current = setTimeout(() => setStatusMsg(""), 3000);
   };
 
-  // 监听 Dashboard 的"批量回测自选股"事件
+  // 跨 tab 跳转：Dashboard/Selector → Backtest 批量回测
   useEffect(() => {
     const handler = (e) => {
       const names = e.detail?.names || [];
       if (names.length === 0) return;
-      try { sessionStorage.setItem("quant_pending_batch", JSON.stringify(names)); } catch {}
+      setPendingBatchNames(names);
       setActiveTab("backtest");
       showStatus(`已切换到回测，股票池: ${names.length} 只`);
     };
@@ -51,13 +57,21 @@ export default function App() {
     return () => window.removeEventListener("quant:batch-watchlist", handler);
   }, []);
 
+  // tab 切换时清空 pendingBatchNames（避免下次再触发）
+  useEffect(() => {
+    if (activeTab !== "backtest") setPendingBatchNames(null);
+  }, [activeTab]);
+
+  const hasIwencaiKey = Boolean(keys.iwencai);
+  const onError = (e) => showStatus("❌ " + (e.message || "请求失败"));
+
   return (
     <div className="app-shell">
       {/* 顶部 brand + tabs */}
       <header className="brand">
         <div>
           <h1>A股量化回测</h1>
-          <p>问财数据接口 + 均线策略回测</p>
+          <p>问财数据接口 · 网格寻优 · K线复盘</p>
         </div>
         <button
           type="button"
@@ -93,31 +107,45 @@ export default function App() {
       <main>
         {activeTab === "dashboard" && (
           <Dashboard
-            hasIwencaiKey={Boolean(keys.iwencai)}
-            onError={(e) => showStatus("刷新失败: " + e.message)}
+            hasIwencaiKey={hasIwencaiKey}
+            onError={onError}
+            onStatus={showStatus}
           />
         )}
-        {activeTab === "backtest" && <PlaceholderTab id="backtest" />}
-        {activeTab === "query" && <PlaceholderTab id="query" />}
-        {activeTab === "selector" && <PlaceholderTab id="selector" />}
+        {activeTab === "backtest" && (
+          <Backtest
+            hasIwencaiKey={hasIwencaiKey}
+            onError={onError}
+            onStatus={showStatus}
+            pendingBatchNames={pendingBatchNames}
+          />
+        )}
+        {activeTab === "optimize" && (
+          <Optimize
+            hasIwencaiKey={hasIwencaiKey}
+            onError={onError}
+            onStatus={showStatus}
+          />
+        )}
+        {activeTab === "query" && (
+          <Query
+            hasIwencaiKey={hasIwencaiKey}
+            onError={onError}
+            onStatus={showStatus}
+          />
+        )}
+        {activeTab === "selector" && (
+          <Selector
+            hasIwencaiKey={hasIwencaiKey}
+            onError={onError}
+            onStatus={showStatus}
+          />
+        )}
       </main>
 
       {statusMsg && <div className="status-toast">{statusMsg}</div>}
 
       {keysOpen && <KeysModal onClose={() => setKeysOpen(false)} />}
     </div>
-  );
-}
-
-function PlaceholderTab({ id }) {
-  const labels = {
-    backtest: "回测：单标的 / 批量 / 寻优（Phase 2 / Step 5 转换中）",
-    query: "数据：自然语言问财（Phase 2 / Step 7 转换中）",
-    selector: "选股：条件选股 + 分页（Phase 2 / Step 7 转换中）",
-  };
-  return (
-    <section className="form-view">
-      <p className="placeholder">{labels[id]}</p>
-    </section>
   );
 }
