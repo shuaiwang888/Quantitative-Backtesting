@@ -1,40 +1,64 @@
 /**
- * App —— Phase 1 shell
+ * App —— Phase 2 / Step 4
  *
- * 现在只做：
- *   1. 全站 Threads 动画背景（fixed 定位 + pointer-events:none 透传）
- *   2. 基础 tab 切换（首页 / 回测 / 数据 / 选股）+ 占位面板
+ * 当前已实现：
+ *   - 全站 Threads 动画背景
+ *   - 4 tab 切换
+ *   - KeysModal（API 密钥配置）
+ *   - Dashboard tab（大盘 + 自选股）
  *
- * Phase 2 计划：把原 vanilla 2130 行的 app.js 按 tab 拆成 React 组件
- *   - Dashboard.jsx（首页 + 自选股 + 大盘卡片）
- *   - Backtest.jsx（回测表单 + 结果）
- *   - Query.jsx（自然语言问财）
- *   - Selector.jsx（条件选股 + 分页）
+ * Phase 2 / Step 5+ 待办：
+ *   - Backtest.jsx（回测表单 + 指标卡 + 净值曲线 + K 线）
  *   - Optimize.jsx（参数寻优可视化）
- *   - KeysModal.jsx（API 密钥 modal）
+ *   - Query.jsx / Selector.jsx
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Threads from "./components/Threads.jsx";
 import KeysModal from "./components/KeysModal.jsx";
+import Dashboard from "./components/Dashboard.jsx";
+import useKeys from "./hooks/useKeys.js";
 
 const TABS = [
-  { id: "dashboard", label: "首页", placeholder: "首页：大盘 + 自选股行情（Phase 2 转换）" },
-  { id: "backtest", label: "回测", placeholder: "回测：单标的 / 批量 / 寻优（Phase 2 转换）" },
-  { id: "query", label: "数据", placeholder: "数据：自然语言问财（Phase 2 转换）" },
-  { id: "selector", label: "选股", placeholder: "选股：条件选股 + 分页（Phase 2 转换）" },
+  { id: "dashboard", label: "首页" },
+  { id: "backtest", label: "回测" },
+  { id: "query", label: "数据" },
+  { id: "selector", label: "选股" },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [keysOpen, setKeysOpen] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+  const statusTimerRef = useRef(null);
+  const { keys, isConfigured } = useKeys();
+
+  const showStatus = (msg) => {
+    setStatusMsg(msg);
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = setTimeout(() => setStatusMsg(""), 3000);
+  };
+
+  // 监听 Dashboard 的"批量回测自选股"事件
+  useEffect(() => {
+    const handler = (e) => {
+      const names = e.detail?.names || [];
+      if (names.length === 0) return;
+      // 暂存到 sessionStorage，Backtest 组件 mount 时读
+      try { sessionStorage.setItem("quant_pending_batch", JSON.stringify(names)); } catch {}
+      setActiveTab("backtest");
+      showStatus(`已切换到回测，股票池: ${names.length} 只`);
+    };
+    window.addEventListener("quant:batch-watchlist", handler);
+    return () => window.removeEventListener("quant:batch-watchlist", handler);
+  }, []);
 
   return (
     <div className="app-shell">
-      {/* 全站 WebGL 动画背景 —— 透传 pointer-events，让内容可交互 */}
+      {/* 全站 WebGL 动画背景 —— 透传 pointer-events */}
       <div className="threads-bg" aria-hidden="true">
         <Threads
-          color={[0, 0.94, 1]}        // 青色（与项目 --accent 接近）
+          color={[0, 0.94, 1]}
           amplitude={1}
           distance={0}
           enableMouseInteraction
@@ -49,12 +73,16 @@ export default function App() {
         </div>
         <button
           type="button"
-          className="keys-status keys-status--unset"
+          className={`keys-status ${isConfigured() ? "keys-status--set" : "keys-status--unset"}`}
           onClick={() => setKeysOpen(true)}
-          title="配置 API 密钥"
+          title={
+            isConfigured()
+              ? `问财: ${keys.iwencai ? "已配" : "(未填)"}\nMiniMax: ${keys.minimax ? "已配" : "(未填)"}\n点击修改`
+              : "未配置 API 密钥，点击配置"
+          }
         >
           <span className="keys-status-dot" />
-          <span className="keys-status-text">API 密钥</span>
+          <span className="keys-status-text">{isConfigured() ? "密钥✓" : "API 密钥"}</span>
         </button>
       </header>
 
@@ -75,24 +103,33 @@ export default function App() {
       </nav>
 
       <main>
-        {TABS.map((t) => (
-          <section
-            key={t.id}
-            className="form-view"
-            hidden={activeTab !== t.id}
-            role="tabpanel"
-          >
-            <p className="placeholder">{t.placeholder}</p>
-            <p className="phase-note">
-              Phase 1 已上线：Threads 动画背景 + 基础 tab 切换。
-              原 vanilla 实现的 tab 内容正在迁移到 React（Phase 2），迁移期间可访问
-              <a href="./index.html.bak"> 旧版</a>（如果存在）。
-            </p>
-          </section>
-        ))}
+        {activeTab === "dashboard" && (
+          <Dashboard
+            hasIwencaiKey={Boolean(keys.iwencai)}
+            onError={(e) => showStatus("刷新失败: " + e.message)}
+          />
+        )}
+        {activeTab === "backtest" && <PlaceholderTab id="backtest" />}
+        {activeTab === "query" && <PlaceholderTab id="query" />}
+        {activeTab === "selector" && <PlaceholderTab id="selector" />}
       </main>
+
+      {statusMsg && <div className="status-toast">{statusMsg}</div>}
 
       {keysOpen && <KeysModal onClose={() => setKeysOpen(false)} />}
     </div>
+  );
+}
+
+function PlaceholderTab({ id }) {
+  const labels = {
+    backtest: "回测：单标的 / 批量 / 寻优（Phase 2 / Step 5 转换中）",
+    query: "数据：自然语言问财（Phase 2 / Step 7 转换中）",
+    selector: "选股：条件选股 + 分页（Phase 2 / Step 7 转换中）",
+  };
+  return (
+    <section className="form-view">
+      <p className="placeholder">{labels[id]}</p>
+    </section>
   );
 }
