@@ -139,3 +139,58 @@ class TestIwencaiVisitorKeyPassthrough:
         fetch_all("mock", api_key="visitor-key")
 
         assert captured["auth"] == "Bearer visitor-key"
+
+
+# ---------- Settings: IWENCAI_API_KEY 改为可选 ----------
+
+
+class TestSettingsIwencaiOptional:
+    """公开部署场景：Settings() 不能因为 IWENCAI_API_KEY 缺失而崩溃。"""
+
+    def test_settings_constructs_with_empty_key(self, monkeypatch):
+        monkeypatch.delenv("IWENCAI_API_KEY", raising=False)
+        monkeypatch.setenv("IWENCAI_API_KEY", "")
+        from quant.config import Settings, reset_settings_cache
+        reset_settings_cache()
+        # 不应抛 RuntimeError
+        s = Settings()
+        assert s.iwencai_api_key == ""
+
+    def test_safe_summary_shows_visitor_when_empty(self, monkeypatch):
+        monkeypatch.setenv("IWENCAI_API_KEY", "")
+        from quant.config import Settings, reset_settings_cache
+        reset_settings_cache()
+        s = Settings()
+        summary = s.safe_summary()
+        assert "iwencai=visitor" in summary
+
+    def test_safe_summary_shows_owner_when_set(self, monkeypatch):
+        monkeypatch.setenv("IWENCAI_API_KEY", "owner-key-1234567890")
+        from quant.config import Settings, reset_settings_cache
+        reset_settings_cache()
+        s = Settings()
+        summary = s.safe_summary()
+        assert "iwencai=owner" in summary
+        # 摘要不能泄露 key
+        assert "owner-key-1234567890" not in summary
+
+    def test_get_settings_does_not_raise_on_empty_key(self, monkeypatch):
+        """回归：之前的 bug——get_settings() 会抛 RuntimeError 阻断 server 启动。"""
+        monkeypatch.setenv("IWENCAI_API_KEY", "")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+        # 应能成功构造
+        from quant.config import get_settings
+        s = get_settings()
+        assert s.iwencai_api_key == ""
+
+    def test_iwencai_call_without_any_key_raises_friendly_error(self, monkeypatch):
+        """env 空 + 没传 visitor key → 抛 IwencaiError 提示前端引导用户配 key。"""
+        monkeypatch.setenv("IWENCAI_API_KEY", "")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+
+        from quant.data.iwencai import fetch_all
+        from quant.data.iwencai import IwencaiError
+        with pytest.raises(IwencaiError, match="API 密钥未设置"):
+            fetch_all("mock")

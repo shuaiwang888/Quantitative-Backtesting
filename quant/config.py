@@ -65,8 +65,11 @@ class Settings:
     rate_window: int = field(default_factory=lambda: _get_int("RATE_WINDOW", 60))
 
     # --- 问财 API ---
+    # 公开部署场景：owner 可以不配（访客在浏览器填自己的 key）。
+    # 缺 key 时不会启动失败，只是请求时会抛 IwencaiError("API 密钥未设置")，
+    # 由前端 modal 引导访客配置。
     iwencai_api_key: str = field(
-        default_factory=lambda: _get("IWENCAI_API_KEY", required=True)
+        default_factory=lambda: _get("IWENCAI_API_KEY", "")
     )
 
     # --- MiniMax LLM ---
@@ -134,8 +137,9 @@ class Settings:
             f"cors={self.cors_origin} "
             f"auth={'enabled' if self.api_key or self.api_key_hash else 'disabled'} "
             f"rate_limit={self.rate_limit}/{self.rate_window}s "
+            f"iwencai={'owner' if self.iwencai_api_key else 'visitor'} "
             f"mysql={'enabled' if self.mysql_persist_enabled else 'disabled'} "
-            f"llm={'enabled' if self.minimax_api_key else 'disabled'}"
+            f"llm={'enabled' if self.minimax_api_key else 'visitor'}"
         )
 
 
