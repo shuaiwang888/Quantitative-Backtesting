@@ -698,7 +698,12 @@ tbody tr:hover {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--line);
+  white-space: nowrap;        /* 强制单行："API 密钥" / "密钥✓" 不被换行 */
+  flex-shrink: 0;             /* brand 区 flex 布局下不让它被挤扁 */
   transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.keys-status-text {
+  white-space: nowrap;        /* 兜底：再嵌套一层防换行 */
 }
 .keys-status:hover {
   color: var(--ink);
@@ -896,6 +901,36 @@ tbody tr:hover {
   text-decoration: none;
 }
 .modal-footer a:hover { text-decoration: underline; }
+
+/* 参数寻优面板：表格溢出 + params 单元格的 JSON 不被强撑开 */
+#optimize-result .table-wrap {
+  max-width: 100%;
+  overflow-x: auto;            /* 横向溢出时显示滚动条 */
+  -webkit-overflow-scrolling: touch;
+}
+#optimize-result table {
+  table-layout: auto;
+  min-width: 0;                /* 允许 table 在容器内收缩 */
+}
+#optimize-result table code {
+  display: inline-block;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;      /* 截断时基线对齐 */
+  font-size: 12px;
+}
+#optimize-result table th,
+#optimize-result table td {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#optimize-result table th {
+  max-width: none;              /* 表头不截断，让它自然撑开 */
+}
 
 /* 在窄屏上 brand 区一行排不下时，状态按钮换到第二行 */
 @media (max-width: 420px) {

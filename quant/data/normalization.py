@@ -57,6 +57,9 @@ class Bar:
     amount: Optional[float] = None
     code: str = ""
     name: str = ""
+    # iwencai 实时数据里可能带的字段（K 线 tooltip 用）
+    pct_change: Optional[float] = None    # 当日涨跌幅（0.025 = +2.5%）
+    market_cap: Optional[float] = None    # 总市值（元）
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

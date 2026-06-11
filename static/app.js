@@ -607,15 +607,47 @@ function handleKlineHover(event) {
   const tradeText = trades.length
     ? trades.map((trade) => `${trade.side} ${trade.shares}股 @ ${money(trade.price)}`).join(" / ")
     : "无";
+
+  // 涨跌幅：优先用 iwencai 自带的 pct_change；没有再自己算（prev close → close）
+  const prevBar = index > 0 ? lastBars[index - 1] : null;
+  const prevClose = prevBar ? Number(prevBar.close) : null;
+  const curClose = Number(bar.close);
+  let pctValue = null;
+  if (bar.pct_change != null && Number.isFinite(Number(bar.pct_change))) {
+    pctValue = Number(bar.pct_change);
+  } else if (prevClose != null && Number.isFinite(prevClose) && prevClose !== 0) {
+    pctValue = (curClose - prevClose) / prevClose;
+  }
+  let pctText = "--";
+  let pctColor = "var(--text-primary)";
+  if (pctValue != null) {
+    pctText = formatPercentText(pctValue);
+    if (pctValue > 0) pctColor = "var(--risk-color)";
+    else if (pctValue < 0) pctColor = "var(--safe-color)";
+  }
+
+  // 成交额 + 市值
+  const amountText = bar.amount != null ? money(bar.amount) : "--";
+  // 市值通常很大（千亿级），用"亿"为单位更易读
+  const marketCapText = bar.market_cap != null
+    ? formatYi(bar.market_cap)
+    : "--";
+  // 名称/代码（多标的批量结果时不一定是单只）
+  const codeName = bar.code ? `${bar.code}${bar.name ? " " + bar.name : ""}` : "";
+
   showTooltip(event, [
     ["日期", bar.date],
+    ["代码", codeName || "--"],
     ["开盘", money(bar.open ?? bar.close)],
     ["最高", money(bar.high ?? bar.close)],
     ["最低", money(bar.low ?? bar.close)],
     ["收盘", money(bar.close)],
+    ["涨跌幅", pctText],
     ["成交量", money(bar.volume)],
+    ["成交额", amountText],
+    ["市值", marketCapText],
     ["交易", tradeText],
-  ]);
+  ], { colorMap: { "涨跌幅": pctColor } });
 }
 
 function canvasPoint(event, canvas) {
@@ -631,11 +663,22 @@ function nearestIndex(x, left, width, count) {
   return Math.max(0, Math.min(count - 1, Math.round(ratio * (count - 1))));
 }
 
-function showTooltip(event, rows) {
-  const [first, ...rest] = rows;
-  tooltip.innerHTML = `<strong>${escapeHtml(first[1])}</strong>${rest
-    .map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`)
-    .join("")}`;
+function showTooltip(event, rows, options = {}) {
+  // options.colorMap: { label: "color-value" }  对该 label 的值上色
+  const colorMap = options.colorMap || {};
+  const html = rows
+    .map(([label, value], idx) => {
+      const safeLabel = escapeHtml(label);
+      // value 允许 HTML（用于换行 / 着色）；若不需要上色才 escape
+      const valHtml = label in colorMap
+        ? `<b style="color: ${colorMap[label]}">${escapeHtml(value)}</b>`
+        : `<b>${escapeHtml(value)}</b>`;
+      return idx === 0
+        ? `<strong>${safeLabel}: ${escapeHtml(value)}</strong>`
+        : `<div><span>${safeLabel}</span>${valHtml}</div>`;
+    })
+    .join("");
+  tooltip.innerHTML = html;
   tooltip.style.display = "block";
 
   const margin = 14;
@@ -876,6 +919,13 @@ function formatPercentText(value) {
   return `${Number(value).toFixed(2)}%`;
 }
 
+// 大数转"亿"：500000000000 -> "5000.00亿"；不可用时返回 "--"
+function formatYi(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  return `${(n / 1e8).toFixed(2)}亿`;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -913,30 +963,75 @@ function syncModeFields() {
 }
 // ======================== Dashboard 逻辑 ========================
 
-// 获取本地存储的自选股列表
-function getWatchlist() {
+// 获取本地存储的自选股列表（无默认值 —— 没配就空）
+function getLocalWatchlist() {
   const w = localStorage.getItem("quant_watchlist");
-  return w ? JSON.parse(w) : ["宁德时代", "同花顺", "比亚迪"]; // 默认几只作为演示
+  if (!w) return [];
+  try {
+    const arr = JSON.parse(w);
+    return Array.isArray(arr) ? arr : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+// 尝试从 iwencai 拉取"我的自选股"实时数据
+// 返回 { source: "iwencai"|"local"|"empty", items: [{name, code, price, pct, ...}] }
+// items 里已包含 8 列所需字段；失败 / 访客未配 key 时回退到本地列表。
+async function fetchWatchlist() {
+  const hasIwencaiKey = window.quantKeys && window.quantKeys.isConfigured();
+  if (hasIwencaiKey) {
+    try {
+      // iwencai "我的自选股" 是个特殊 token：直接 query 它会返回用户在 iwencai.com
+      // 上保存的自选股。再追问最新价、涨跌幅、开盘价、收盘价、量比、换手率。
+      const res = await postJson(window.API_BASE + "/api/query", {
+        query: "我的自选股 最新价、涨跌幅、开盘价、收盘价、量比、换手率",
+        limit: 50,
+      });
+      if (res && Array.isArray(res.datas) && res.datas.length > 0) {
+        return { source: "iwencai", items: res.datas };
+      }
+    } catch (e) {
+      console.warn("[quant] 拉取 iwencai 我的自选股失败，回退到本地列表:", e);
+    }
+  }
+  // 回退：本地列表
+  const local = getLocalWatchlist();
+  if (local.length > 0) {
+    // 本地列表只是名字（"宁德时代"），需要再查一次行情
+    try {
+      const watchQuery = `${local.join(" ")} 最新价、涨跌幅、开盘价、收盘价、量比、换手率`;
+      const res = await postJson(window.API_BASE + "/api/query", {
+        query: watchQuery,
+        limit: Math.max(1, local.length),
+      });
+      if (res && Array.isArray(res.datas) && res.datas.length > 0) {
+        return { source: "local", items: res.datas };
+      }
+    } catch (e) {
+      console.warn("[quant] 拉取本地自选股行情失败:", e);
+    }
+    // 查询失败但本地有名字 → 返回名字让 UI 提示用户
+    return { source: "local", items: local.map((n) => ({ "股票简称": n })) };
+  }
+  return { source: "empty", items: [] };
 }
 
 // 渲染自选股与大盘数据
 async function refreshDashboard(silent = false) {
   if (!silent) setStatus("正在刷新大盘与自选股数据...");
-  
-  const watchlist = getWatchlist();
-  const watchQuery = watchlist.length
-    ? `${watchlist.join(" ")} 最新价、涨跌幅、开盘价、收盘价、量比、换手率`
-    : "";
-  
+
   try {
     // 并发查询大盘和自选股
-    const [marketData, watchData] = await Promise.all([
+    // 自选股来源：先试 iwencai "我的自选股"（访客在 iwencai.com 上保存的），
+    // 失败则用本地 localStorage 列表。完全为空时跳过自选股请求。
+    const [marketData, watchResult] = await Promise.all([
       postJson(window.API_BASE + "/api/query", { query: "上证指数 深证成指 创业板指 最新行情", limit: 3 }),
-      watchQuery
-        ? postJson(window.API_BASE + "/api/query", { query: watchQuery, limit: Math.max(1, watchlist.length) })
-        : Promise.resolve({ datas: [] })
+      fetchWatchlist(),
     ]);
-    
+    const watchData = { datas: watchResult.items };
+    const watchSource = watchResult.source;
+
     // 更新大盘卡片
     const marketContainer = document.getElementById("market-indices-container");
     if (marketData.datas && marketData.datas.length > 0) {
@@ -970,19 +1065,25 @@ async function refreshDashboard(silent = false) {
       const now = new Date();
       document.getElementById("market-update-time").textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} 更新`;
     }
-    
-    // 更新自选股列表
+
+    // 更新自选股列表 + 数量标签（含数据源标识）
     const watchBody = document.getElementById("watchlist-body");
-    
-    let currentWatchlist = watchlist;
-    document.getElementById("watchlist-count").textContent = `${currentWatchlist.length} 只`;
-    
+    const countEl = document.getElementById("watchlist-count");
+    const sourceTag = watchSource === "iwencai"
+      ? "（iwencai 我的自选股 · 只读）"
+      : watchSource === "local"
+        ? "（本地）"
+        : "";
+    countEl.textContent = `${watchData.datas.length} 只 ${sourceTag}`;
+    countEl.title = sourceTag;  // tooltip 解释来源
+
     if (watchData.datas && watchData.datas.length > 0) {
       watchBody.textContent = "";
+      _setActiveWatchlist(watchData.datas);  // 缓存名字供"批量回测"按钮用
       watchData.datas.forEach(row => {
         const code = row["code"] || row["股票代码"] || "--";
         const name = row["股票简称"] || "--";
-        
+
         // 模糊匹配字段，因为问财返回的 key 往往带有日期或复权信息后辍 (例: "收盘价:不复权[20240506]")
         const fuzzyFind = (keywords) => {
           if (!Array.isArray(keywords)) keywords = [keywords];
@@ -1024,29 +1125,35 @@ async function refreshDashboard(silent = false) {
           volumeRatio: numberOrDash(volumeRatio, 2),
           turnover: formatPercentText(turnover),
           pctColor,
+          readonly: watchSource === "iwencai",  // iwencai 来源的"删除"按钮禁用
         }));
       });
-      
-      document.querySelectorAll(".btn-remove-watchlist").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-          const symbolToRemove = e.target.dataset.symbol;
-          const newW = getWatchlist().filter(w => w !== symbolToRemove);
-          localStorage.setItem("quant_watchlist", JSON.stringify(newW));
-          refreshDashboard();
+
+      // 只对 local 来源的删除按钮绑定事件（iwencai 来源是只读的）
+      if (watchSource === "local") {
+        document.querySelectorAll(".btn-remove-watchlist").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            const symbolToRemove = e.target.dataset.symbol;
+            const newW = getLocalWatchlist().filter(w => w !== symbolToRemove);
+            localStorage.setItem("quant_watchlist", JSON.stringify(newW));
+            refreshDashboard();
+          });
         });
-      });
+      }
     } else {
-      renderTableMessage(watchBody, watchlist.length ? "未能获取到行情数据，请检查自选股名称或稍后再试" : "暂无自选股，请在左侧添加", 9);
+      renderTableMessage(
+        watchBody,
+        watchSource === "iwencai"
+          ? "iwencai 上还没有自选股，请到 iwencai.com 添加后刷新"
+          : "暂无自选股，请在左侧添加，或配置 iwencai key 后自动同步「我的自选股」",
+        9
+      );
     }
-    
+
     if (!silent) setStatus("首页数据已更新");
   } catch (err) {
-    if (watchlist.length === 0) {
-      renderTableMessage(document.getElementById("watchlist-body"), "暂无自选股，请在左侧添加", 9);
-      if (!silent) setStatus("已清空");
-    } else {
-      if (!silent) setStatus("刷新失败: " + err.message);
-    }
+    renderTableMessage(document.getElementById("watchlist-body"), "刷新失败: " + err.message, 9);
+    if (!silent) setStatus("刷新失败: " + err.message);
   }
 }
 
@@ -1091,12 +1198,19 @@ function createWatchlistRow(row) {
   appendCell(tr, row.turnover);
 
   const actionCell = document.createElement("td");
-  const button = document.createElement("button");
-  button.className = "inline-action btn-remove-watchlist";
-  button.dataset.symbol = row.name;
-  button.type = "button";
-  button.textContent = "删除";
-  actionCell.appendChild(button);
+  if (row.readonly) {
+    // iwencai 来源：只读，"操作"列显示"--"
+    actionCell.textContent = "--";
+    actionCell.style.color = "var(--text-tertiary)";
+    actionCell.style.textAlign = "center";
+  } else {
+    const button = document.createElement("button");
+    button.className = "inline-action btn-remove-watchlist";
+    button.dataset.symbol = row.name;
+    button.type = "button";
+    button.textContent = "删除";
+    actionCell.appendChild(button);
+  }
   tr.appendChild(actionCell);
   return tr;
 }
@@ -1124,13 +1238,14 @@ function renderTableMessage(tbody, message, colspan) {
   tbody.appendChild(tr);
 }
 
-// 绑定添加自选股事件
+// 绑定添加自选股事件（只对 local 列表生效 —— iwencai 来源是只读的，
+// 但 add 按钮是放在 form 里的，所以用户依然可以输入；保存时只在 local 列表里加）
 document.getElementById("btn-add-watchlist-side").addEventListener("click", () => {
   const input = document.getElementById("new-watchlist-symbol");
   const symbol = input.value.trim();
   if (!symbol) return;
-  
-  const w = getWatchlist();
+
+  const w = getLocalWatchlist();
   if (!w.includes(symbol)) {
     w.push(symbol);
     localStorage.setItem("quant_watchlist", JSON.stringify(w));
@@ -1145,13 +1260,21 @@ if (btnRefreshDash) {
   btnRefreshDash.addEventListener("click", refreshDashboard);
 }
 
+// 缓存当前激活的自选股名（iwencai 或 local），供"批量回测"按钮复用
+let _activeWatchlist = [];
+function _setActiveWatchlist(items) {
+  _activeWatchlist = items
+    .map((r) => r["股票简称"] || r["code"] || r["股票代码"])
+    .filter((n) => n && n !== "--");
+}
+
 // 快捷批量回测自选股
 const btnBatchWatchlist = document.getElementById("btn-batch-backtest-watchlist");
 if (btnBatchWatchlist) {
   btnBatchWatchlist.addEventListener("click", () => {
-    const w = getWatchlist();
+    const w = _activeWatchlist.length ? _activeWatchlist : getLocalWatchlist();
     if (w.length === 0) {
-      alert("自选股为空，请先添加");
+      alert("自选股为空，请先添加或配置 iwencai key");
       return;
     }
     // 切换到回测标签页，填入参数
@@ -1253,28 +1376,10 @@ function formatDate(date) {
       try {
         const res = await postJson(window.API_BASE + "/api/optimize", payload);
 
-        setText("#table-title", "参数网格寻优结果 (总收益逆序)");
-        setText("#table-count", `${res.optimization_results.length} 条组合，${(res.optimization_errors || []).length} 条失败`);
-
-        const thead = document.querySelector("#table-head");
-        const tbody = document.querySelector("#table-body");
-
-        thead.innerHTML = `<tr><th>参数组合</th><th>总收益</th><th>年化收益</th><th>最大回撤</th><th>夏普比率</th><th>胜率</th><th>交易次数</th></tr>`;
-        tbody.innerHTML = "";
-
-        res.optimization_results.forEach(r => {
-          const tr = document.createElement("tr");
-          appendCell(tr, JSON.stringify(r.params));
-          appendCell(tr, percent(r.total_return), { className: r.total_return >= 0 ? "up" : "down" });
-          appendCell(tr, percent(r.annual_return), { className: r.annual_return >= 0 ? "up" : "down" });
-          appendCell(tr, percent(r.max_drawdown));
-          appendCell(tr, numberOrDash(r.sharpe_ratio, 2));
-          appendCell(tr, percent(r.win_rate));
-          appendCell(tr, r.trade_count ?? "--");
-          tbody.appendChild(tr);
-        });
-
-        // 新增：参数寻优热力图
+        // 关键：不要再覆盖 #table-title 和 #table-body（那是"交易记录"的容器）。
+        // 寻优的完整结果由 renderOptimizeResult() 渲染到 #optimize-result，
+        // 包含：1 参折线 / 2 参热力图 / 3+ 参重要性 + Top 10 鲁棒表。
+        // 不再渲染"按总收益逆序的全量表"——几百行表格既冗余又把交易记录挤掉。
         try {
           renderOptimizeResult(res);
         } catch (e) {
@@ -1646,14 +1751,11 @@ async function renderOptimizeResult(data) {
     _renderOptimizeRobustTable(container, data);
   }
 
-  // 1 / 2 参下方都附带完整指标表，3+ 参的 RobusTable 已经是 Top 10
-  if (nParams <= 2) {
-    const sep = document.createElement("div");
-    sep.className = "optimize-subtitle";
-    sep.textContent = `完整指标表（按总收益降序 · ⭐ 收益最高 · 🎯 Calmar 最高）`;
-    container.appendChild(sep);
-    _renderOptimizeTable(container, data);
-  }
+  // 不再追加"按总收益降序的全量指标表"——
+  // 1 参场景：折线图 + ⭐/🎯 标注已包含关键信息
+  // 2 参场景：热力图 + metric 切换已能切换 6 个指标
+  // 3+ 参场景：Top 10 鲁棒表本身就是按 Calmar 排序的精华
+  // 全量表既冗余又会把页面撑得很长，挤掉"交易记录"和"AI 分析"区域。
 }
 
 // ---- 1 参数折线图 ----
@@ -1856,6 +1958,10 @@ function _renderOptimizeRobustTable(container, data) {
   const bestReturn = data.best_by_return;
   const bestCalmar = data.best_by_calmar;
 
+  const wrap = document.createElement("div");
+  wrap.className = "table-wrap";
+  container.appendChild(wrap);
+
   const table = document.createElement("table");
   table.innerHTML =
     "<thead><tr>" +
@@ -1899,6 +2005,10 @@ function _renderOptimizeTable(container, data) {
   const bestReturn = data.best_by_return;
   const bestCalmar = data.best_by_calmar;
 
+  const wrap = document.createElement("div");
+  wrap.className = "table-wrap";
+  container.appendChild(wrap);
+
   const table = document.createElement("table");
   table.innerHTML =
     "<thead><tr>" +
@@ -1927,7 +2037,7 @@ function _renderOptimizeTable(container, data) {
       `<td>${r.trade_count ?? "--"}</td>`;
     tbody.appendChild(tr);
   });
-  container.appendChild(table);
+  wrap.appendChild(table);
 }
 
 // 比较两个 param 字典（键顺序无关）。用于"最佳"标记对齐。
