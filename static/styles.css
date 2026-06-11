@@ -1,3 +1,9 @@
+/* 全局重置：[hidden] 属性应始终隐藏元素。
+   .modal/.keys-banner 等有 display: grid/flex 的元素，
+   会以"作者样式"覆盖浏览器内置的 [hidden] { display: none }。
+   加上 !important 强制回归正常。 */
+[hidden] { display: none !important; }
+
 :root {
   --bg: #0a0e17;
   --bg-surface: #111823;
