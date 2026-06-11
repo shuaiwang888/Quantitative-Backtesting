@@ -14,7 +14,6 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import Threads from "./components/Threads.jsx";
 import KeysModal from "./components/KeysModal.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import useKeys from "./hooks/useKeys.js";
@@ -44,7 +43,6 @@ export default function App() {
     const handler = (e) => {
       const names = e.detail?.names || [];
       if (names.length === 0) return;
-      // 暂存到 sessionStorage，Backtest 组件 mount 时读
       try { sessionStorage.setItem("quant_pending_batch", JSON.stringify(names)); } catch {}
       setActiveTab("backtest");
       showStatus(`已切换到回测，股票池: ${names.length} 只`);
@@ -55,16 +53,6 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {/* 全站 WebGL 动画背景 —— 透传 pointer-events */}
-      <div className="threads-bg" aria-hidden="true">
-        <Threads
-          color={[0, 0.94, 1]}
-          amplitude={1}
-          distance={0}
-          enableMouseInteraction
-        />
-      </div>
-
       {/* 顶部 brand + tabs */}
       <header className="brand">
         <div>

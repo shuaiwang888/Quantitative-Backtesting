@@ -43,18 +43,8 @@ a { color: var(--accent); }
 
 .app-shell {
   position: relative;
-  z-index: 1;            /* 内容层压在背景之上 */
   min-height: 100vh;
   padding: 18px;
-}
-
-/* 全站 Threads 动画背景：fixed 铺满屏幕，pointer-events 透传 */
-.threads-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.35;        /* 不要喧宾夺主，背景而已 */
 }
 
 /* ---- 顶部 brand ---- */

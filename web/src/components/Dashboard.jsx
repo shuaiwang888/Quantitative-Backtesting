@@ -11,8 +11,8 @@
  * 数据流：useEffect 触发 → 并发 fetch market + watchlist → setState → 渲染
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { postJson, money, percent, numberOrDash, formatPercentText, fuzzyFind } from "../api.js";
+import { useState, useEffect, useCallback } from "react";
+import { postJson, money, numberOrDash, formatPercentText, fuzzyFind } from "../api.js";
 
 const LOCAL_WATCHLIST_STORAGE = "quant_watchlist";
 
@@ -35,7 +35,6 @@ function setLocalWatchlist(list) {
 
 /**
  * 拉自选股：先试 iwencai "我的自选股"（有 key 时），失败回退 localStorage
- * 返回 { source, items } —— items 是 iwencai 返回的原始行（已经带 8 列字段）
  */
 async function fetchWatchlist(hasIwencaiKey) {
   if (hasIwencaiKey) {
@@ -73,7 +72,6 @@ export default function Dashboard({ hasIwencaiKey, onError }) {
   const [marketUpdatedAt, setMarketUpdatedAt] = useState("");
   const [newSymbol, setNewSymbol] = useState("");
   const [loading, setLoading] = useState(false);
-  const refreshTimerRef = useRef(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -97,12 +95,6 @@ export default function Dashboard({ hasIwencaiKey, onError }) {
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
-
-  // 盘中定时刷新（每 60s）
-  useEffect(() => {
-    refreshTimerRef.current = setInterval(refresh, 60_000);
-    return () => clearInterval(refreshTimerRef.current);
   }, [refresh]);
 
   const addSymbol = () => {
@@ -131,7 +123,6 @@ export default function Dashboard({ hasIwencaiKey, onError }) {
       alert("自选股为空，请先添加或配置 iwencai key");
       return;
     }
-    // 触发全局事件：父组件监听后切到回测 tab + 预填股票池
     window.dispatchEvent(new CustomEvent("quant:batch-watchlist", { detail: { names } }));
   };
 
@@ -146,20 +137,18 @@ export default function Dashboard({ hasIwencaiKey, onError }) {
 
   return (
     <section className="dashboard">
-      {/* 大盘指数卡片 */}
       <div className="section-title">
         <h3>大盘指数</h3>
         <span className="update-time">{marketUpdatedAt && `${marketUpdatedAt} 更新`}</span>
       </div>
       <div className="market-grid">
         {marketData.length === 0 ? (
-          <p className="placeholder">点击刷新或等待自动加载</p>
+          <p className="placeholder">点击刷新加载</p>
         ) : (
           marketData.map((row, i) => <MarketCard key={i} row={row} />)
         )}
       </div>
 
-      {/* 自选股 */}
       <div className="section-title">
         <h3>自选股行情</h3>
         <span className="title-right">
@@ -185,7 +174,6 @@ export default function Dashboard({ hasIwencaiKey, onError }) {
         </span>
       </div>
 
-      {/* 添加输入框（iwencai 来源时禁用） */}
       <div className="add-watchlist">
         <input
           type="text"
