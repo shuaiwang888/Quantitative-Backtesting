@@ -1,6 +1,13 @@
 # 自动部署 static/ 到 GitHub Pages
-# 触发：push 到 main 且 static/** 或本文件变化
+# 触发：push 到 main 且 web/** / static/** / package.json / 本文件变化
 # 注意：GitHub Pages 只能服务静态文件；Python 后端不在这里跑，需要部署到 Render / Railway / Fly.io 等。
+#
+# 工作流：
+#   1. checkout
+#   2. setup Node 20 → npm ci → npm run build（Vite 把 web/ 编到 static/）
+#   3. setup Pages（幂等）
+#   4. 上传 static/ 作为 artifact
+#   5. 部署到 GitHub Pages
 
 name: Deploy Pages
 
@@ -8,7 +15,11 @@ on:
   push:
     branches: [main]
     paths:
+      - 'web/**'
       - 'static/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.js'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -32,6 +43,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # 跑 Vite 构建：web/index.html + web/src/** → static/index.html + static/assets/**
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build (Vite → static/)
+        run: npm run build
 
       # 用 `continue-on-error` 兜底：即使 configure-pages 在已启用 Pages 的 repo
       # 上偶发失败，也不阻断后续部署。如果之前有人手动在 Settings 启用过

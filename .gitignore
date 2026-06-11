@@ -56,3 +56,10 @@ logs/
 
 # Project-specific
 /private/tmp/astock-pycache/
+
+# Node / Vite (React 前端)
+node_modules/
+web/dist/
+# Vite 构建产物（CI 上 build 后才生成，不入库）
+static/assets/
+

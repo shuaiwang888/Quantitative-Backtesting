@@ -1,0 +1,271 @@
+/* ===================================================================
+   A股量化回测 - 全局样式
+   Phase 1 主题：青色 + 深色 + 青色 Threads 动画背景
+   =================================================================== */
+
+:root {
+  --bg: #0a0e17;
+  --bg-surface: #111823;
+  --panel: #111823;
+  --ink: #e2e8f0;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --line: #1e293b;
+  --border-color: #1e293b;
+  --accent: #00f0ff;
+  --accent-2: #ff0055;
+  --gold: #fcee0a;
+  --up-color: #ff3366;
+  --down-color: #00e572;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: "JetBrains Mono", Consolas, Menlo, monospace;
+  background: var(--bg);
+  /* 不要在 body 写大背景图，让 Threads 透出来 */
+  min-height: 100vh;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a { color: var(--accent); }
+
+/* 全局重置 [hidden]：避免被 display: grid/flex 覆盖 */
+[hidden] { display: none !important; }
+
+.app-shell {
+  position: relative;
+  z-index: 1;            /* 内容层压在背景之上 */
+  min-height: 100vh;
+  padding: 18px;
+}
+
+/* 全站 Threads 动画背景：fixed 铺满屏幕，pointer-events 透传 */
+.threads-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;        /* 不要喧宾夺主，背景而已 */
+}
+
+/* ---- 顶部 brand ---- */
+.brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.brand h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 1px;
+}
+.brand p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---- 密钥状态按钮 ---- */
+.keys-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.keys-status:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.keys-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.keys-status--unset {
+  color: #ffb4b4;
+  border-color: rgba(255, 51, 102, 0.4);
+  background: rgba(255, 51, 102, 0.06);
+}
+.keys-status--unset .keys-status-dot {
+  background: var(--up-color);
+  box-shadow: 0 0 6px var(--up-color);
+  animation: pulse 1.6s infinite;
+}
+.keys-status--set {
+  color: var(--down-color);
+  border-color: rgba(0, 229, 114, 0.4);
+}
+.keys-status--set .keys-status-dot {
+  background: var(--down-color);
+  box-shadow: 0 0 4px var(--down-color);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ---- Tabs ---- */
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+.tab {
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--ink); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- 占位 / 提示 ---- */
+.placeholder {
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 40px 16px;
+  font-size: 14px;
+}
+.phase-note {
+  max-width: 640px;
+  margin: 20px auto;
+  padding: 12px 16px;
+  background: rgba(0, 240, 255, 0.04);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ---- Modal ---- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+}
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+.modal-panel {
+  position: relative;
+  width: min(480px, calc(100% - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: scaleIn 0.18s ease;
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--ink); }
+.modal-body {
+  padding: 18px;
+}
+.modal-hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.modal-label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.modal-label input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.modal-label input:focus { border-color: var(--accent); }
+.modal-required { color: var(--up-color); font-size: 11px; margin-left: 4px; }
+.modal-optional { color: var(--text-tertiary); font-size: 11px; margin-left: 4px; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.modal-actions button {
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.modal-actions .primary {
+  background: var(--accent);
+  color: #001a1d;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.modal-actions .primary:hover { filter: brightness(1.1); }
