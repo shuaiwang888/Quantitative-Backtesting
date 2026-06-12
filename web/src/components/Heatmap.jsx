@@ -171,8 +171,8 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
   const h = 480;
   const cells = useMemo(() => {
     if (!data || !data.length) return [];
-    // 过滤掉 weight<=0 的项
-    const valid = data.filter((d) => d.weight && d.weight > 0);
+    // 过滤掉 weight<=0 的项；fallback 项 weight=1（平均分布）保证能铺满
+    const valid = data.filter((d) => (d.weight || 0) > 0);
     if (!valid.length) return [];
     return squarify(valid, { x: 0, y: 0, w, h });
   }, [data, w]);
@@ -350,7 +350,11 @@ export async function fetchIndustryHeatmap(hasIwencaiKey) {
           })
           .filter((it) => it.name && it.name !== "--" && it.name !== "nan");
         if (items.length >= 5) {
-          return { items, fallback: false, queriedAt: Date.now() };
+          // 至少要有 30% 的项有有效 weight（总市值），否则视为 fuzzyFind 失败
+          const validWeight = items.filter((it) => it.weight > 0).length;
+          if (validWeight >= items.length * 0.3) {
+            return { items, fallback: false, queriedAt: Date.now() };
+          }
         }
       }
     } catch (e) {
@@ -359,7 +363,7 @@ export async function fetchIndustryHeatmap(hasIwencaiKey) {
   }
   // 全部失败 → 用 fallback（行业名 + 平均分布大小 + null 涨跌幅）
   return {
-    items: SW_INDUSTRIES_FALLBACK.map((it) => ({ name: it.name, code: it.code, pct: null, weight: 0 })),
+    items: SW_INDUSTRIES_FALLBACK.map((it) => ({ name: it.name, code: it.code, pct: null, weight: 1 })),
     fallback: true,
   };
 }
