@@ -12,39 +12,62 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { postJson, formatPercentText } from "../api.js";
 
-// 申万一级行业 31 个（数据 fallback / iwencai 拉不到时用）
-const SW_INDUSTRIES_FALLBACK = [
-  { name: "农林牧渔", code: "801010" },
-  { name: "基础化工", code: "801030" },
-  { name: "钢铁",     code: "801040" },
-  { name: "有色金属", code: "801050" },
-  { name: "电子",     code: "801080" },
-  { name: "家用电器", code: "801110" },
-  { name: "食品饮料", code: "801120" },
-  { name: "纺织服饰", code: "801130" },
-  { name: "轻工制造", code: "801140" },
-  { name: "医药生物", code: "801150" },
-  { name: "公用事业", code: "801160" },
-  { name: "交通运输", code: "801170" },
-  { name: "房地产",   code: "801180" },
-  { name: "商贸零售", code: "801200" },
-  { name: "社会服务", code: "801210" },
-  { name: "综合",     code: "801230" },
-  { name: "建筑材料", code: "801710" },
-  { name: "建筑装饰", code: "801720" },
-  { name: "电力设备", code: "801730" },
-  { name: "机械设备", code: "801890" },
-  { name: "国防军工", code: "801740" },
-  { name: "汽车",     code: "801880" },
-  { name: "美容护理", code: "801980" },
-  { name: "银行",     code: "801780" },
-  { name: "非银金融", code: "801790" },
-  { name: "计算机",   code: "801750" },
-  { name: "传媒",     code: "801760" },
-  { name: "通信",     code: "801770" },
-  { name: "煤炭",     code: "801950" },
-  { name: "石油石化", code: "801960" },
-  { name: "环保",     code: "801970" },
+// 同花顺一级行业（约 32 个，iwencai 拉不到时用 fallback）
+const THS_INDUSTRIES_FALLBACK = [
+  { name: "银行",     code: "BK0475" },
+  { name: "证券",     code: "BK0473" },
+  { name: "保险",     code: "BK0474" },
+  { name: "多元金融", code: "BK0477" },
+  { name: "房地产",   code: "BK0451" },
+  { name: "汽车整车", code: "BK0481" },
+  { name: "汽车零部件", code: "BK0482" },
+  { name: "白色家电", code: "BK0456" },
+  { name: "黑色家电", code: "BK0457" },
+  { name: "白酒",     code: "BK0439" },
+  { name: "食品饮料", code: "BK0438" },
+  { name: "医药商业", code: "BK0440" },
+  { name: "化学制药", code: "BK0441" },
+  { name: "中药",     code: "BK0442" },
+  { name: "生物制品", code: "BK0443" },
+  { name: "医疗器械", code: "BK0444" },
+  { name: "医疗服务", code: "BK0445" },
+  { name: "半导体",   code: "BK0448" },
+  { name: "元件",     code: "BK0449" },
+  { name: "消费电子", code: "BK0450" },
+  { name: "通信设备", code: "BK0446" },
+  { name: "通信服务", code: "BK0447" },
+  { name: "计算机",   code: "BK0425" },
+  { name: "软件开发", code: "BK0426" },
+  { name: "互联网",   code: "BK0427" },
+  { name: "传媒",     code: "BK0428" },
+  { name: "游戏",     code: "BK0429" },
+  { name: "钢铁",     code: "BK0471" },
+  { name: "有色金属", code: "BK0478" },
+  { name: "煤炭",     code: "BK0437" },
+  { name: "石油石化", code: "BK0464" },
+  { name: "基础化工", code: "BK0433" },
+  { name: "建筑材料", code: "BK0420" },
+  { name: "建筑装饰", code: "BK0421" },
+  { name: "电力设备", code: "BK0458" },
+  { name: "电池",     code: "BK0459" },
+  { name: "光伏设备", code: "BK0460" },
+  { name: "工程机械", code: "BK0422" },
+  { name: "通用设备", code: "BK0423" },
+  { name: "国防军工", code: "BK0424" },
+  { name: "物流",     code: "BK0430" },
+  { name: "航运港口", code: "BK0431" },
+  { name: "航空运输", code: "BK0432" },
+  { name: "环保",     code: "BK0436" },
+  { name: "公用事业", code: "BK0435" },
+  { name: "电力",     code: "BK0421" },
+  { name: "燃气",     code: "BK0420" },
+  { name: "零售",     code: "BK0483" },
+  { name: "贸易",     code: "BK0484" },
+  { name: "纺织服饰", code: "BK0434" },
+  { name: "美容护理", code: "BK0453" },
+  { name: "农林牧渔", code: "BK0433" },
+  { name: "教育",     code: "BK0740" },
+  { name: "旅游酒店", code: "BK0485" },
 ];
 
 // squarified treemap —— 来自 Bruls/Huijbregts/Van Wijk 2000
@@ -330,25 +353,28 @@ export async function fetchIndustryHeatmap(hasIwencaiKey) {
   if (!hasIwencaiKey) {
     return { items: [], fallback: true };
   }
-  // 一次 query 拉所有申万一级行业 + 涨跌幅 + 总市值
-  // iwencai 自然语言支持"申万一级行业 涨跌幅 总市值"
+  // 一次 query 拉所有同花顺一级行业 + 涨跌幅 + 总市值
+  // iwencai 自然语言支持"同花顺一级行业 涨跌幅 总市值"
   const QUERIES = [
-    "申万一级行业 涨跌幅 总市值 股票代码",
-    "申万行业 涨跌幅 总市值 行业代码",
+    "同花顺一级行业 涨跌幅 总市值 行业代码",
+    "同花顺行业 涨跌幅 总市值 行业代码",
+    "行业板块 涨跌幅 总市值",
+    "申万一级行业 涨跌幅 总市值 行业代码",
   ];
   for (const q of QUERIES) {
     try {
-      const res = await postJson("/api/query", { query: q, limit: 50 });
+      const res = await postJson("/api/query", { query: q, limit: 80 });
       if (res && Array.isArray(res.datas) && res.datas.length > 0) {
         const items = res.datas
           .map((row) => {
-            const name = row["申万一级行业"] || row["行业名称"] || row["行业简称"] || row["股票简称"];
+            // 顺序：同花顺一级行业 > 申万一级行业 > 行业名称 > 行业简称
+            const name = row["同花顺一级行业"] || row["申万一级行业"] || row["行业名称"] || row["行业简称"];
             const code = row["行业代码"] || row["代码"];
             const pct = parseFloat(fuzzyFind(row, ["涨跌幅", "涨幅"]));
             const mcap = parseFloat(fuzzyFind(row, ["总市值"]));
             return { name: String(name || "").trim(), code, pct: Number.isFinite(pct) ? pct : null, weight: Number.isFinite(mcap) && mcap > 0 ? mcap : 0 };
           })
-          .filter((it) => it.name && it.name !== "--" && it.name !== "nan");
+          .filter((it) => it.name && it.name !== "--" && it.name !== "nan" && !/^[\d]+$/.test(it.name));  // 排除纯数字
         if (items.length >= 5) {
           // 至少要有 30% 的项有有效 weight（总市值），否则视为 fuzzyFind 失败
           const validWeight = items.filter((it) => it.weight > 0).length;
@@ -363,7 +389,7 @@ export async function fetchIndustryHeatmap(hasIwencaiKey) {
   }
   // 全部失败 → 用 fallback（行业名 + 平均分布大小 + null 涨跌幅）
   return {
-    items: SW_INDUSTRIES_FALLBACK.map((it) => ({ name: it.name, code: it.code, pct: null, weight: 1 })),
+    items: THS_INDUSTRIES_FALLBACK.map((it) => ({ name: it.name, code: it.code, pct: null, weight: 1 })),
     fallback: true,
   };
 }

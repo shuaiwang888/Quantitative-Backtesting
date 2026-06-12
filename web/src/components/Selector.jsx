@@ -55,8 +55,8 @@ export default function Selector({ hasIwencaiKey, onError, onStatus }) {
       if (raw) {
         const { name, code } = JSON.parse(raw);
         if (name) {
-          // iwencai 自然语言："申万一级行业 X 成分股 股票代码 股票简称 涨跌幅"
-          setQuery(`申万一级行业 ${name} 成分股 股票代码 股票简称 涨跌幅 总市值`);
+          // iwencai 自然语言："同花顺一级行业 X 成分股 股票代码 股票简称 涨跌幅"
+          setQuery(`同花顺一级行业 ${name} 成分股 股票代码 股票简称 涨跌幅 总市值`);
           setPage(1);
           sessionStorage.removeItem("quant_pending_industry");
         }

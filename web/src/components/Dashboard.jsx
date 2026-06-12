@@ -237,7 +237,7 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
       />
       {heatmapFallback && heatmapItems.length > 0 && (
         <div className="hint" style={{ fontSize: 11, marginTop: -8, marginBottom: 8, color: "var(--text-tertiary)" }}>
-          ⚠ iwencai 暂不支持行业聚合查询，已展示申万 31 个一级行业（无涨跌幅数据）；配置 key 后点"刷新"尝试拉真实数据
+          ⚠ iwencai 暂不支持"同花顺一级行业"聚合查询，已展示同花顺 51 个一级行业（无涨跌幅数据）；点"刷新"尝试拉真实数据
         </div>
       )}
 
