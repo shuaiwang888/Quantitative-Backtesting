@@ -57,14 +57,22 @@ export default function App() {
     return () => window.removeEventListener("quant:batch-watchlist", handler);
   }, []);
 
-  // 监听热力图点击 → 跳到 Selector tab
+  // 监听热力图点击 → 跳到 Selector tab（行业）或 Backtest tab（个股）
   useEffect(() => {
     const handler = (e) => {
-      const { name, code } = e.detail || {};
+      const { name, code, single } = e.detail || {};
       if (!name) return;
-      try { sessionStorage.setItem("quant_pending_industry", JSON.stringify({ name, code })); } catch {}
-      setActiveTab("selector");
-      showStatus(`已跳到选股，行业: ${name}`);
+      if (single) {
+        // 个股 → Backtest tab
+        try { sessionStorage.setItem("quant_pending_symbol", JSON.stringify({ name, code })); } catch {}
+        setActiveTab("backtest");
+        showStatus(`已跳到回测，标的: ${name}`);
+      } else {
+        // 行业 → Selector tab
+        try { sessionStorage.setItem("quant_pending_industry", JSON.stringify({ name, code })); } catch {}
+        setActiveTab("selector");
+        showStatus(`已跳到选股，行业: ${name}`);
+      }
     };
     window.addEventListener("quant:jump-selector", handler);
     return () => window.removeEventListener("quant:jump-selector", handler);

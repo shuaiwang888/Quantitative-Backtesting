@@ -77,6 +77,21 @@ export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStat
     }
   }, [pendingBatchNames, onStatus]);
 
+  // 热力图个股点击 → 填入 symbol
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("quant_pending_symbol");
+      if (raw) {
+        const { name, code } = JSON.parse(raw);
+        if (name || code) {
+          setSymbol(code || name);
+          setBacktestMode("single");
+          sessionStorage.removeItem("quant_pending_symbol");
+        }
+      }
+    } catch {}
+  }, []);
+
   // ---- 提交 ----
   const submit = async (e) => {
     e?.preventDefault?.();

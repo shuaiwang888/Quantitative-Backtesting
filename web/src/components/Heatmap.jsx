@@ -1,18 +1,25 @@
 /**
- * Heatmap —— A 股行业 treemap 热力图
+ * Heatmap —— A 股行业 treemap 热力图（仿同花顺 L1+L2）
  *
- * 数据源：/api/query "申万一级行业 涨跌幅 总市值"
- * 渲染：自画 SVG，squarified treemap 算法
- * 交互：hover 显示 tooltip，click 触发跳转（→ 选股 tab 自动选该行业）
+ * 两层结构（自画 SVG，无外部图表库）：
+ *   L1：同花顺一级行业（30+ 个），方块大小 = 行业总市值
+ *   L2：每个行业内的代表股（3-5 只），方块大小 = 个股市值
+ *   颜色：涨跌幅 → 红(涨)/灰(平)/绿(跌) 渐变（-4% ~ +4%）
  *
- * 颜色：-3% 深红 → 0% 灰 → +3% 深绿（A 股惯例 涨红跌绿）
- * 大小：总市值（无数据时退化为平均分布）
+ * 数据获取：
+ *   Query 1: "同花顺一级行业 涨跌幅 总市值 行业代码" → L1
+ *   Query 2: "市值前100 股票代码 股票简称 涨跌幅 总市值 行业" → L2
+ *   都失败 → 用内置 51 个同花顺行业 fallback
+ *
+ * 交互：
+ *   - hover：tooltip 显示行业/股票名 + 涨跌幅 + 市值
+ *   - click：触发 quant:jump-selector，跳到选股 tab
  */
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { postJson, formatPercentText } from "../api.js";
 
-// 同花顺一级行业（约 32 个，iwencai 拉不到时用 fallback）
+// 同花顺一级行业 51 个（数据 fallback / iwencai 拉不到时用）
 const THS_INDUSTRIES_FALLBACK = [
   { name: "银行",     code: "BK0475" },
   { name: "证券",     code: "BK0473" },
@@ -70,13 +77,12 @@ const THS_INDUSTRIES_FALLBACK = [
   { name: "旅游酒店", code: "BK0485" },
 ];
 
-// squarified treemap —— 来自 Bruls/Huijbregts/Van Wijk 2000
+// ---------------- Squarified Treemap ----------------
+// Bruls/Huijbregts/Van Wijk 2000
 // 输入：items [{weight, ...}], rect {x, y, w, h}
-// 输出：[{x, y, w, h, item}, ...]
 function squarify(items, rect) {
   const total = items.reduce((s, it) => s + (it.weight || 0), 0);
   if (total <= 0 || !items.length) return [];
-  // 按 weight 降序
   const sorted = [...items].sort((a, b) => (b.weight || 0) - (a.weight || 0));
   const result = [];
   let x = rect.x, y = rect.y, w = rect.w, h = rect.h;
@@ -85,8 +91,6 @@ function squarify(items, rect) {
   const minArr = (arr) => Math.min(...arr.map((it) => it.weight || 0));
   const maxArr = (arr) => Math.max(...arr.map((it) => it.weight || 0));
 
-  // 当前行加入新项后的最坏长宽比
-  // 论文公式: s^2 * x / w^2 其中 w = min, s = sum
   const worstRatio = (row, s) => {
     if (s === 0) return Infinity;
     const ss = Math.min(w, h);
@@ -98,12 +102,10 @@ function squarify(items, rect) {
     );
   };
 
-  // 在当前 (x, y, w, h) 内沿短边方向铺一行
   const layoutRow = (row) => {
     const s = sumArr(row);
     if (s === 0) return;
     if (w >= h) {
-      // 行垂直：列宽 = s / h
       const colW = s / h;
       let cy = y;
       for (const it of row) {
@@ -114,7 +116,6 @@ function squarify(items, rect) {
       x += colW;
       w -= colW;
     } else {
-      // 行水平：行高 = s / w
       const rowH = s / w;
       let cx = x;
       for (const it of row) {
@@ -127,7 +128,6 @@ function squarify(items, rect) {
     }
   };
 
-  // 主循环
   let row = [];
   let rowSum = 0;
   while (sorted.length) {
@@ -145,7 +145,6 @@ function squarify(items, rect) {
       rowSum = newSum;
       sorted.shift();
     } else {
-      // 当前 row 已最优
       layoutRow(row);
       row = [];
       rowSum = 0;
@@ -155,32 +154,69 @@ function squarify(items, rect) {
   return result;
 }
 
-// 颜色：根据涨跌幅映射到红/灰/绿
+// 递归布局：L1 方块内嵌 L2 方块
+// 输入：nodes [{weight, pct, name, children?: [...]}], rect
+// 输出：[{rect, node, level, isL1}, ...]（已平铺；每个 L1 内嵌其 L2 children）
+function layoutTwoLevel(industries, rect) {
+  const validL1 = industries.filter((it) => (it.weight || 0) > 0);
+  if (!validL1.length) return [];
+  const l1Cells = squarify(validL1, rect);
+  const out = [];
+  for (const c of l1Cells) {
+    // L1 节点（行业）
+    out.push({ rect: { x: c.x, y: c.y, w: c.w, h: c.h }, node: c.item, level: 1 });
+    // L2 children（行业内股票）
+    if (c.item.children && c.item.children.length) {
+      const validL2 = c.item.children.filter((s) => (s.weight || 0) > 0);
+      // 给 L2 留出顶部 L1 标签区（约 18px）—— 仅当 L1 块够大
+      const labelH = (c.w >= 80 && c.h >= 50) ? 18 : 0;
+      const inner = { x: c.x + 1, y: c.y + 1 + labelH, w: Math.max(0, c.w - 2), h: Math.max(0, c.h - 2 - labelH) };
+      const l2Cells = squarify(validL2, inner);
+      for (const cc of l2Cells) {
+        out.push({ rect: cc, node: cc.item, level: 2, parent: c.item });
+      }
+    }
+  }
+  return out;
+}
+
+// ---------------- 颜色（仿同花顺色阶，-4% ~ +4%） ----------------
+const PCT_MIN = -4;
+const PCT_MAX = 4;
 function pctColor(pct) {
-  if (pct == null || !Number.isFinite(pct)) return "var(--text-tertiary)";
-  const max = 3; // ±3% 满色
-  const t = Math.max(-1, Math.min(1, pct / max));
-  // RGB 插值：红 #ff4757 / 灰 #5a6478 / 绿 #00d68f
+  if (pct == null || !Number.isFinite(pct)) return "#3a4356";  // 无数据 - 中性灰
+  const t = Math.max(-1, Math.min(1, (pct - 0) / PCT_MAX));
+  // 4 段插值：深红 → 红 → 灰 → 绿 → 深绿
+  // A 股惯例 涨红跌绿
   let r, g, b;
   if (t > 0) {
-    // 灰 → 绿
-    r = Math.round(0x5a + (0x00 - 0x5a) * t);
-    g = Math.round(0x64 + (0xd6 - 0x64) * t);
-    b = Math.round(0x78 + (0x8f - 0x78) * t);
+    // 灰 #3a4356 → 绿 #00a854
+    r = Math.round(0x3a + (0x00 - 0x3a) * t);
+    g = Math.round(0x43 + (0xa8 - 0x43) * t);
+    b = Math.round(0x56 + (0x54 - 0x56) * t);
   } else {
-    // 红 → 灰
     const k = -t;
-    r = Math.round(0xff + (0x5a - 0xff) * k);
-    g = Math.round(0x47 + (0x64 - 0x47) * k);
-    b = Math.round(0x57 + (0x78 - 0x57) * k);
+    // 灰 #3a4356 → 红 #d8253a
+    r = Math.round(0x3a + (0xd8 - 0x3a) * k);
+    g = Math.round(0x43 + (0x25 - 0x43) * k);
+    b = Math.round(0x56 + (0x3a - 0x56) * k);
   }
   return `rgb(${r},${g},${b})`;
 }
+
+function pctTextColor(pct) {
+  if (pct == null || !Number.isFinite(pct)) return "#aab3c5";
+  const t = Math.abs(pct) / PCT_MAX;
+  return t > 0.5 ? "#fff" : "#e6edf3";
+}
+
+// ---------------- 组件 ----------------
 
 export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, formatCacheTime, hasKey }) {
   const wrapRef = useRef(null);
   const [w, setW] = useState(900);
   const [hover, setHover] = useState(null);
+  const [activeTime, setActiveTime] = useState("now");
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -191,28 +227,21 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
     return () => ro.disconnect();
   }, []);
 
-  const h = 480;
+  const h = 720;  // 两层 treemap 需要更高
   const cells = useMemo(() => {
     if (!data || !data.length) return [];
-    // 过滤掉 weight<=0 的项；fallback 项 weight=1（平均分布）保证能铺满
-    const valid = data.filter((d) => (d.weight || 0) > 0);
-    if (!valid.length) return [];
-    return squarify(valid, { x: 0, y: 0, w, h });
+    return layoutTwoLevel(data, { x: 0, y: 0, w, h });
   }, [data, w]);
 
-  const onCellClick = (item) => {
-    if (!item) return;
-    // 跳到"选股"tab 并预填行业名
-    const detail = { name: item.name, code: item.code };
-    window.dispatchEvent(new CustomEvent("quant:jump-selector", { detail }));
-  };
+  const l1Count = data ? data.length : 0;
+  const l2Count = data ? data.reduce((s, it) => s + (it.children?.length || 0), 0) : 0;
 
   return (
     <div className="chart-panel" style={{ padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h4 style={{ margin: 0 }}>
           A 股行业热力
-          <span className="hint" style={{ marginLeft: 8, fontSize: 11 }}>（按总市值 / 颜色 = 涨跌幅）</span>
+          <span className="hint" style={{ marginLeft: 8, fontSize: 11 }}>（同花顺一级行业 · 大小 = 总市值 · 颜色 = 涨跌幅）</span>
         </h4>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {cacheTs > 0 && (
@@ -237,61 +266,86 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
       ) : (
         <>
           <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
-            <svg width={w} height={h} style={{ display: "block", borderRadius: 4 }}>
+            <svg width={w} height={h} style={{ display: "block", borderRadius: 4, background: "#0b1426" }}>
               {cells.map((c, i) => {
-                const fill = pctColor(c.item.pct);
-                const textColor = (c.item.pct != null && Math.abs(c.item.pct) > 1.5) ? "#fff" : "var(--bg)";
+                const isL1 = c.level === 1;
+                const r = c.rect;
+                const fill = pctColor(c.node.pct);
+                const textColor = pctTextColor(c.node.pct);
                 return (
                   <g
                     key={i}
                     onMouseEnter={(e) => {
                       const rect = wrapRef.current.getBoundingClientRect();
-                      setHover({ ...c.item, mx: e.clientX - rect.left, my: e.clientY - rect.top });
+                      setHover({ ...c.node, level: c.level, parent: c.parent, mx: e.clientX - rect.left, my: e.clientY - rect.top });
                     }}
                     onMouseMove={(e) => {
                       const rect = wrapRef.current.getBoundingClientRect();
                       setHover((h0) => h0 ? { ...h0, mx: e.clientX - rect.left, my: e.clientY - rect.top } : null);
                     }}
                     onMouseLeave={() => setHover(null)}
-                    onClick={() => onCellClick(c.item)}
+                    onClick={() => {
+                      // 行业（L1）→ 跳到选股；股票（L2）→ 跳到回测单标的
+                      if (isL1) {
+                        window.dispatchEvent(new CustomEvent("quant:jump-selector", { detail: { name: c.node.name, code: c.node.code } }));
+                      } else if (c.node.code) {
+                        window.dispatchEvent(new CustomEvent("quant:jump-selector", { detail: { name: c.node.name, code: c.node.code, single: true } }));
+                      }
+                    }}
                     style={{ cursor: "pointer" }}
                   >
                     <rect
-                      x={c.x + 1}
-                      y={c.y + 1}
-                      width={Math.max(0, c.w - 2)}
-                      height={Math.max(0, c.h - 2)}
+                      x={r.x + 1}
+                      y={r.y + 1}
+                      width={Math.max(0, r.w - 2)}
+                      height={Math.max(0, r.h - 2)}
                       fill={fill}
-                      stroke="var(--bg)"
-                      strokeWidth="1"
+                      stroke="#0b1426"
+                      strokeWidth="1.5"
                     />
-                    {c.w > 60 && c.h > 28 && (
+                    {isL1 && r.w > 60 && r.h > 18 && (
                       <text
-                        x={c.x + c.w / 2}
-                        y={c.y + c.h / 2 - (c.h > 50 ? 4 : 0)}
-                        textAnchor="middle"
-                        fontSize={Math.min(13, c.w / 8)}
-                        fill={textColor}
+                        x={r.x + 5}
+                        y={r.y + 13}
+                        fontSize={Math.min(13, r.w / 7)}
+                        fill="var(--text-primary)"
                         className="mono"
                         fontWeight="600"
+                        opacity="0.9"
                         style={{ pointerEvents: "none" }}
                       >
-                        {c.item.name}
+                        {c.node.name}
                       </text>
                     )}
-                    {c.w > 40 && c.h > 38 && c.item.pct != null && (
-                      <text
-                        x={c.x + c.w / 2}
-                        y={c.y + c.h / 2 + 12}
-                        textAnchor="middle"
-                        fontSize={Math.min(11, c.w / 10)}
-                        fill={textColor}
-                        className="mono"
-                        opacity="0.95"
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {formatPercentText(c.item.pct)}
-                      </text>
+                    {!isL1 && r.w > 36 && r.h > 22 && (
+                      <>
+                        <text
+                          x={r.x + r.w / 2}
+                          y={r.y + r.h / 2 - 2}
+                          textAnchor="middle"
+                          fontSize={Math.min(12, r.w / 4.5)}
+                          fill={textColor}
+                          className="mono"
+                          fontWeight="600"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {c.node.name}
+                        </text>
+                        {c.node.pct != null && r.h > 32 && (
+                          <text
+                            x={r.x + r.w / 2}
+                            y={r.y + r.h / 2 + 12}
+                            textAnchor="middle"
+                            fontSize={Math.min(11, r.w / 5.5)}
+                            fill={textColor}
+                            className="mono"
+                            opacity="0.95"
+                            style={{ pointerEvents: "none" }}
+                          >
+                            {formatPercentText(c.node.pct)}
+                          </text>
+                        )}
+                      </>
                     )}
                   </g>
                 );
@@ -302,7 +356,7 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
               <div
                 style={{
                   position: "absolute",
-                  left: Math.min((hover.mx || 0) + 14, w - 220),
+                  left: Math.min((hover.mx || 0) + 14, w - 240),
                   top: Math.max(0, (hover.my || 0) - 8),
                   background: "var(--bg-elev)",
                   border: "1px solid var(--line)",
@@ -313,33 +367,79 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
                   pointerEvents: "none",
                   zIndex: 5,
                   boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-                  minWidth: 180,
+                  minWidth: 200,
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                <div style={{ color: "var(--ink)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{hover.name}</div>
+                <div style={{ color: "var(--ink)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  {hover.level === 2 && hover.parent ? `${hover.parent.name} · ${hover.name}` : hover.name}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 10, rowGap: 2 }}>
                   <span style={{ color: "var(--text-secondary)" }}>代码</span>
                   <span>{hover.code || "--"}</span>
                   <span style={{ color: "var(--text-secondary)" }}>涨跌幅</span>
-                  <span style={{ color: (hover.pct ?? 0) >= 0 ? "var(--up-color)" : "var(--down-color)", fontWeight: 600 }}>
+                  <span style={{ color: (hover.pct ?? 0) >= 0 ? "var(--down-color)" : "var(--up-color)", fontWeight: 600 }}>
                     {formatPercentText(hover.pct)}
                   </span>
-                  <span style={{ color: "var(--text-secondary)" }}>总市值</span>
-                  <span>{hover.mcapLabel || "--"}</span>
+                  {hover.weight > 0 && (
+                    <>
+                      <span style={{ color: "var(--text-secondary)" }}>权重</span>
+                      <span>{formatMcap(hover.weight)}</span>
+                    </>
+                  )}
                 </div>
                 <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--line)", color: "var(--text-tertiary)", fontSize: 10 }}>
-                  点击 → 选股 tab 自动填入该行业
+                  点击 → {hover.level === 1 ? "选股 tab 自动填入该行业" : "选股 tab 自动填入该股票"}
                 </div>
               </div>
             )}
           </div>
 
-          {/* 图例 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11, color: "var(--text-tertiary)", justifyContent: "center" }}>
-            <span>-3%</span>
-            <div style={{ width: 120, height: 8, borderRadius: 4, background: "linear-gradient(90deg, #ff4757 0%, #5a6478 50%, #00d68f 100%)" }} />
-            <span>+3%</span>
+          {/* 底部：时间轴占位 + 色阶图例 */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              <span className="inline-action" style={{ background: "var(--bg-surface)", color: "var(--text-tertiary)", borderColor: "var(--line)", fontSize: 11 }}>
+                关闭复盘
+              </span>
+              {["09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00"].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className="inline-action"
+                  style={{
+                    fontSize: 11,
+                    padding: "3px 8px",
+                    color: t === activeTime ? "var(--accent)" : "var(--text-tertiary)",
+                    borderColor: t === activeTime ? "var(--accent)" : "var(--line)",
+                    background: t === activeTime ? "var(--accent-soft)" : "transparent",
+                  }}
+                  onClick={() => t === "15:00" && setActiveTime(t)}
+                  disabled={t !== "15:00"}
+                  title={t !== "15:00" ? "历史回放需要历史数据快照（暂未启用）" : ""}
+                >
+                  {t}
+                </button>
+              ))}
+              <span className="hint" style={{ fontSize: 11, marginLeft: 8 }}>{l1Count} 行业 · {l2Count} 股票</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--text-tertiary)" }}>
+              {[-4, -3, -2, -1, 0, 1, 2, 3, 4].map((p) => (
+                <span
+                  key={p}
+                  style={{
+                    background: pctColor(p),
+                    color: pctTextColor(p),
+                    padding: "3px 6px",
+                    borderRadius: 3,
+                    fontFamily: "var(--font-mono)",
+                    minWidth: 28,
+                    textAlign: "center",
+                  }}
+                >
+                  {p > 0 ? `+${p}` : p}%
+                </span>
+              ))}
+            </div>
           </div>
         </>
       )}
@@ -347,49 +447,86 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
   );
 }
 
-// ---- 数据获取：iwencai 拉申万一级行业涨跌幅 + 总市值 ----
+// ---------------- 数据获取 ----------------
 
 export async function fetchIndustryHeatmap(hasIwencaiKey) {
-  if (!hasIwencaiKey) {
-    return { items: [], fallback: true };
-  }
-  // 一次 query 拉所有同花顺一级行业 + 涨跌幅 + 总市值
-  // iwencai 自然语言支持"同花顺一级行业 涨跌幅 总市值"
-  const QUERIES = [
+  if (!hasIwencaiKey) return { items: [], fallback: true };
+
+  // 并发拉 L1 行业 + L2 成分股
+  const L1_QUERIES = [
     "同花顺一级行业 涨跌幅 总市值 行业代码",
     "同花顺行业 涨跌幅 总市值 行业代码",
-    "行业板块 涨跌幅 总市值",
     "申万一级行业 涨跌幅 总市值 行业代码",
   ];
-  for (const q of QUERIES) {
+  const L2_QUERY = "市值前100 股票代码 股票简称 涨跌幅 总市值 行业";
+
+  let l1 = null;
+  for (const q of L1_QUERIES) {
     try {
       const res = await postJson("/api/query", { query: q, limit: 80 });
-      if (res && Array.isArray(res.datas) && res.datas.length > 0) {
+      if (res && Array.isArray(res.datas) && res.datas.length >= 5) {
         const items = res.datas
           .map((row) => {
-            // 顺序：同花顺一级行业 > 申万一级行业 > 行业名称 > 行业简称
             const name = row["同花顺一级行业"] || row["申万一级行业"] || row["行业名称"] || row["行业简称"];
             const code = row["行业代码"] || row["代码"];
             const pct = parseFloat(fuzzyFind(row, ["涨跌幅", "涨幅"]));
             const mcap = parseFloat(fuzzyFind(row, ["总市值"]));
             return { name: String(name || "").trim(), code, pct: Number.isFinite(pct) ? pct : null, weight: Number.isFinite(mcap) && mcap > 0 ? mcap : 0 };
           })
-          .filter((it) => it.name && it.name !== "--" && it.name !== "nan" && !/^[\d]+$/.test(it.name));  // 排除纯数字
-        if (items.length >= 5) {
-          // 至少要有 30% 的项有有效 weight（总市值），否则视为 fuzzyFind 失败
-          const validWeight = items.filter((it) => it.weight > 0).length;
-          if (validWeight >= items.length * 0.3) {
-            return { items, fallback: false, queriedAt: Date.now() };
-          }
+          .filter((it) => it.name && it.name !== "--" && it.name !== "nan" && !/^[\d]+$/.test(it.name));
+        const validWeight = items.filter((it) => it.weight > 0).length;
+        if (items.length >= 10 && validWeight >= items.length * 0.3) {
+          l1 = items;
+          break;
         }
       }
-    } catch (e) {
-      // try next query
-    }
+    } catch (e) { /* try next */ }
   }
-  // 全部失败 → 用 fallback（行业名 + 平均分布大小 + null 涨跌幅）
+
+  // L2: 一次性 query 拉 100 个股，按行业 group 后取 top 5
+  let stocksByIndustry = {};
+  try {
+    const res = await postJson("/api/query", { query: L2_QUERY, limit: 100 });
+    if (res && Array.isArray(res.datas)) {
+      for (const row of res.datas) {
+        const code = row["股票代码"] || row["code"];
+        const name = row["股票简称"];
+        const industry = row["同花顺一级行业"] || row["行业"] || row["申万一级行业"];
+        const pct = parseFloat(fuzzyFind(row, ["涨跌幅", "涨幅"]));
+        const mcap = parseFloat(fuzzyFind(row, ["总市值"]));
+        if (!industry || !name || !Number.isFinite(mcap) || mcap <= 0) continue;
+        if (!stocksByIndustry[industry]) stocksByIndustry[industry] = [];
+        stocksByIndustry[industry].push({ name: String(name).trim(), code, pct: Number.isFinite(pct) ? pct : null, weight: mcap });
+      }
+      // 每行业按市值 top 5
+      for (const k of Object.keys(stocksByIndustry)) {
+        stocksByIndustry[k].sort((a, b) => b.weight - a.weight);
+        stocksByIndustry[k] = stocksByIndustry[k].slice(0, 5);
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  if (l1 && l1.length) {
+    // 把 L2 拼到 L1
+    const items = l1.map((it) => ({
+      ...it,
+      // weight 兜底：若行业 weight=0（fuzzyFind 失败），用子项市值和兜底
+      weight: it.weight > 0 ? it.weight : (stocksByIndustry[it.name]?.reduce((s, x) => s + x.weight, 0) || 1),
+      children: stocksByIndustry[it.name] || [],
+    }));
+    return { items, fallback: false, queriedAt: Date.now() };
+  }
+
+  // fallback：51 行业 + 内置几只代表股（保证两层 treemap 都有内容）
   return {
-    items: THS_INDUSTRIES_FALLBACK.map((it) => ({ name: it.name, code: it.code, pct: null, weight: 1 })),
+    items: THS_INDUSTRIES_FALLBACK.map((it) => ({
+      ...it,
+      pct: null,
+      weight: 1,
+      children: [],
+    })),
     fallback: true,
   };
 }
@@ -407,7 +544,6 @@ function fuzzyFind(row, keywords) {
   return null;
 }
 
-// ---- 辅助：格式化市值 ----
 export function formatMcap(v) {
   if (v == null || !Number.isFinite(v)) return "--";
   if (v >= 1e12) return (v / 1e12).toFixed(2) + "万亿";
