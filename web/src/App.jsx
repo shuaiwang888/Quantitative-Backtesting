@@ -57,6 +57,19 @@ export default function App() {
     return () => window.removeEventListener("quant:batch-watchlist", handler);
   }, []);
 
+  // 监听热力图点击 → 跳到 Selector tab
+  useEffect(() => {
+    const handler = (e) => {
+      const { name, code } = e.detail || {};
+      if (!name) return;
+      try { sessionStorage.setItem("quant_pending_industry", JSON.stringify({ name, code })); } catch {}
+      setActiveTab("selector");
+      showStatus(`已跳到选股，行业: ${name}`);
+    };
+    window.addEventListener("quant:jump-selector", handler);
+    return () => window.removeEventListener("quant:jump-selector", handler);
+  }, []);
+
   // tab 切换时清空 pendingBatchNames（避免下次再触发）
   useEffect(() => {
     if (activeTab !== "backtest") setPendingBatchNames(null);
