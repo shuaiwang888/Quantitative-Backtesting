@@ -175,3 +175,39 @@ export function fuzzyFind(row, keywords) {
   }
   return "--";
 }
+
+// ---- 并发限流 Semaphore（用于热力图并发拉 10 个行业成分股） ----
+
+export class Semaphore {
+  constructor(max) {
+    this.max = max;
+    this.active = 0;
+    this.queue = [];
+  }
+  async acquire() {
+    if (this.active < this.max) {
+      this.active++;
+      return;
+    }
+    await new Promise((resolve) => this.queue.push(resolve));
+    this.active++;
+  }
+  release() {
+    this.active--;
+    const next = this.queue.shift();
+    if (next) next();
+  }
+  async run(fn) {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      this.release();
+    }
+  }
+}
+
+export async function runWithConcurrency(items, max, fn) {
+  const sem = new Semaphore(max);
+  return Promise.all(items.map((it) => sem.run(() => fn(it))));
+}

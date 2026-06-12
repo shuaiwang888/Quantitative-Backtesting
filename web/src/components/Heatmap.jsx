@@ -17,7 +17,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { postJson, formatPercentText } from "../api.js";
+import { postJson, formatPercentText, fuzzyFind, runWithConcurrency } from "../api.js";
 
 // 同花顺一级行业 51 个（数据 fallback / iwencai 拉不到时用）
 const THS_INDUSTRIES_FALLBACK = [
@@ -447,101 +447,85 @@ export default function Heatmap({ data, loading, onError, onRefresh, cacheTs, fo
   );
 }
 
-// ---------------- 数据获取 ----------------
+// ---------------- 数据获取（两阶段：热度前 10 行业 → 每行业 top 10 成分股） ----------------
 
 export async function fetchIndustryHeatmap(hasIwencaiKey) {
   if (!hasIwencaiKey) return { items: [], fallback: true };
 
-  // 并发拉 L1 行业 + L2 成分股
+  // 阶段 1：拉今日热度前 10 的行业
   const L1_QUERIES = [
-    "同花顺一级行业 涨跌幅 总市值 行业代码",
-    "同花顺行业 涨跌幅 总市值 行业代码",
+    "同花顺行业热度榜 涨跌幅 行业代码",
+    "今日热门行业 涨跌幅 行业代码 流通市值",
+    "同花顺热门行业 涨跌幅 行业代码",
     "申万一级行业 涨跌幅 总市值 行业代码",
   ];
-  const L2_QUERY = "市值前100 股票代码 股票简称 涨跌幅 总市值 行业";
-
   let l1 = null;
   for (const q of L1_QUERIES) {
     try {
-      const res = await postJson("/api/query", { query: q, limit: 80 });
+      const res = await postJson("/api/query", { query: q, limit: 15 });
       if (res && Array.isArray(res.datas) && res.datas.length >= 5) {
         const items = res.datas
           .map((row) => {
-            const name = row["同花顺一级行业"] || row["申万一级行业"] || row["行业名称"] || row["行业简称"];
+            const name = row["同花顺一级行业"] || row["同花顺行业"] || row["申万一级行业"] || row["行业名称"] || row["行业简称"];
             const code = row["行业代码"] || row["代码"];
             const pct = parseFloat(fuzzyFind(row, ["涨跌幅", "涨幅"]));
-            const mcap = parseFloat(fuzzyFind(row, ["总市值"]));
+            const mcap = parseFloat(fuzzyFind(row, ["流通市值", "总市值"]));
             return { name: String(name || "").trim(), code, pct: Number.isFinite(pct) ? pct : null, weight: Number.isFinite(mcap) && mcap > 0 ? mcap : 0 };
           })
           .filter((it) => it.name && it.name !== "--" && it.name !== "nan" && !/^[\d]+$/.test(it.name));
-        const validWeight = items.filter((it) => it.weight > 0).length;
-        if (items.length >= 10 && validWeight >= items.length * 0.3) {
-          l1 = items;
+        if (items.length >= 5) {
+          l1 = items.slice(0, 10);
           break;
         }
       }
     } catch (e) { /* try next */ }
   }
 
-  // L2: 一次性 query 拉 100 个股，按行业 group 后取 top 5
-  let stocksByIndustry = {};
-  try {
-    const res = await postJson("/api/query", { query: L2_QUERY, limit: 100 });
-    if (res && Array.isArray(res.datas)) {
-      for (const row of res.datas) {
-        const code = row["股票代码"] || row["code"];
-        const name = row["股票简称"];
-        const industry = row["同花顺一级行业"] || row["行业"] || row["申万一级行业"];
-        const pct = parseFloat(fuzzyFind(row, ["涨跌幅", "涨幅"]));
-        const mcap = parseFloat(fuzzyFind(row, ["总市值"]));
-        if (!industry || !name || !Number.isFinite(mcap) || mcap <= 0) continue;
-        if (!stocksByIndustry[industry]) stocksByIndustry[industry] = [];
-        stocksByIndustry[industry].push({ name: String(name).trim(), code, pct: Number.isFinite(pct) ? pct : null, weight: mcap });
+  if (!l1 || l1.length === 0) {
+    // fallback：51 行业（无 L2 子项，保证至少能看到行业名）
+    return {
+      items: THS_INDUSTRIES_FALLBACK.slice(0, 15).map((it) => ({ ...it, pct: null, weight: 1, children: [] })),
+      fallback: true,
+    };
+  }
+
+  // 阶段 2：对每个行业并发拉 top 10 成分股（流通市值 / 涨跌幅 / 股票代码 / 股票简称）
+  // 用 Semaphore(5) 限流，避免打爆 iwencai QPS
+  const stocksByIndustry = {};
+  await runWithConcurrency(l1, 5, async (ind) => {
+    try {
+      const q = `同花顺一级行业 ${ind.name} 成分股 股票代码 股票简称 涨跌幅 流通市值`;
+      const res = await postJson("/api/query", { query: q, limit: 10 });
+      if (res && Array.isArray(res.datas) && res.datas.length > 0) {
+        const stocks = res.datas
+          .map((row) => {
+            const code = row["股票代码"] || row["code"];
+            const name = row["股票简称"];
+            const pct = parseFloat(fuzzyFind(row, ["涨跌幅", "涨幅"]));
+            const mcap = parseFloat(fuzzyFind(row, ["流通市值", "总市值"]));
+            if (!name) return null;
+            return { name: String(name).trim(), code, pct: Number.isFinite(pct) ? pct : null, weight: Number.isFinite(mcap) && mcap > 0 ? mcap : 0 };
+          })
+          .filter(Boolean);
+        // 排序取 top 10（按流通市值降序）
+        stocks.sort((a, b) => b.weight - a.weight);
+        stocksByIndustry[ind.name] = stocks.slice(0, 10);
       }
-      // 每行业按市值 top 5
-      for (const k of Object.keys(stocksByIndustry)) {
-        stocksByIndustry[k].sort((a, b) => b.weight - a.weight);
-        stocksByIndustry[k] = stocksByIndustry[k].slice(0, 5);
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
+    } catch (e) { /* skip */ }
+  });
 
-  if (l1 && l1.length) {
-    // 把 L2 拼到 L1
-    const items = l1.map((it) => ({
-      ...it,
-      // weight 兜底：若行业 weight=0（fuzzyFind 失败），用子项市值和兜底
-      weight: it.weight > 0 ? it.weight : (stocksByIndustry[it.name]?.reduce((s, x) => s + x.weight, 0) || 1),
-      children: stocksByIndustry[it.name] || [],
-    }));
-    return { items, fallback: false, queriedAt: Date.now() };
-  }
+  // 拼装：行业 + 子项；行业 weight 兜底 = 子项市值之和
+  const items = l1.map((ind) => {
+    const children = stocksByIndustry[ind.name] || [];
+    const childSum = children.reduce((s, x) => s + (x.weight || 0), 0);
+    return {
+      ...ind,
+      weight: ind.weight > 0 ? ind.weight : (childSum > 0 ? childSum : 1),
+      children,
+    };
+  });
 
-  // fallback：51 行业 + 内置几只代表股（保证两层 treemap 都有内容）
-  return {
-    items: THS_INDUSTRIES_FALLBACK.map((it) => ({
-      ...it,
-      pct: null,
-      weight: 1,
-      children: [],
-    })),
-    fallback: true,
-  };
-}
-
-function fuzzyFind(row, keywords) {
-  if (!row) return null;
-  for (const kw of keywords) {
-    const key = Object.keys(row).find((k) => k.includes(kw));
-    if (key) {
-      let v = row[key];
-      if (typeof v === "object" && v) v = Object.values(v)[0];
-      return v;
-    }
-  }
-  return null;
+  return { items, fallback: false, queriedAt: Date.now() };
 }
 
 export function formatMcap(v) {
