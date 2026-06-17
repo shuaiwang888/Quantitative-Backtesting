@@ -581,6 +581,11 @@ function CandleChart({ bars, trades }) {
   const [hoverIdx, setHoverIdx] = useState(null);
   const [showMA, setShowMA] = useState({ ma5: true, ma10: true, ma20: true });
 
+  // 缩放 / 平移视图：viewStart / viewEnd 是 [0, n] 范围内的浮点 index
+  const [view, setView] = useState({ start: 0, end: 1 });
+  // 上一次 drag 的 X 与是否在拖
+  const dragRef = useRef(null);
+
   useEffect(() => {
     if (!wrapRef.current) return;
     const ro = new ResizeObserver((entries) => {
@@ -589,6 +594,12 @@ function CandleChart({ bars, trades }) {
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
+
+  // bars 变化（标的切换 / 重跑回测）时重置视图
+  useEffect(() => {
+    setView({ start: 0, end: bars.length || 1 });
+    setHoverIdx(null);
+  }, [bars]);
 
   // 主图 320 / 间距 16 / 副图 120 / 顶 30 / 底 30
   const h = 516;
@@ -610,7 +621,7 @@ function CandleChart({ bars, trades }) {
     return m;
   }, [trades]);
 
-  // MA 均线
+  // MA 均线（按全量 bars 计算；切片留到渲染时）
   const ma = useMemo(() => {
     const out = { ma5: [], ma10: [], ma20: [] };
     if (!bars.length) return out;
@@ -651,6 +662,30 @@ function CandleChart({ bars, trades }) {
 
   if (!data) return <div className="chart-empty">无数据</div>;
 
+  // === 视图参数：clamp + 计算可见区 ===
+  const n = data.n;
+  const MIN_VIEW = 10;        // 最少显示 10 根
+  const MAX_VIEW = n;         // 最多全量
+  const clampView = (s, e) => {
+    let ns = Math.max(0, Math.min(s, n - MIN_VIEW));
+    let ne = Math.max(ns + MIN_VIEW, Math.min(e, n));
+    if (ne - ns > MAX_VIEW) ne = ns + MAX_VIEW;
+    return { start: ns, end: ne };
+  };
+  const v = clampView(view.start, view.end);
+  const viewStart = v.start;
+  const viewEnd = v.end;
+  const viewCount = viewEnd - viewStart;
+  const viewStep = innerW / viewCount;
+  const viewCandleW = Math.max(2, Math.min(14, viewStep * 0.62));
+  // 在视图坐标系下，bar i 的 X
+  const xView = (i) => pad.l + (i - viewStart + 0.5) * viewStep;
+  // 视图内可见的 bar 范围
+  const firstBar = Math.max(0, Math.floor(viewStart));
+  const lastBar = Math.min(n - 1, Math.ceil(viewEnd));
+  // 当前缩放级别（相对全量，1 = 全量，>1 = 放大）
+  const zoomLevel = n / Math.max(1, viewCount);
+
   // Y 轴 ticks（5 段）
   const yTicks = 5;
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => ({
@@ -658,19 +693,88 @@ function CandleChart({ bars, trades }) {
     y: mainTop + (i / yTicks) * innerH,
   }));
 
-  // X 轴日期：5 段
-  const xTickCount = Math.min(6, bars.length);
+  // X 轴日期：5 段（在视图范围内均匀采样）
+  const xTickCount = Math.min(6, Math.max(2, Math.floor(viewCount / 20) + 2));
   const xTicks = Array.from({ length: xTickCount }, (_, i) => {
-    const idx = Math.round((i / (xTickCount - 1)) * (bars.length - 1));
-    return { idx, x: data.x(idx), label: (bars[idx].date || "").slice(2, 10) };
+    const idx = Math.round(viewStart + (i / (xTickCount - 1)) * viewCount);
+    const ci = Math.max(0, Math.min(n - 1, idx));
+    return { idx: ci, x: xView(ci), label: (bars[ci].date || "").slice(2, 10) };
   });
+
+  // === 滚轮缩放（以鼠标 X 为锚点） ===
+  const onWheel = (e) => {
+    if (!data) return;
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    // 鼠标在视图坐标系中的位置（0..1）
+    const anchorFrac = Math.max(0, Math.min(1, (px - pad.l) / innerW));
+    const anchorIdx = viewStart + anchorFrac * viewCount;
+    // 缩放因子：向上滚 = 放大（缩小 viewCount）
+    const factor = e.deltaY < 0 ? 0.8 : 1.25;
+    let newCount = viewCount * factor;
+    newCount = Math.max(MIN_VIEW, Math.min(n, newCount));
+    // 保持锚点 bar 不动
+    let newStart = anchorIdx - anchorFrac * newCount;
+    let newEnd = newStart + newCount;
+    if (newStart < 0) { newEnd -= newStart; newStart = 0; }
+    if (newEnd > n) { newStart -= (newEnd - n); newEnd = n; newStart = Math.max(0, newStart); }
+    setView(clampView(newStart, newEnd));
+  };
+
+  // === 鼠标拖拽平移 ===
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return; // 仅左键
+    dragRef.current = { startX: e.clientX, viewStart, viewEnd };
+    e.currentTarget.style.cursor = "grabbing";
+  };
+  useEffect(() => {
+    const onMoveDrag = (e) => {
+      if (!dragRef.current) return;
+      const { startX, viewStart: vs, viewEnd: ve } = dragRef.current;
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const dx = e.clientX - startX;
+      // 把 px 差换算成 bar 数
+      const barPerPx = (ve - vs) / innerW;
+      const dBars = -dx * barPerPx;
+      setView(clampView(vs + dBars, ve + dBars));
+    };
+    const onUpDrag = () => {
+      if (dragRef.current && wrapRef.current) {
+        wrapRef.current.querySelector("svg")?.style &&
+          (wrapRef.current.querySelector("svg").style.cursor = "grab");
+      }
+      dragRef.current = null;
+    };
+    window.addEventListener("mousemove", onMoveDrag);
+    window.addEventListener("mouseup", onUpDrag);
+    return () => {
+      window.removeEventListener("mousemove", onMoveDrag);
+      window.removeEventListener("mouseup", onUpDrag);
+    };
+  }, [innerW, n]);
+
+  const resetZoom = () => setView({ start: 0, end: n });
+  const zoomIn = () => {
+    const center = (viewStart + viewEnd) / 2;
+    const newCount = Math.max(MIN_VIEW, viewCount * 0.7);
+    setView(clampView(center - newCount / 2, center + newCount / 2));
+  };
+  const zoomOut = () => {
+    const center = (viewStart + viewEnd) / 2;
+    const newCount = Math.min(n, viewCount * 1.4);
+    setView(clampView(center - newCount / 2, center + newCount / 2));
+  };
 
   // hover 处理
   const onMove = (e) => {
     if (!data) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - rect.left;
-    const idx = Math.max(0, Math.min(bars.length - 1, Math.floor((px - pad.l) / data.step)));
+    // 鼠标位置 → bar index（基于视图）
+    const frac = (px - pad.l) / innerW;
+    const idx = Math.max(0, Math.min(bars.length - 1, Math.round(viewStart + frac * viewCount)));
     setHoverIdx(idx);
   };
   const onLeave = () => setHoverIdx(null);
@@ -678,18 +782,23 @@ function CandleChart({ bars, trades }) {
   // hover 工具
   const hover = hoverIdx != null ? bars[hoverIdx] : null;
   const hoverTrades = hover ? (tradeMap.get(hover.date) || []) : [];
-  const cx = hover ? data.x(hoverIdx) : 0;
+  const cx = hover ? xView(hoverIdx) : 0;
   const cy = hover ? data.y(hover.close) : 0;
 
-  // MA 折线路径
+  // MA 折线路径（在视图范围内切片 + 用 xView）
   const maPath = (arr) => {
+    const lo = Math.max(0, Math.floor(viewStart));
+    const hi = Math.min(arr.length - 1, Math.ceil(viewEnd));
     let started = false;
-    return arr.map((v, i) => {
-      if (v == null) return null;
-      const s = `${started ? "L" : "M"}${data.x(i).toFixed(1)},${data.y(v).toFixed(1)}`;
+    let out = "";
+    for (let i = lo; i <= hi; i++) {
+      const v = arr[i];
+      if (v == null) continue;
+      const s = `${started ? "L" : "M"}${xView(i).toFixed(1)},${data.y(v).toFixed(1)}`;
       started = true;
-      return s;
-    }).filter(Boolean).join(" ");
+      out += s + " ";
+    }
+    return out.trim();
   };
   const ma5Path = showMA.ma5 ? maPath(ma.ma5) : "";
   const ma10Path = showMA.ma10 ? maPath(ma.ma10) : "";
@@ -697,35 +806,65 @@ function CandleChart({ bars, trades }) {
 
   return (
     <div ref={wrapRef} style={{ width: "100%", overflowX: "auto", position: "relative" }}>
-      {/* MA 切换 */}
-      <div style={{ position: "absolute", top: 6, right: 80, display: "flex", gap: 4, zIndex: 2 }}>
-        {[["ma5", "MA5", "#fbbf24"], ["ma10", "MA10", "#4ea8ff"], ["ma20", "MA20", "#c084fc"]].map(([k, label, color]) => (
+      {/* MA 切换 + 缩放控件 */}
+      <div className="candle-toolbar">
+        <div className="candle-toolbar-group">
+          {[["ma5", "MA5", "#fbbf24"], ["ma10", "MA10", "#4ea8ff"], ["ma20", "MA20", "#c084fc"]].map(([k, label, color]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setShowMA({ ...showMA, [k]: !showMA[k] })}
+              style={{
+                padding: "2px 8px",
+                fontSize: 11,
+                border: `1px solid ${showMA[k] ? color : "var(--line)"}`,
+                background: showMA[k] ? `${color}22` : "transparent",
+                color: showMA[k] ? color : "var(--text-tertiary)",
+                borderRadius: 3,
+                cursor: "pointer",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="candle-toolbar-group candle-zoom-controls">
           <button
-            key={k}
             type="button"
-            onClick={() => setShowMA({ ...showMA, [k]: !showMA[k] })}
-            style={{
-              padding: "2px 8px",
-              fontSize: 11,
-              border: `1px solid ${showMA[k] ? color : "var(--line)"}`,
-              background: showMA[k] ? `${color}22` : "transparent",
-              color: showMA[k] ? color : "var(--text-tertiary)",
-              borderRadius: 3,
-              cursor: "pointer",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            {label}
-          </button>
-        ))}
+            onClick={zoomOut}
+            disabled={viewCount >= n}
+            title="缩小（滚轮向下也缩）"
+            className="candle-zoom-btn"
+          >−</button>
+          <button
+            type="button"
+            onClick={zoomIn}
+            disabled={viewCount <= MIN_VIEW}
+            title="放大（滚轮向上也放）"
+            className="candle-zoom-btn"
+          >+</button>
+          <button
+            type="button"
+            onClick={resetZoom}
+            disabled={viewCount >= n && viewStart <= 0}
+            title="重置视图"
+            className="candle-zoom-btn candle-zoom-reset"
+          >⟲</button>
+          <span className="candle-zoom-info" title="滚轮 = 缩放（以鼠标位置为锚点）· 拖拽 = 平移">
+            {Math.round(viewCount)}/{n} 根 · {zoomLevel.toFixed(1)}×
+          </span>
+        </div>
       </div>
 
       <svg
         width={w}
         height={h}
-        style={{ display: "block" }}
+        style={{ display: "block", cursor: dragRef.current ? "grabbing" : "grab" }}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
+        onWheel={onWheel}
+        onMouseDown={onMouseDown}
       >
         {/* ===== 主图网格 + Y 轴 ===== */}
         {ticks.map((t, i) => (
@@ -742,16 +881,18 @@ function CandleChart({ bars, trades }) {
           {/* 副图分隔线 */}
           <line x1={pad.l} x2={w - pad.r} y1={volTop - 4} y2={volTop - 4} stroke="var(--line)" strokeWidth="0.5" strokeDasharray="2,3" />
           <text x={pad.l - 6} y={volTop + 12} textAnchor="end" fontSize="9" fill="var(--text-tertiary)">VOL</text>
-          {bars.map((b, i) => {
+          {bars.slice(firstBar, lastBar + 1).map((b, j) => {
+            const i = firstBar + j;
+            if (i < viewStart || i > viewEnd) return null;
             const up = b.close >= b.open;
             const color = up ? "var(--up-color)" : "var(--down-color)";
             const v = Number(b.volume ?? 0);
             return (
               <rect
                 key={i}
-                x={data.x(i) - data.volW / 2}
+                x={xView(i) - viewCandleW / 2}
                 y={data.yVol(v)}
-                width={data.volW}
+                width={viewCandleW}
                 height={Math.max(1, volTop + volH - data.yVol(v))}
                 fill={color}
                 opacity={0.55}
@@ -765,8 +906,10 @@ function CandleChart({ bars, trades }) {
         </g>
 
         {/* ===== K线（先 wick 后 body） ===== */}
-        {bars.map((b, i) => {
-          const cx0 = data.x(i);
+        {bars.slice(firstBar, lastBar + 1).map((b, j) => {
+          const i = firstBar + j;
+          if (i < viewStart || i > viewEnd) return null;
+          const cx0 = xView(i);
           const yo = data.y(Number(b.open));
           const yc = data.y(Number(b.close));
           const yh = data.y(Number(b.high ?? Math.max(b.open, b.close)));
@@ -782,9 +925,9 @@ function CandleChart({ bars, trades }) {
               {/* 实体：A 股惯例 涨=实心红，跌=空心绿 */}
               {up ? (
                 <rect
-                  x={cx0 - data.candleW / 2}
+                  x={cx0 - viewCandleW / 2}
                   y={bodyTop}
-                  width={data.candleW}
+                  width={viewCandleW}
                   height={bodyH}
                   fill={color}
                   stroke={color}
@@ -792,9 +935,9 @@ function CandleChart({ bars, trades }) {
                 />
               ) : (
                 <rect
-                  x={cx0 - data.candleW / 2}
+                  x={cx0 - viewCandleW / 2}
                   y={bodyTop}
-                  width={data.candleW}
+                  width={viewCandleW}
                   height={bodyH}
                   fill="var(--bg-surface)"
                   stroke={color}
@@ -811,9 +954,11 @@ function CandleChart({ bars, trades }) {
         {ma20Path && <path d={ma20Path} fill="none" stroke="#c084fc" strokeWidth="1.2" opacity="0.9" />}
 
         {/* ===== 买卖点三角 ===== */}
-        {bars.map((b, i) => {
+        {bars.slice(firstBar, lastBar + 1).map((b, j) => {
+          const i = firstBar + j;
+          if (i < viewStart || i > viewEnd) return null;
           if (!tradeMap.has(b.date)) return null;
-          const cx0 = data.x(i);
+          const cx0 = xView(i);
           const yh = data.y(Number(b.high));
           const yl = data.y(Number(b.low));
           return tradeMap.get(b.date).map((t, j) => {
@@ -889,9 +1034,9 @@ function CandleChart({ bars, trades }) {
             </text>
             {/* 当前 K 框 */}
             <rect
-              x={cx - data.candleW / 2 - 1}
+              x={cx - viewCandleW / 2 - 1}
               y={mainTop}
-              width={data.candleW + 2}
+              width={viewCandleW + 2}
               height={innerH}
               fill="none"
               stroke="var(--accent)"

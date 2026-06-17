@@ -1007,3 +1007,64 @@ table .readonly-tag {
     transition: none;
   }
 }
+
+/* ---- K线图 缩放控件 (Backtest CandleChart) ---- */
+.candle-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  gap: 12px;
+  z-index: 2;
+  align-items: center;
+}
+.candle-toolbar-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 4px;
+  opacity: 0.85;
+}
+.candle-toolbar-group:hover { opacity: 1; }
+
+.candle-zoom-controls {
+  font-family: var(--font-mono);
+}
+.candle-zoom-btn {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.candle-zoom-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(78, 168, 255, 0.08);
+}
+.candle-zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.candle-zoom-reset {
+  font-size: 13px;
+  width: 26px;
+}
+.candle-zoom-info {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  padding: 0 6px;
+  white-space: nowrap;
+  min-width: 88px;
+  text-align: center;
+}
