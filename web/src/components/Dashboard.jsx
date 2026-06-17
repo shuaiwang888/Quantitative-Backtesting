@@ -2,8 +2,8 @@
  * Dashboard —— 首页
  *
  * 内容：
- *   - 大盘指数卡片（上证 / 深证 / 创业板）
- *   - 自选股行情表格
+ *   - 大盘指数卡片（上证 / 深证 / 创业板）—— 点击弹 K 线弹窗
+ *   - 自选股行情表格 —— 行点击弹 K 线弹窗
  *   - 整合"刷新"按钮：手动刷新大盘 + 自选股（带缓存）
  *
  * 缓存策略：
@@ -16,6 +16,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { postJson, money, numberOrDash, formatPercentText, fuzzyFind } from "../api.js";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
+import SymbolChartModal from "./SymbolChartModal.jsx";
 
 const LOCAL_WATCHLIST_STORAGE = "quant_watchlist";
 
@@ -69,6 +70,33 @@ async function fetchWatchlist(hasIwencaiKey) {
   return { source: "empty", items: [] };
 }
 
+/**
+ * 把 iwencai 行转成弹窗 target。
+ * 个股: `${name}的日K线，最近一年`
+ * 指数: iwencai 对指数"日K线"关键词支持差，需用日期范围 + 字段白名单
+ */
+function buildChartTarget(row, type) {
+  const name = row["股票简称"] || row["指数简称"];
+  if (!name || name === "--") return null;
+  const code = row["股票代码"] || row["code"] || "";
+  let query;
+  if (type === "index") {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    query = `${name} ${fmt(start)}到${fmt(end)} 每日行情 交易日期 开盘价 最高价 最低价 收盘价 成交量`;
+  } else {
+    query = `${name}的日K线，最近一年`;
+  }
+  return {
+    name,
+    symbol: code,
+    type,
+    query,
+  };
+}
+
 export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
   // 两个独立缓存（大盘 / 自选股），都从 localStorage 恢复
   const marketCache = useCachedResult("dashboard_market");
@@ -80,6 +108,7 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
   );
   const [loading, setLoading] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
+  const [chartTarget, setChartTarget] = useState(null);
 
   // 跨 tab 同步：cache 变了同步到 state
   useEffect(() => {
@@ -164,6 +193,11 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
     window.dispatchEvent(new CustomEvent("quant:batch-watchlist", { detail: { names } }));
   };
 
+  const openChart = (row, type) => {
+    const target = buildChartTarget(row, type);
+    if (target) setChartTarget(target);
+  };
+
   const isIwencaiSource = watchResult.source === "iwencai";
   const watchCount = watchResult.items.length;
   const sourceLabel =
@@ -201,7 +235,13 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
         {marketData.length === 0 ? (
           <p className="placeholder" style={{ gridColumn: "1/-1" }}>暂无大盘数据，点"刷新"加载</p>
         ) : (
-          marketData.map((row, i) => <MarketCard key={i} row={row} />)
+          marketData.map((row, i) => (
+            <MarketCard
+              key={i}
+              row={row}
+              onClick={() => openChart(row, "index")}
+            />
+          ))
         )}
       </div>
 
@@ -274,19 +314,27 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
                   row={row}
                   readonly={isIwencaiSource}
                   onRemove={removeSymbol}
+                  onClick={() => openChart(row, "stock")}
                 />
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {chartTarget && (
+        <SymbolChartModal
+          target={chartTarget}
+          onClose={() => setChartTarget(null)}
+        />
+      )}
     </section>
   );
 }
 
 // ---- 子组件：大盘指数卡片 ----
 
-function MarketCard({ row }) {
+function MarketCard({ row, onClick }) {
   const name = row["股票简称"] || row["指数简称"] || "--";
   let price = fuzzyFind(row, ["最新价", "收盘价"]);
   let pct = fuzzyFind(row, ["涨跌幅", "涨幅"]);
@@ -298,7 +346,14 @@ function MarketCard({ row }) {
   else if (parseFloat(pct) < 0) color = "var(--down-color)";
 
   return (
-    <div className="market-card">
+    <div
+      className="market-card clickable"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick?.()}
+      title="点击查看 K 线"
+    >
       <div className="market-card-name">{name}</div>
       <div className="market-card-price" style={{ color }}>{money(price)}</div>
       <div className="market-card-pct" style={{ color }}>{formatPercentText(pct)}</div>
@@ -308,7 +363,7 @@ function MarketCard({ row }) {
 
 // ---- 子组件：自选股一行 ----
 
-function WatchlistRow({ row, readonly, onRemove }) {
+function WatchlistRow({ row, readonly, onRemove, onClick }) {
   const code = row["code"] || row["股票代码"] || "--";
   const name = row["股票简称"] || "--";
   let price = fuzzyFind(row, ["最新价", "收盘价"]);
@@ -323,7 +378,7 @@ function WatchlistRow({ row, readonly, onRemove }) {
   else if (parseFloat(pct) < 0) color = "var(--down-color)";
 
   return (
-    <tr>
+    <tr className="clickable-row" onClick={onClick} title="点击查看 K 线">
       <td className="mono">{code}</td>
       <td>{name}</td>
       <td style={{ color, fontWeight: 500 }}>{money(price)}</td>
@@ -332,7 +387,7 @@ function WatchlistRow({ row, readonly, onRemove }) {
       <td>{money(close)}</td>
       <td>{numberOrDash(volumeRatio, 2)}</td>
       <td>{formatPercentText(turnover)}</td>
-      <td>
+      <td onClick={(e) => e.stopPropagation()}>
         {readonly ? (
           <span className="readonly-tag">--</span>
         ) : (

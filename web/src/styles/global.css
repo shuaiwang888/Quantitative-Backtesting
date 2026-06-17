@@ -834,3 +834,176 @@ table .readonly-tag {
   background: var(--accent);
   transition: width 0.3s ease;
 }
+
+/* ---- Dashboard 标的弹窗（SymbolChartModal） ---- */
+.modal-panel.modal-large {
+  max-width: min(960px, 95vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal-header .symbol-code {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-weight: 400;
+}
+.modal-header .badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  border-radius: 3px;
+  background: var(--bg-elev);
+  color: var(--text-secondary);
+  border: 1px solid var(--line);
+}
+.modal-header .ts-tag {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-right: auto;
+  margin-left: 12px;
+  font-family: var(--font-mono);
+}
+.symbol-modal-body {
+  padding: 0;
+  overflow: auto;
+  flex: 1;
+}
+
+/* 可点击 */
+.market-card.clickable {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.market-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(78, 168, 255, 0.18);
+  border-color: var(--accent);
+}
+.market-card.clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.clickable-row { cursor: pointer; }
+.clickable-row:hover { background: rgba(78, 168, 255, 0.06); }
+
+/* K 线图 */
+.candle-chart {
+  width: 100%;
+  background: var(--bg);
+  position: relative;
+  border-bottom: 1px solid var(--line);
+}
+.candle-empty {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.candle-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  z-index: 10;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* 指标面板 */
+.indicator-panel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-surface);
+}
+.indicator-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.indicator-card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+.indicator-card-sub {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  letter-spacing: 0;
+}
+.indicator-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 2px 0;
+  font-family: var(--font-mono);
+}
+.indicator-label { color: var(--text-secondary); }
+.indicator-value { color: var(--text-primary); font-weight: 500; }
+
+/* 骨架屏 */
+.skeleton-chart { padding: 16px; }
+.skeleton-row {
+  height: 100px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg,
+    var(--bg-elev) 25%, var(--bg-surface) 50%, var(--bg-elev) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+.skeleton-row.short { height: 80px; }
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 错误态 */
+.error-box {
+  padding: 60px 24px;
+  color: var(--down-color);
+  text-align: center;
+  font-size: 13px;
+}
+.error-box button {
+  display: block;
+  margin: 16px auto 0;
+  padding: 4px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+}
+.error-box button:hover { border-color: var(--accent); }
+
+/* 减少动画 */
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel,
+  .market-card.clickable,
+  .skeleton-row {
+    animation: none;
+    transition: none;
+  }
+}

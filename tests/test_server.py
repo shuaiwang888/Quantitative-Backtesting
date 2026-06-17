@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.request
 
 import pytest
 
@@ -397,3 +399,108 @@ class TestOptimizeMaxCombinationsHandler:
         for m in ("total_return", "annual_return", "max_drawdown",
                   "sharpe_ratio", "win_rate", "trade_count"):
             assert f"heatmap_{m}" in data, f"missing heatmap_{m}"
+
+
+class TestApiBarsHandler:
+    """POST /api/bars —— Dashboard 弹窗专用：拉近一年日 K + 元信息。"""
+
+    @pytest.fixture
+    def server(self, monkeypatch):
+        monkeypatch.setenv("IWENCAI_API_KEY", "test")
+        monkeypatch.setenv("MYSQL_PERSIST_ENABLED", "0")
+        monkeypatch.setenv("PORT", "0")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+        from quant.server.app import BacktestHandler
+        from http.server import ThreadingHTTPServer
+        from quant.server.middleware import RateLimiter
+        import threading
+
+        settings = __import__("quant.config", fromlist=["get_settings"]).get_settings()
+        BacktestHandler.limiter = RateLimiter(
+            limit=settings.rate_limit, window_seconds=settings.rate_window
+        )
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), BacktestHandler)
+        port = srv.server_address[1]
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        yield f"http://127.0.0.1:{port}"
+        srv.shutdown()
+        srv.server_close()
+
+    @staticmethod
+    def _bars_payload(n: int = 100):
+        out = []
+        for i in range(n):
+            out.append({
+                "日期": f"2024-{(i // 30) + 1:02d}-{(i % 30) + 1:02d}",
+                "股票代码": "600519",
+                "股票简称": "贵州茅台",
+                "开盘价": 10.0 + 0.04 * i,
+                "最高价": 10.0 + 0.06 * i,
+                "最低价": 10.0 + 0.03 * i,
+                "收盘价": 10.0 + 0.05 * i,
+                "成交量": 1000.0 + i * 10,
+            })
+        return out
+
+    def _post_bars(self, base_url, payload, monkeypatch):
+        """用 monkeypatch 替换 iwencai.fetch_all，POST /api/bars。"""
+        from quant.services import query as query_svc
+        monkeypatch.setattr(query_svc, "fetch_all",
+                            lambda *a, **k: {"datas": self._bars_payload(100)})
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{base_url}/api/bars",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return json.loads(e.read().decode("utf-8"))
+
+    def test_happy_path_returns_bars_and_meta(self, server, monkeypatch):
+        data = self._post_bars(
+            server,
+            {"query": "贵州茅台的日K线，最近一年", "max_pages": 3, "limit": 100},
+            monkeypatch,
+        )
+        assert data.get("success") is True, f"failed: {data}"
+        assert "bars" in data and isinstance(data["bars"], list)
+        assert len(data["bars"]) > 0
+        first = data["bars"][0]
+        # OHLCV 字段必须存在
+        for k in ("date", "close", "open", "high", "low", "volume"):
+            assert k in first, f"missing field {k}"
+        # 元信息
+        assert data["symbol"] == "600519"
+        assert data["name"] == "贵州茅台"
+        assert data["source_count"] == 100
+
+    def test_empty_query_returns_400(self, server, monkeypatch):
+        data = self._post_bars(server, {"query": ""}, monkeypatch)
+        assert data.get("success") is False
+        assert data.get("code") == "validation_error"
+        assert "查询语句不能为空" in (data.get("error") or "")
+
+    def test_limit_clamped_to_100(self, server, monkeypatch):
+        """limit=500 不应被原样传给 fetch_all（应被钳到 100）。"""
+        from quant.services import query as query_svc
+        seen = {}
+        def _spy_fetch_all(query, **kwargs):
+            seen["limit"] = kwargs.get("limit")
+            return {"datas": self._bars_payload(10)}
+        monkeypatch.setattr(query_svc, "fetch_all", _spy_fetch_all)
+        req = urllib.request.Request(
+            f"{server}/api/bars",
+            data=json.dumps({"query": "mock", "limit": 500, "max_pages": 3}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        assert data.get("success") is True
+        assert seen["limit"] == 100, f"expected 100, got {seen['limit']}"

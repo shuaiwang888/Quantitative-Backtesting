@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 from quant.config import get_settings
 from quant.data.iwencai import IwencaiError, fetch_all, normalize_response, query
+from quant.data.normalization import normalize_bars
 from quant.errors import UpstreamError, ValidationError
 from quant.logging_setup import get_logger
 from quant.persistence import persist_indicator_rows
@@ -99,4 +100,49 @@ def _safe_persist_indicators(
         }
 
 
-__all__ = ["QueryRequest", "natural_language_query", "natural_language_query_all"]
+__all__ = ["QueryRequest", "natural_language_query", "natural_language_query_all", "fetch_bars"]
+
+
+def fetch_bars(
+    query_text: str,
+    *,
+    api_key: Optional[str] = None,
+    max_pages: int = 3,
+    limit: int = 100,
+) -> Dict[str, Any]:
+    """拉近一年日 K 专用：翻页 + 归一化 + 元信息抽取。
+
+    Returns:
+        {symbol, name, bars: [{date, open, high, low, close, volume, ...}], source_count}
+        失败时 raise UpstreamError。
+    """
+    if not query_text.strip():
+        raise ValidationError("查询语句不能为空", details={"field": "query"})
+    safe_limit = min(max(int(limit), 1), 100)
+    safe_pages = max(1, min(int(max_pages), 20))
+    try:
+        response = fetch_all(
+            query_text,
+            api_key=api_key,
+            limit=safe_limit,
+            max_pages=safe_pages,
+        )
+    except IwencaiError as exc:
+        _LOG.warning("问财 K 线拉取失败: %s", exc.message)
+        raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
+
+    datas = response.get("datas", []) if isinstance(response, dict) else []
+    if not datas:
+        raise UpstreamError("问财未返回 K 线数据", details={"query": query_text})
+
+    bars = normalize_bars(datas)
+    if not bars:
+        raise UpstreamError("K 线数据归一化失败（无有效 OHLC）", details={"query": query_text})
+
+    first = bars[0]
+    return {
+        "symbol": getattr(first, "code", "") or "",
+        "name": getattr(first, "name", "") or "",
+        "bars": [b.to_dict() for b in bars],
+        "source_count": len(datas),
+    }

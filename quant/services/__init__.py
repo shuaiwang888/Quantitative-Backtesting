@@ -4,7 +4,7 @@ from quant.services.analyze import analyze
 from quant.services.backtest import BacktestRequest, INDEX_SYMBOLS, run_single_backtest
 from quant.services.batch import BatchRequest, run_batch_backtest, summarize_batch
 from quant.services.optimize import OptimizeRequest, run_grid_search
-from quant.services.query import QueryRequest, natural_language_query, natural_language_query_all
+from quant.services.query import QueryRequest, fetch_bars, natural_language_query, natural_language_query_all
 
 __all__ = [
     "analyze",
@@ -19,4 +19,5 @@ __all__ = [
     "run_grid_search",
     "natural_language_query",
     "natural_language_query_all",
+    "fetch_bars",
 ]

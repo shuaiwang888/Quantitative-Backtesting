@@ -22,6 +22,7 @@ from quant.server.middleware import RateLimiter, check_auth, get_client_key
 from quant.server.responses import cors_preflight, json_response
 from quant.services import (
     analyze,
+    fetch_bars,
     natural_language_query,
     run_batch_backtest,
     run_grid_search,
@@ -163,6 +164,8 @@ class BacktestHandler(SimpleHTTPRequestHandler):
             self._handle_analyze(payload)
         elif path == "/api/optimize":
             self._handle_optimize(payload)
+        elif path == "/api/bars":
+            self._handle_bars(payload)
         elif path == "/api/strategies":
             self._handle_strategies()
         else:
@@ -288,6 +291,19 @@ class BacktestHandler(SimpleHTTPRequestHandler):
         json_response(
             self,
             {"success": True, "strategies": items},
+            cors_origin=get_settings().cors_origin,
+        )
+
+    def _handle_bars(self, payload: Dict[str, Any]) -> None:
+        """拉近一年日 K + 元信息。Dashboard 弹窗专用。"""
+        query_text = str(payload.get("query", "")).strip()
+        max_pages = int(payload.get("max_pages") or 3)
+        limit = int(payload.get("limit") or 100)
+        api_key = payload.get("api_key") or None
+        data = fetch_bars(query_text, api_key=api_key, max_pages=max_pages, limit=limit)
+        json_response(
+            self,
+            {"success": True, **data},
             cors_origin=get_settings().cors_origin,
         )
 
