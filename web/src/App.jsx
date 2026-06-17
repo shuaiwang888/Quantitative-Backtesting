@@ -11,6 +11,7 @@
  * 跨 tab 通信：
  *   - "quant:batch-watchlist" CustomEvent：从 Dashboard/Selector 跳到 Backtest 时，
  *     把股票池的 names 注入到 Backtest 的 symbol
+ *   - "quant:watchlist-changed" 事件：自选股变化后 Dashboard 自动刷新
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -55,27 +56,6 @@ export default function App() {
     };
     window.addEventListener("quant:batch-watchlist", handler);
     return () => window.removeEventListener("quant:batch-watchlist", handler);
-  }, []);
-
-  // 监听热力图点击 → 跳到 Selector tab（行业）或 Backtest tab（个股）
-  useEffect(() => {
-    const handler = (e) => {
-      const { name, code, single } = e.detail || {};
-      if (!name) return;
-      if (single) {
-        // 个股 → Backtest tab
-        try { sessionStorage.setItem("quant_pending_symbol", JSON.stringify({ name, code })); } catch {}
-        setActiveTab("backtest");
-        showStatus(`已跳到回测，标的: ${name}`);
-      } else {
-        // 行业 → Selector tab
-        try { sessionStorage.setItem("quant_pending_industry", JSON.stringify({ name, code })); } catch {}
-        setActiveTab("selector");
-        showStatus(`已跳到选股，行业: ${name}`);
-      }
-    };
-    window.addEventListener("quant:jump-selector", handler);
-    return () => window.removeEventListener("quant:jump-selector", handler);
   }, []);
 
   // tab 切换时清空 pendingBatchNames（避免下次再触发）

@@ -3,9 +3,8 @@
  *
  * 内容：
  *   - 大盘指数卡片（上证 / 深证 / 创业板）
- *   - A 股行业热力图（treemap，按总市值 / 颜色 = 涨跌幅）
  *   - 自选股行情表格
- *   - 整合"刷新"按钮：手动刷新大盘 + 热力图 + 自选股（带缓存）
+ *   - 整合"刷新"按钮：手动刷新大盘 + 自选股（带缓存）
  *
  * 缓存策略：
  *   - 首次挂载：从 localStorage 缓存恢复（不重新请求）
@@ -16,7 +15,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { postJson, money, numberOrDash, formatPercentText, fuzzyFind } from "../api.js";
-import Heatmap, { fetchIndustryHeatmap, formatMcap } from "./Heatmap.jsx";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const LOCAL_WATCHLIST_STORAGE = "quant_watchlist";
@@ -72,17 +70,14 @@ async function fetchWatchlist(hasIwencaiKey) {
 }
 
 export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
-  // 三个独立缓存（大盘 / 热力图 / 自选股），都从 localStorage 恢复
+  // 两个独立缓存（大盘 / 自选股），都从 localStorage 恢复
   const marketCache = useCachedResult("dashboard_market");
-  const heatmapCache = useCachedResult("dashboard_heatmap");
   const watchlistCache = useCachedResult("dashboard_watchlist");
 
   const [marketData, setMarketData] = useState(marketCache.data?.datas || []);
-  const [heatmapItems, setHeatmapItems] = useState(heatmapCache.data?.items || []);
   const [watchResult, setWatchResult] = useState(
     watchlistCache.data || { source: "empty", items: [] }
   );
-  const [heatmapFallback, setHeatmapFallback] = useState(heatmapCache.data?.fallback || false);
   const [loading, setLoading] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
 
@@ -91,12 +86,6 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
     if (marketCache.data?.datas && !marketData.length) setMarketData(marketCache.data.datas);
   }, [marketCache.data]);
   useEffect(() => {
-    if (heatmapCache.data?.items && !heatmapItems.length) {
-      setHeatmapItems(heatmapCache.data.items);
-      setHeatmapFallback(!!heatmapCache.data.fallback);
-    }
-  }, [heatmapCache.data]);
-  useEffect(() => {
     if (watchlistCache.data && !watchResult.items.length) setWatchResult(watchlistCache.data);
   }, [watchlistCache.data]);
 
@@ -104,42 +93,32 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [market, heatmap, watch] = await Promise.all([
+      const [market, watch] = await Promise.all([
         postJson("/api/query", {
           query: "上证指数 深证成指 创业板指 最新行情",
           limit: 3,
         }),
-        fetchIndustryHeatmap(hasIwencaiKey),
         fetchWatchlist(hasIwencaiKey),
       ]);
       if (market && Array.isArray(market.datas)) {
         setMarketData(market.datas);
         marketCache.save(market);
       }
-      if (heatmap && Array.isArray(heatmap.items)) {
-        // 给每个 item 加 mcapLabel
-        const items = heatmap.items.map((it) => ({ ...it, mcapLabel: formatMcap(it.weight) }));
-        setHeatmapItems(items);
-        setHeatmapFallback(!!heatmap.fallback);
-        heatmapCache.save({ items, fallback: !!heatmap.fallback, queriedAt: heatmap.queriedAt });
-      }
       setWatchResult(watch);
       watchlistCache.save(watch);
       onStatus?.(
-        `首页已更新：${market?.datas?.length || 0} 指数 · ` +
-        `${heatmap?.items?.length || 0} 行业${heatmap?.fallback ? "（无数据）" : ""} · ` +
-        `${watch?.items?.length || 0} 自选股`
+        `首页已更新：${market?.datas?.length || 0} 指数 · ${watch?.items?.length || 0} 自选股`
       );
     } catch (e) {
       onError?.(e);
     } finally {
       setLoading(false);
     }
-  }, [hasIwencaiKey, onError, onStatus, marketCache, heatmapCache, watchlistCache]);
+  }, [hasIwencaiKey, onError, onStatus, marketCache, watchlistCache]);
 
   // 首次挂载：只有当所有缓存都为空时才自动拉一次
   useEffect(() => {
-    const hasAnyCache = marketCache.data || heatmapCache.data || watchlistCache.data;
+    const hasAnyCache = marketCache.data || watchlistCache.data;
     if (!hasAnyCache && hasIwencaiKey) {
       refresh();
     }
@@ -148,7 +127,7 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
 
   // 监听自选股事件：从 Selector tab 跳转过来
   useEffect(() => {
-    const handler = (e) => {
+    const handler = () => {
       // 自选股同步（加/删）后可能需要刷新
       refresh();
     };
@@ -194,8 +173,8 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
         ? "（本地）"
         : "";
 
-  // 整合后的最新缓存时间（取三者最新）
-  const latestTs = Math.max(marketCache.ts, heatmapCache.ts, watchlistCache.ts);
+  // 整合后的最新缓存时间（取两者最新）
+  const latestTs = Math.max(marketCache.ts, watchlistCache.ts);
 
   return (
     <section className="dashboard">
@@ -225,21 +204,6 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
           marketData.map((row, i) => <MarketCard key={i} row={row} />)
         )}
       </div>
-
-      <Heatmap
-        data={heatmapItems}
-        loading={loading}
-        hasKey={hasIwencaiKey}
-        onError={onError}
-        onRefresh={refresh}
-        cacheTs={heatmapCache.ts}
-        formatCacheTime={formatCacheTime}
-      />
-      {heatmapFallback && heatmapItems.length > 0 && (
-        <div className="hint" style={{ fontSize: 11, marginTop: -8, marginBottom: 8, color: "var(--text-tertiary)" }}>
-          ⚠ iwencai 暂不支持"同花顺一级行业"聚合查询，已展示同花顺 51 个一级行业（无涨跌幅数据）；点"刷新"尝试拉真实数据
-        </div>
-      )}
 
       <div className="section-title">
         <h3>自选股行情</h3>

@@ -48,22 +48,6 @@ export default function Selector({ hasIwencaiKey, onError, onStatus }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // 从热力图 / 其他地方跳过来时预填查询
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("quant_pending_industry");
-      if (raw) {
-        const { name, code } = JSON.parse(raw);
-        if (name) {
-          // iwencai 自然语言："同花顺一级行业 X 成分股 股票代码 股票简称 涨跌幅"
-          setQuery(`同花顺一级行业 ${name} 成分股 股票代码 股票简称 涨跌幅 总市值`);
-          setPage(1);
-          sessionStorage.removeItem("quant_pending_industry");
-        }
-      }
-    } catch {}
-  }, []);
-
   // 拉结果
   const search = async (e) => {
     e?.preventDefault?.();
