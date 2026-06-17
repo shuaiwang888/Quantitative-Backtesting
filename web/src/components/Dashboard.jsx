@@ -72,29 +72,19 @@ async function fetchWatchlist(hasIwencaiKey) {
 
 /**
  * 把 iwencai 行转成弹窗 target。
- * 个股: `${name}的日K线，最近一年`
- * 指数: iwencai 对指数"日K线"关键词支持差，需用日期范围 + 字段白名单
+ * 统一用 "日期范围 + 字段白名单 + 每日行情" 的 query 模板（与回测模块一致），
+ * 适用于个股和指数，能稳定返回完整 OHLCV。
  */
 function buildChartTarget(row, type) {
   const name = row["股票简称"] || row["指数简称"];
   if (!name || name === "--") return null;
   const code = row["股票代码"] || row["code"] || "";
-  let query;
-  if (type === "index") {
-    const end = new Date();
-    const start = new Date();
-    start.setFullYear(start.getFullYear() - 1);
-    const fmt = (d) => d.toISOString().slice(0, 10);
-    query = `${name} ${fmt(start)}到${fmt(end)} 每日行情 交易日期 开盘价 最高价 最低价 收盘价 成交量`;
-  } else {
-    query = `${name}的日K线，最近一年`;
-  }
-  return {
-    name,
-    symbol: code,
-    type,
-    query,
-  };
+  const end = new Date();
+  const start = new Date();
+  start.setFullYear(start.getFullYear() - 1);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const query = `${name} ${fmt(start)}到${fmt(end)} 每日行情 交易日期 开盘价 最高价 最低价 收盘价 成交量`;
+  return { name, symbol: code, type, query };
 }
 
 export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
