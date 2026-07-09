@@ -29,7 +29,10 @@ jobs:
 
       - name: Run tests
         env:
-          IWENCAI_API_KEY: test-key-for-ci
+          # 公仓 PR（fork）拿不到 secrets，自动落到 dummy，避免硬编码真密钥。
+          # 主仓 push / 维护者 PR 可在仓库 Settings → Secrets 配 IWENCAI_API_KEY；
+          # 命中后 pytest 会跑需要真实 Iwencai SDK 的那条路径。
+          IWENCAI_API_KEY: ${{ secrets.IWENCAI_API_KEY || 'test-key-for-ci' }}
           MYSQL_PERSIST_ENABLED: "0"
         run: |
           python -m pytest tests/ -v --tb=short
