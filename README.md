@@ -158,9 +158,47 @@ rg "function setText|selector-meta|code_count" /tmp/quant_app_check.js
 Cmd + Shift + R
 ```
 
-## 部署到云端（GitHub Pages + Hugging Face Space）
+## 部署到云端（GitHub Pages + Render / Hugging Face Space）
 
-GitHub Pages 只托管静态前端，Python 后端部署到 Hugging Face Space。当前仓库已经内置两条 GitHub Actions：
+GitHub Pages 只托管静态前端，Python 后端推荐部署到 Render（**首选**）或 Hugging Face Space。
+
+仓库已经内置：
+
+- `.github/workflows/pages.yml`：push 到 `main` 后构建 `web/` 并发布到 GitHub Pages。
+- `.github/workflows/huggingface.yml`（可选）：push 到 `main` 后把后端文件同步到 HF Space。
+- `render.yaml`（**推荐**）：Render Blueprint 一键部署后端。
+
+### 一键部署到 Render（**首选**）
+
+Render 免费 tier：750 小时/月，512MB RAM，2 vCPU，**无限 API 调用**。Dockerfile 复用、代码零改动。
+
+1. 注册 [render.com](https://render.com)（GitHub 账号直接登录）
+2. Dashboard → **New +** → **Blueprint** → 连 GitHub 仓库
+3. Render 自动读 `render.yaml` 创建 web service
+4. Environment 页面**手动填**（不要 .env 同步）：
+   - `IWENCAI_API_KEY` = 你的问财 key（**可选**，不填则访客必须自带）
+   - `MINIMAX_API_KEY` = 你的 M2.7 key（**可选**）
+5. 等 3-5 分钟部署，记下后端 URL：`https://quant-backtest-backend.onrender.com`
+   - 免费层 15 分钟无活动会**休眠**（冷启动 ~30s）
+   - 可用 [UptimeRobot](https://uptimerobot.com/) 免费 ping 防休眠
+
+> **如果你希望公开部署的 backend 完全不持有你的 key**（最安全）：第 4 步留空即可。访客必须自己填 key 才能用。
+
+### 备选：部署到 Hugging Face Space
+
+⚠️ **注意**：HF 强制 ZeroGPU 配额，每次 API 调用都消耗 GPU 池（即使我们的代码是 CPU 任务）。如果调用量小可接受，否则选 Render。
+
+HF Space 适合：低频测试 / 演示 / 不追求稳定运行。
+
+### 推荐架构
+
+```
+访客浏览器 → GitHub Pages (静态前端) → Render (Python 后端) → iwencai / MiniMax
+                                          ↑ 没有 owner 的 key
+                              访客在浏览器填自己的 key（localStorage）
+```
+
+**关键设计**：后端**不持有 owner 的 key**。访客首次打开页面时，在左上方"API 密钥"按钮里填入自己的问财 key（MiniMax 可选），key 只保存在访客自己的浏览器 localStorage，每次 POST 时由 `config.js` 注入到 `payload.api_key` / `payload.minimax_api_key`。后端读到这些字段就用访客的，否则用 env var 的（如果有）。这样部署到公网后，**owner 完全不用暴露自己的密钥**。
 
 - `.github/workflows/pages.yml`：push 到 `main` 后构建 `web/` 并发布到 GitHub Pages。
 - `.github/workflows/huggingface.yml`：push 到 `main` 后把后端文件同步到 HF Space。
