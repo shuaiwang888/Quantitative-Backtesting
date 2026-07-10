@@ -105,16 +105,29 @@ jobs:
           print(f"✅ HF_TOKEN 已配置（长度 {len(token)}，前缀 {token[:3]}...）")
           api = HfApi(token=token)
           me = api.whoami()
-          print(f"   绑到账号: {me.get('name')}  (type={me.get('type')})")
-          # 检查 token 角色（HF 不暴露 scope，但写权限不足时会具体报错）
-          print(f"   token role: {me.get('role', '?')}")
+          me_name = me.get('name')
+          me_type = me.get('type')
+          print(f"   绑到账号: {me_name}  (type={me_type})")
+          # 关键检查：token 绑的账号必须 == Space owner
+          expected_owner = "appQQQ"
+          if me_name != expected_owner:
+              print(f"   ❌ token 绑到 '{me_name}'，但 Space owner 是 '{expected_owner}'")
+              print(f"      修复：用 {expected_owner} 账号登录 https://huggingface.co/settings/tokens 重新生成 token")
+              sys.exit(1)
+          print(f"   ✅ token 绑到正确账号 ({expected_owner})")
           # 检查 Space 当前状态（不触发 build）
           try:
-              info = api.get_space_info("appQQQ/Quantitative-Backtesting-backend")
-              print(f"   Space 状态: sdk={info.sdk}  status={info.runtime.stage if info.runtime else '?'}  hardware={info.hardware}")
+              # huggingface_hub 0.20+ 用 repo_info(repo_type="space")，
+              # 旧版 0.19 用 get_repo_info
+              try:
+                  info = api.repo_info("appQQQ/Quantitative-Backtesting-backend", repo_type="space")
+              except AttributeError:
+                  info = api.get_repo_info("appQQQ/Quantitative-Backtesting-backend", repo_type="space")
+              runtime_stage = info.runtime.stage if info.runtime else '?'
+              print(f"   Space 状态: sdk={info.sdk}  status={runtime_stage}  hardware={info.hardware}")
           except Exception as e:
               print(f"   ❌ 读不到 Space 信息: {type(e).__name__}: {e}")
-              print("   可能原因：token 没绑到 appQQQ 账号 / Space 不存在 / 拼写错")
+              print(f"   可能原因：Space 不存在 / 拼写错 / token 没权限读这个 repo")
               sys.exit(1)
           PY
 
