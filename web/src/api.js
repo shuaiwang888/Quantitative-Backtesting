@@ -6,6 +6,11 @@
  *   2. localStorage.quant_api_base  （记住上次的值）
  *   3. ""（同源；本地 Vite dev 会通过 vite.config.js 代理 /api 到 8000）
  *
+ * 后端协议自动适配：
+ *   - 我们的 FastAPI / stdlib http.server：POST {base}/api/{endpoint} body {key: val}
+ *   - HF Space Gradio SDK：POST {base}/gradio_api/call/{endpoint} body {data: [payload]}
+ *     响应是 SSE 流（先 event_id，再 /gradio_api/call/{endpoint}/{event_id} 拉结果）
+ *
  * 访客密钥（quant_keys）：
  *   - 只存在访客浏览器 localStorage
  *   - postJson 每次自动注入到 payload.api_key / payload.minimax_api_key
@@ -50,6 +55,12 @@ export function getApiBase() {
   } catch {
     return "";
   }
+}
+
+// 后端是 Gradio SDK 吗？Gradio 用 SSE 协议 + 不同路径
+function isGradioBase() {
+  const base = getApiBase();
+  return /\.hf\.space$/.test(base);
 }
 
 // ---- 访客密钥管理 ----
@@ -113,9 +124,85 @@ function injectKeys(payload) {
   return payload;
 }
 
-// ---- 通用 postJson ----
+// ---- Gradio API 调用（SSE 流式） ----
+
+async function postJsonGradio(endpoint, payload) {
+  const base = getApiBase();
+  const injected = injectKeys({ ...(payload || {}) });
+  // step 1: 触发调用
+  const triggerUrl = `${base}/gradio_api/call/${endpoint}`;
+  const triggerRes = await fetch(triggerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: [injected] }),
+  });
+  if (!triggerRes.ok) {
+    let msg = `HTTP ${triggerRes.status}`;
+    try {
+      const data = await triggerRes.json();
+      if (data && data.error) msg = data.error;
+    } catch {}
+    throw new Error(msg);
+  }
+  const { event_id } = await triggerRes.json();
+  if (!event_id) throw new Error("Gradio 未返回 event_id");
+
+  // step 2: 拉 SSE 流
+  const resultUrl = `${base}/gradio_api/call/${endpoint}/${event_id}`;
+  return new Promise((resolve, reject) => {
+    // 用 fetch + ReadableStream 拿 SSE（EventSource 不支持自定义 header，
+    // 但这里不需要 header，所以也可以用 EventSource——用 fetch 更灵活）
+    fetch(resultUrl, { headers: { Accept: "text/event-stream" } })
+      .then(async (res) => {
+        if (!res.ok || !res.body) {
+          reject(new Error(`SSE HTTP ${res.status}`));
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          // SSE event 用 \n\n 分隔
+          const events = buf.split("\n\n");
+          buf = events.pop() || "";  // 未完成部分留到下次
+          for (const evt of events) {
+            // 提取 "data: ..." 行
+            const dataLine = evt.split("\n").find((l) => l.startsWith("data: "));
+            if (!dataLine) continue;
+            const dataStr = dataLine.slice(6);
+            try {
+              const msg = JSON.parse(dataStr);
+              if (msg.msg === "process_completed") {
+                // msg.output.data[0] 是 fn 的返回值
+                const result = msg.output?.data?.[0] ?? null;
+                resolve(result);
+                return;
+              } else if (msg.msg === "process_failed") {
+                reject(new Error(msg.message || msg.output?.error || "处理失败"));
+                return;
+              }
+            } catch {
+              // 非 JSON 行忽略
+            }
+          }
+        }
+        reject(new Error("SSE 流提前结束"));
+      })
+      .catch(reject);
+  });
+}
+
+// ---- 通用 postJson（自动适配后端协议） ----
 
 export async function postJson(path, payload) {
+  if (isGradioBase()) {
+    // /api/strategies → strategies
+    const endpoint = path.replace(/^\/api\//, "");
+    return postJsonGradio(endpoint, payload);
+  }
   const url = getApiBase() + path;
   const res = await fetch(url, {
     method: "POST",

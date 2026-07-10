@@ -1,158 +1,182 @@
 #!/usr/bin/env python3
 """HF Space 入口（Gradio SDK + ZeroGPU 兼容）。
 
-架构：
-  - FastAPI 提供 /api/* 路由（业务逻辑完全复用 quant 包）
-  - Gradio Blocks 作占位 UI（让 HF 识别 SDK = gradio，绕过 ZeroGPU 限制）
-  - gr.mount_gradio_app 把 Gradio mount 到 FastAPI
-  - uvicorn 启动 ASGI app，监听 0.0.0.0:7860
+设计：
+  - 完全用 demo.launch() 启动（不要 uvicorn.run，否则与 ZeroGPU 端口冲突）
+  - 7 个 /api/* 全部用 gr.Interface 包装为 Gradio function
+  - 路径从 /api/* 变为 /gradio_api/call/<name>
+  - Body 从 {query, page, limit} 变为 {data: [query, page, limit, ...]}
+  - 响应是流式（SSE），前端要适配（见 web/src/api.js）
 
-路径：
-  - /api/strategies        (GET)
-  - /api/query             (POST)
-  - /api/bars              (POST)
-  - /api/backtest          (POST)
-  - /api/batch_backtest    (POST)
-  - /api/optimize          (POST)
-  - /api/analyze           (POST)
-  - /                      (Gradio 占位 UI)
+调用约定（统一）：
+  - 每个 API 用 gr.JSON 收 payload dict
+  - 内部构造对应的 Request dataclass 并调用 quant.services.*
+  - 返回 dict
 
-前端**零改动**（路径与原 stdlib http.server 一致）。
-本地仍走 app.py + stdlib http.server（开发体验不变）。
+启动端口 7860（ZeroGPU 默认）。本地不起作用（要 uvicorn 走的话用 app.py）。
 """
 from __future__ import annotations
 
 import os
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 import gradio as gr
 
 from quant.config import get_settings
 from quant.logging_setup import setup_logging
 
 
-def create_api_app() -> FastAPI:
-    """构造 FastAPI app（/api/* 路由）。"""
-    settings = get_settings()
-    app = FastAPI(
-        title="A股量化回测平台 Backend",
-        version="0.1.0",
-    )
+# ---- Gradio function 包装：所有 API 用 dict payload 形式 ----
 
-    # CORS：收窄到 GitHub Pages 域名
-    cors_origin = settings.cors_origin or "*"
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[cors_origin] if cors_origin != "*" else ["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+def api_strategies(payload: dict = None):
+    """GET /api/strategies 的 Gradio 版本（payload 忽略，保持 GET 语义）。"""
+    from quant.strategies import list_strategies
+    specs = list_strategies()
+    return {
+        "success": True,
+        "strategies": [
+            {
+                "name": s.name,
+                "display_name": s.display_name,
+                "default_params": s.default_params,
+                "default_grid": s.default_grid,
+            }
+            for s in specs
+        ],
+    }
 
-    # ---- /api/strategies ----
-    @app.get("/api/strategies")
-    async def api_strategies():
-        from quant.strategies import list_strategies
-        specs = list_strategies()
-        return {
-            "success": True,
-            "strategies": [
-                {
-                    "name": s.name,
-                    "display_name": s.display_name,
-                    "default_params": s.default_params,
-                    "default_grid": s.default_grid,
-                }
-                for s in specs
-            ],
-        }
 
-    # ---- /api/query ----
-    @app.post("/api/query")
-    async def api_query(payload: dict):
+def api_query(payload: dict):
+    if not isinstance(payload, dict):
+        return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
+    try:
         from quant.services.query import natural_language_query, QueryRequest
-        try:
-            req = QueryRequest(**payload)
-        except TypeError as exc:
-            raise HTTPException(status_code=400, detail=f"参数错误: {exc}")
+        req = QueryRequest(**payload)
         return natural_language_query(req)
+    except Exception as exc:
+        return {"success": False, "code": "exception", "error": str(exc)}
 
-    # ---- /api/bars ----
-    @app.post("/api/bars")
-    async def api_bars(payload: dict):
+
+def api_bars(payload: dict):
+    if not isinstance(payload, dict):
+        return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
+    try:
         from quant.services.query import fetch_bars
-        query = payload.get("query", "").strip()
+        query = (payload.get("query") or "").strip()
         if not query:
-            raise HTTPException(status_code=400, detail="query 不能为空")
+            return {"success": False, "code": "validation", "error": "query 不能为空"}
         return fetch_bars(
             query_text=query,
             api_key=payload.get("api_key") or None,
             max_pages=int(payload.get("max_pages") or 3),
             limit=int(payload.get("limit") or 100),
         )
+    except Exception as exc:
+        return {"success": False, "code": "exception", "error": str(exc)}
 
-    # ---- /api/backtest ----
-    @app.post("/api/backtest")
-    async def api_backtest(payload: dict):
+
+def api_backtest(payload: dict):
+    if not isinstance(payload, dict):
+        return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
+    try:
         from quant.services.backtest import run_single_backtest, BacktestRequest
-        try:
-            req = BacktestRequest(**payload)
-        except TypeError as exc:
-            raise HTTPException(status_code=400, detail=f"参数错误: {exc}")
+        req = BacktestRequest(**payload)
         return run_single_backtest(req)
+    except Exception as exc:
+        return {"success": False, "code": "exception", "error": str(exc)}
 
-    # ---- /api/batch_backtest ----
-    @app.post("/api/batch_backtest")
-    async def api_batch_backtest(payload: dict):
+
+def api_batch_backtest(payload: dict):
+    if not isinstance(payload, dict):
+        return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
+    try:
         from quant.services.batch import run_batch_backtest, BatchRequest
-        try:
-            req = BatchRequest(**payload)
-        except TypeError as exc:
-            raise HTTPException(status_code=400, detail=f"参数错误: {exc}")
+        req = BatchRequest(**payload)
         return run_batch_backtest(req)
+    except Exception as exc:
+        return {"success": False, "code": "exception", "error": str(exc)}
 
-    # ---- /api/optimize ----
-    @app.post("/api/optimize")
-    async def api_optimize(payload: dict):
+
+def api_optimize(payload: dict):
+    if not isinstance(payload, dict):
+        return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
+    try:
         from quant.services.optimize import run_grid_search, OptimizeRequest
-        try:
-            req = OptimizeRequest(**payload)
-        except TypeError as exc:
-            raise HTTPException(status_code=400, detail=f"参数错误: {exc}")
+        req = OptimizeRequest(**payload)
         return run_grid_search(req)
+    except Exception as exc:
+        return {"success": False, "code": "exception", "error": str(exc)}
 
-    # ---- /api/analyze ----
-    @app.post("/api/analyze")
-    async def api_analyze(payload: dict):
+
+def api_analyze(payload: dict):
+    if not isinstance(payload, dict):
+        return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
+    try:
         from quant.services.analyze import analyze
         return {"analysis": analyze(payload)}
-
-    # ---- 健康检查 ----
-    @app.get("/health")
-    async def health():
-        return {"status": "ok", "service": "quant-backtest"}
-
-    return app
+    except Exception as exc:
+        return {"success": False, "code": "exception", "error": str(exc)}
 
 
-def create_gradio_ui() -> gr.Blocks:
-    """Gradio Blocks 占位 UI（让 HF 识别 SDK = gradio）。"""
+def build_ui() -> gr.Blocks:
+    """Gradio Blocks + 7 个 API endpoint（无 UI 组件，纯 API）。"""
     with gr.Blocks(title="Quant Backend") as demo:
         gr.Markdown(
             "# A股量化回测平台后端\n\n"
-            "此 Space 只提供后端 API（FastAPI on 0.0.0.0:7860）。\n\n"
-            "**前端在 GitHub Pages**：\n"
-            "https://shuaiwang888.github.io/Quantitative-Backtesting/\n\n"
-            "## 端点\n\n"
-            "- `GET  /api/strategies`\n"
-            "- `POST /api/query`\n"
-            "- `POST /api/bars`\n"
-            "- `POST /api/backtest`\n"
-            "- `POST /api/batch_backtest`\n"
-            "- `POST /api/optimize`\n"
-            "- `POST /api/analyze`\n"
+            "此 Space 只提供后端 API（Gradio Functions）。\n\n"
+            "**前端在 GitHub Pages**：https://shuaiwang888.github.io/Quantitative-Backtesting/\n\n"
+            "## 端点（Gradio API 格式）\n\n"
+            "- `POST /gradio_api/call/strategies` body `{\"data\": [{}]}`\n"
+            "- `POST /gradio_api/call/query`     body `{\"data\": [payload]}`\n"
+            "- `POST /gradio_api/call/bars`      body `{\"data\": [payload]}`\n"
+            "- `POST /gradio_api/call/backtest`  body `{\"data\": [payload]}`\n"
+            "- `POST /gradio_api/call/batch_backtest` body `{\"data\": [payload]}`\n"
+            "- `POST /gradio_api/call/optimize`  body `{\"data\": [payload]}`\n"
+            "- `POST /gradio_api/call/analyze`   body `{\"data\": [payload]}`\n"
         )
+
+        # 注册 7 个 API（inputs=JSON，outputs=JSON；data 列表里只有一个 dict）
+        gr.Interface(
+            fn=api_strategies,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="strategies",
+        )
+        gr.Interface(
+            fn=api_query,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="query",
+        )
+        gr.Interface(
+            fn=api_bars,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="bars",
+        )
+        gr.Interface(
+            fn=api_backtest,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="backtest",
+        )
+        gr.Interface(
+            fn=api_batch_backtest,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="batch_backtest",
+        )
+        gr.Interface(
+            fn=api_optimize,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="optimize",
+        )
+        gr.Interface(
+            fn=api_analyze,
+            inputs=gr.JSON(value={}),
+            outputs=gr.JSON(),
+            api_name="analyze",
+        )
+
     return demo
 
 
@@ -161,16 +185,16 @@ def main() -> None:
     setup_logging(settings.log_level)
     port = int(os.environ.get("PORT", 7860))
 
-    api_app = create_api_app()
-    gradio_ui = create_gradio_ui()
+    demo = build_ui()
+    print(f"A股量化回测平台已启动: http://0.0.0.0:{port}", flush=True)
+    print(f"配置: cors={settings.cors_origin} rate_limit={settings.rate_limit}/{settings.rate_window}s iwencai={'owner' if settings.iwencai_api_key else 'visitor-only'}", flush=True)
 
-    # 把 Gradio mount 到 FastAPI（根路径 /）
-    # ZeroGPU 看到 gr.Blocks 就放行
-    app = gr.mount_gradio_app(api_app, gradio_ui, path="/")
-
-    print(f"A股量化回测平台已启动: http://0.0.0.0:{port}")
-    print(f"配置: cors={settings.cors_origin} rate_limit={settings.rate_limit}/{settings.rate_window}s iwencai={'owner' if settings.iwencai_api_key else 'visitor-only'}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # 只用 demo.launch()（不调 uvicorn.run；ZeroGPU 平台自己也有 listener）
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=port,
+        show_error=True,
+    )
 
 
 if __name__ == "__main__":
