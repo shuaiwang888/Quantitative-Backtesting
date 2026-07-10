@@ -410,7 +410,7 @@ function renderMarkdown(src) {
   const codeBlocks = [];
   src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
     codeBlocks.push(code);
-    return ` CODE${codeBlocks.length - 1} `;
+    return ` CODE${codeBlocks.length - 1} `;
   });
 
   const lines = src.split("\n");
@@ -466,7 +466,7 @@ function renderMarkdown(src) {
   closeLists();
   let html = out.join("\n");
   // 还原 code blocks
-  html = html.replace(/ CODE(\d+) /g, (_, i) => {
+  html = html.replace(/ CODE(\d+) /g, (_, i) => {
     const code = codeBlocks[Number(i)] || "";
     return `<pre style="background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px;overflow-x:auto;margin:6px 0;font-family:var(--font-mono);font-size:12px;line-height:1.5;"><code>${esc(code)}</code></pre>`;
   });
