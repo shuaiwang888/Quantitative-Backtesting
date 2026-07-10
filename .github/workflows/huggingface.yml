@@ -62,13 +62,13 @@ jobs:
           app_file: app_hf.py
           pinned: false
           license: mit
-          short_description: A股量化回测平台后端（FastAPI + Gradio Blocks，ZeroGPU 兼容）
+          short_description: A股量化回测平台后端（Gradio Blocks，CPU 运行）
           ---
 
           # A股量化回测平台后端
 
-          Gradio SDK Space（FastAPI 提供 /api/* + Gradio Blocks 占位 UI），
-          监听 0.0.0.0:7860。ZeroGPU 兼容。
+          Gradio SDK Space，监听 0.0.0.0:7860。接口为 CPU/网络 I/O 任务，
+          不使用 `@spaces.GPU`，因此不会消耗 ZeroGPU 配额。
 
           前端（GitHub Pages）：https://shuaiwang888.github.io/Quantitative-Backtesting/
           （首次访问加 `?api=https://appQQQ-quantitative-backtesting-backend.hf.space` 切换后端）

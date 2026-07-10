@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""HF Space 入口（Gradio SDK + ZeroGPU 兼容）。
+"""HF Space 入口（Gradio SDK，CPU 运行）。
 
 设计：
-  - 完全用 demo.launch() 启动（不要 uvicorn.run，否则与 ZeroGPU 端口冲突）
+  - 完全用 demo.launch() 启动（不要 uvicorn.run，避免与 HF 平台端口管理冲突）
   - 7 个 /api/* 全部用 gr.Interface 包装为 Gradio function
   - 路径从 /api/* 变为 /gradio_api/call/<name>
   - Body 从 {query, page, limit} 变为 {data: [query, page, limit, ...]}
@@ -13,7 +13,7 @@
   - 内部构造对应的 Request dataclass 并调用 quant.services.*
   - 返回 dict
 
-启动端口 7860（ZeroGPU 默认）。本地不起作用（要 uvicorn 走的话用 app.py）。
+启动端口 7860。本地不起作用（本地开发请用 app.py）。
 """
 from __future__ import annotations
 
@@ -24,16 +24,6 @@ try:
     import gradio as gr
 except ImportError:
     gr = None
-
-# `spaces` 是 HF Space runtime 才提供的独立包（不是 huggingface_hub 子模块）。
-# 本地 import 失败时降级为 no-op 装饰器（不影响本地运行）。
-try:
-    from spaces import GPU as _GPU
-except ImportError:
-    def _GPU(duration=None):
-        def decorator(fn):
-            return fn
-        return decorator
 
 from quant.config import get_settings
 from quant.logging_setup import setup_logging
@@ -46,12 +36,8 @@ def _dataclass_payload(cls, payload: dict) -> dict:
 
 
 # ---- Gradio function 包装：所有 API 用 dict payload 形式 ----
-# 注意：所有 API 都加 @_GPU 装饰器（ZeroGPU 平台要求至少一个）。
-# 这些函数实际不需要 GPU，但 ZeroGPU runtime 会为它们分配 L4 资源。
-# 短任务友好（strategies / query / bars / analyze 几秒内完成）；
-# 长任务（backtest / batch / optimize）用更长的 duration 配额。
+# 这些接口都是 CPU/网络 I/O 任务，不要加 @spaces.GPU，否则会消耗 ZeroGPU 配额。
 
-@_GPU(duration=20)
 def api_strategies(payload: dict = None):
     """GET /api/strategies 的 Gradio 版本（payload 忽略，保持 GET 语义）。"""
     from quant.strategies import list_strategies
@@ -70,7 +56,6 @@ def api_strategies(payload: dict = None):
     }
 
 
-@_GPU(duration=60)
 def api_query(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -82,7 +67,6 @@ def api_query(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
-@_GPU(duration=60)
 def api_bars(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -101,7 +85,6 @@ def api_bars(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
-@_GPU(duration=300)
 def api_backtest(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -113,7 +96,6 @@ def api_backtest(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
-@_GPU(duration=300)
 def api_batch_backtest(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -125,7 +107,6 @@ def api_batch_backtest(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
-@_GPU(duration=300)
 def api_optimize(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -136,7 +117,6 @@ def api_optimize(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
-@_GPU(duration=120)
 def api_analyze(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -222,7 +202,7 @@ def main() -> None:
     print(f"A股量化回测平台已启动: http://0.0.0.0:{port}", flush=True)
     print(f"配置: cors={settings.cors_origin} rate_limit={settings.rate_limit}/{settings.rate_window}s iwencai={'owner' if settings.iwencai_api_key else 'visitor-only'}", flush=True)
 
-    # 只用 demo.launch()（不调 uvicorn.run；ZeroGPU 平台自己也有 listener）
+    # 只用 demo.launch()（不调 uvicorn.run；HF 平台会管理监听端口）
     demo.launch(
         server_name="0.0.0.0",
         server_port=port,

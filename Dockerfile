@@ -35,6 +35,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request,sys; \
 sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/api/strategies', timeout=3).status == 200 else 1)"
 
-# HF Space 走 app_hf.py（FastAPI + Gradio Blocks，兼容 ZeroGPU）。
+# HF Space 走 app_hf.py（Gradio Blocks，CPU 运行）。
 # 本地仍走 app.py（stdlib http.server，零依赖）。
 CMD ["python", "app_hf.py"]
