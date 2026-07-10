@@ -38,7 +38,8 @@ function setLocalWatchlist(list) {
 }
 
 /**
- * 拉自选股：先试 iwencai "我的自选股"（有 key 时），失败回退 localStorage
+ * 拉自选股：先试 iwencai "我的自选股"，失败回退 localStorage
+ * 注：API key 全部在 Render 后端配，前端不用 key。
  */
 async function fetchWatchlist() {
   if (true) {

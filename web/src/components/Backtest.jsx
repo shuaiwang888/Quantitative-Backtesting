@@ -30,7 +30,7 @@ function defaultDateRange() {
   };
 }
 
-export default function Backtest({ hasIwencaiKey, hasMinimaxKey, onError, onStatus, pendingBatchNames }) {
+export default function Backtest({ onError, onStatus, pendingBatchNames }) {
   const _initRange = defaultDateRange();
   const [strategies, setStrategies] = useState([]);
   const [strategy, setStrategy] = useState("moving_average");
