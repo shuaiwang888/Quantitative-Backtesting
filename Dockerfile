@@ -25,6 +25,7 @@ RUN pip install -r requirements.txt
 # 业务代码
 COPY quant/ ./quant/
 COPY app.py ./
+COPY app_hf.py ./
 
 # HF 硬性要求：EXPOSE 7860 + 0.0.0.0 监听（由 Settings.host 默认值保证）
 EXPOSE 7860

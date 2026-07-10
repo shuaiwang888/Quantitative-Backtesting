@@ -141,6 +141,29 @@ class TestIwencaiVisitorKeyPassthrough:
         assert captured["auth"] == "Bearer visitor-key"
 
 
+class TestHfPayloadFiltering:
+    """HF Gradio dataclass endpoint 应忽略无关访客 key 字段。"""
+
+    def test_extra_visitor_keys_are_ignored_for_dataclass_requests(self):
+        from app_hf import _dataclass_payload
+        from quant.services.query import QueryRequest
+
+        payload = _dataclass_payload(
+            QueryRequest,
+            {
+                "query": "沪深300",
+                "limit": 20,
+                "api_key": "visitor-iwencai",
+                "minimax_api_key": "visitor-minimax",
+            },
+        )
+        assert payload == {
+            "query": "沪深300",
+            "limit": 20,
+            "api_key": "visitor-iwencai",
+        }
+
+
 # ---------- Settings: IWENCAI_API_KEY 改为可选 ----------
 
 

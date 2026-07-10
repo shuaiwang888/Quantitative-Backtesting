@@ -25,14 +25,12 @@ from quant.services import (
     fetch_bars,
     natural_language_query,
     run_batch_backtest,
-    run_grid_search,
+    run_grid_search_from_payload,
     run_single_backtest,
 )
 from quant.services.backtest import BacktestRequest
 from quant.services.batch import BatchRequest
-from quant.services.optimize import OptimizeRequest
 from quant.services.query import QueryRequest
-from quant.data.iwencai import IwencaiError  # noqa: F811
 from quant.strategies import SPECS
 
 
@@ -235,46 +233,7 @@ class BacktestHandler(SimpleHTTPRequestHandler):
         )
 
     def _handle_optimize(self, payload: Dict[str, Any]) -> None:
-        # 寻优需要先获取 bars，所以单独处理
-        from quant.data.iwencai import fetch_all as _fetch_all
-        from quant.data.normalization import build_history_query, normalize_bars
-        from quant.errors import UpstreamError, ValidationError
-        from quant.services.backtest import INDEX_SYMBOLS
-
-        req = OptimizeRequest(
-            strategy=str(payload.get("strategy") or "momentum_atr"),
-            param_ranges=payload.get("param_ranges") or {},
-            start_date=str(payload.get("start_date", "")).strip(),
-            end_date=str(payload.get("end_date", "")).strip(),
-            query=str(payload.get("query", "")).strip(),
-            initial_cash=float(payload.get("initial_cash") or 100000),
-            fee_rate=float(payload.get("fee_rate") or 0.0003),
-            max_combinations=(int(payload["max_combinations"])
-                              if payload.get("max_combinations") not in (None, "", 0)
-                              else None),
-        )
-        symbol = str(payload.get("symbol", "")).strip()
-        mode = str(payload.get("backtest_mode") or "single")
-        if mode == "index":
-            symbol = INDEX_SYMBOLS.get(str(payload.get("index_symbol") or "hs300"), symbol)
-        query_text = req.query
-        if not query_text:
-            if not symbol or not req.start_date or not req.end_date:
-                raise ValidationError("请填写股票代码/名称、开始日期和结束日期，或直接填写数据查询语句")
-            query_text = build_history_query(symbol, req.start_date, req.end_date)
-
-        try:
-            response = _fetch_all(
-                query_text,
-                api_key=payload.get("api_key") or None,
-                limit=int(payload.get("limit") or 100),
-                max_pages=int(payload.get("max_pages") or 10),
-            )
-        except IwencaiError as exc:
-            raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
-        bars = normalize_bars(response.get("datas", []))
-        result = run_grid_search(req, bars)
-        result["success"] = True
+        result = run_grid_search_from_payload(payload)
         json_response(self, result, cors_origin=get_settings().cors_origin)
 
     def _handle_strategies(self) -> None:

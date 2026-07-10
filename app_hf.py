@@ -18,7 +18,12 @@
 from __future__ import annotations
 
 import os
-import gradio as gr
+from dataclasses import fields
+
+try:
+    import gradio as gr
+except ImportError:
+    gr = None
 
 # `spaces` 是 HF Space runtime 才提供的独立包（不是 huggingface_hub 子模块）。
 # 本地 import 失败时降级为 no-op 装饰器（不影响本地运行）。
@@ -32,6 +37,12 @@ except ImportError:
 
 from quant.config import get_settings
 from quant.logging_setup import setup_logging
+
+
+def _dataclass_payload(cls, payload: dict) -> dict:
+    """只保留 dataclass 支持的字段，兼容前端统一注入的访客密钥。"""
+    allowed = {f.name for f in fields(cls)}
+    return {k: v for k, v in (payload or {}).items() if k in allowed}
 
 
 # ---- Gradio function 包装：所有 API 用 dict payload 形式 ----
@@ -65,7 +76,7 @@ def api_query(payload: dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
         from quant.services.query import natural_language_query, QueryRequest
-        req = QueryRequest(**payload)
+        req = QueryRequest(**_dataclass_payload(QueryRequest, payload))
         return natural_language_query(req)
     except Exception as exc:
         return {"success": False, "code": "exception", "error": str(exc)}
@@ -96,7 +107,7 @@ def api_backtest(payload: dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
         from quant.services.backtest import run_single_backtest, BacktestRequest
-        req = BacktestRequest(**payload)
+        req = BacktestRequest(**_dataclass_payload(BacktestRequest, payload))
         return run_single_backtest(req)
     except Exception as exc:
         return {"success": False, "code": "exception", "error": str(exc)}
@@ -108,7 +119,7 @@ def api_batch_backtest(payload: dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
         from quant.services.batch import run_batch_backtest, BatchRequest
-        req = BatchRequest(**payload)
+        req = BatchRequest(**_dataclass_payload(BatchRequest, payload))
         return run_batch_backtest(req)
     except Exception as exc:
         return {"success": False, "code": "exception", "error": str(exc)}
@@ -119,9 +130,8 @@ def api_optimize(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
-        from quant.services.optimize import run_grid_search, OptimizeRequest
-        req = OptimizeRequest(**payload)
-        return run_grid_search(req)
+        from quant.services.optimize import run_grid_search_from_payload
+        return run_grid_search_from_payload(payload)
     except Exception as exc:
         return {"success": False, "code": "exception", "error": str(exc)}
 
@@ -132,13 +142,15 @@ def api_analyze(payload: dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
         from quant.services.analyze import analyze
-        return {"analysis": analyze(payload)}
+        return {"success": True, "analysis": analyze(payload)}
     except Exception as exc:
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
 def build_ui() -> gr.Blocks:
     """Gradio Blocks + 7 个 API endpoint（无 UI 组件，纯 API）。"""
+    if gr is None:
+        raise RuntimeError("app_hf.py 需要安装 gradio；本地开发请使用 app.py")
     with gr.Blocks(title="Quant Backend") as demo:
         gr.Markdown(
             "# A股量化回测平台后端\n\n"

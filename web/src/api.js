@@ -8,8 +8,7 @@
  *
  * 后端协议自动适配：
  *   - 我们的 FastAPI / stdlib http.server：POST {base}/api/{endpoint} body {key: val}
- *   - HF Space Gradio SDK：POST {base}/gradio_api/call/{endpoint} body {data: [payload]}
- *     响应是 SSE 流（先 event_id，再 /gradio_api/call/{endpoint}/{event_id} 拉结果）
+ *   - HF Space Gradio SDK：先触发 call 拿 event_id，再用 SSE 拉结果
  *
  * 访客密钥（quant_keys）：
  *   - 只存在访客浏览器 localStorage
@@ -125,74 +124,148 @@ function injectKeys(payload) {
 }
 
 // ---- Gradio API 调用（SSE 流式） ----
-// Gradio 6.x 协议：
-//   - 触发：POST /gradio_api/call/v2/<endpoint>  body {"payload": <dict>}
-//   - 返回：{"event_id": "..."}
-//   - 拉流：GET  /gradio_api/call/<endpoint>/<event_id>  (text/event-stream)
-//   - 流最后一个 msg === "process_completed" 含 output.data[0] = fn 返回值
+// 兼容两类 Gradio 协议：
+//   - 新版：POST /gradio_api/call/v2/<endpoint> body {"payload": <dict>}
+//   - 旧版：POST /gradio_api/call/<endpoint>    body {"data": [<dict>]}
+//   - 拉流：GET  /gradio_api/call/<endpoint>/<event_id> (text/event-stream)
+
+function pickGradioOutput(output) {
+  if (output && Array.isArray(output.data)) return output.data[0] ?? null;
+  if (Array.isArray(output)) return output[0] ?? null;
+  return output ?? null;
+}
+
+function parseSseEvent(raw) {
+  const lines = raw.split("\n");
+  let eventName = "message";
+  const dataLines = [];
+  for (const line of lines) {
+    if (!line || line.startsWith(":")) continue;
+    const sep = line.indexOf(":");
+    const field = sep === -1 ? line : line.slice(0, sep);
+    let value = sep === -1 ? "" : line.slice(sep + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+    if (field === "event") eventName = value || "message";
+    if (field === "data") dataLines.push(value);
+  }
+  if (!dataLines.length) return { eventName, data: undefined };
+  const dataText = dataLines.join("\n");
+  if (dataText === "[DONE]") return { eventName, data: dataText };
+  try {
+    return { eventName, data: JSON.parse(dataText) };
+  } catch {
+    return { eventName, data: dataText };
+  }
+}
+
+function interpretGradioEvent(eventName, data) {
+  if (data === undefined || data === "[DONE]") return { kind: "ignore" };
+  if (eventName === "error") {
+    return { kind: "error", message: typeof data === "string" ? data : data?.error };
+  }
+  if (data && typeof data === "object" && !Array.isArray(data) && data.msg) {
+    if (data.msg === "process_completed") {
+      return { kind: "done", result: pickGradioOutput(data.output) };
+    }
+    if (data.msg === "process_failed") {
+      return {
+        kind: "error",
+        message: data.message || data.output?.error || data.error || "处理失败",
+      };
+    }
+    if (data.output && (data.msg === "process_generating" || data.msg === "process_starts")) {
+      return { kind: "partial", result: pickGradioOutput(data.output) };
+    }
+    return { kind: "ignore" };
+  }
+  if (eventName === "complete") {
+    return { kind: "done", result: pickGradioOutput(data) };
+  }
+  if (eventName === "generating" || eventName === "data") {
+    return { kind: "partial", result: pickGradioOutput(data) };
+  }
+  return { kind: "ignore" };
+}
+
+async function triggerGradioCall(endpoint, payload) {
+  const base = getApiBase();
+  const attempts = [
+    {
+      url: `${base}/gradio_api/call/v2/${endpoint}`,
+      body: { payload },
+    },
+    {
+      url: `${base}/gradio_api/call/${endpoint}`,
+      body: { data: [payload] },
+    },
+  ];
+  let lastMessage = "";
+  for (const attempt of attempts) {
+    const res = await fetch(attempt.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(attempt.body),
+    });
+    if (!res.ok) {
+      lastMessage = `HTTP ${res.status}`;
+      try {
+        const data = await res.json();
+        if (data && data.error) lastMessage = data.error;
+      } catch {}
+      if (![404, 405, 422].includes(res.status)) break;
+      continue;
+    }
+    const data = await res.json();
+    const eventId = data?.event_id || data?.eventId || data;
+    if (typeof eventId === "string" && eventId) return eventId;
+    throw new Error("Gradio 未返回 event_id");
+  }
+  throw new Error(lastMessage || "Gradio 调用触发失败");
+}
 
 async function postJsonGradio(endpoint, payload) {
   const base = getApiBase();
   const injected = injectKeys({ ...(payload || {}) });
-  // step 1: 触发调用（Gradio 6.x 用 v2 路径 + payload 字段）
-  const triggerUrl = `${base}/gradio_api/call/v2/${endpoint}`;
-  const triggerRes = await fetch(triggerUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payload: injected }),
-  });
-  if (!triggerRes.ok) {
-    let msg = `HTTP ${triggerRes.status}`;
-    try {
-      const data = await triggerRes.json();
-      if (data && data.error) msg = data.error;
-    } catch {}
-    throw new Error(msg);
-  }
-  const { event_id } = await triggerRes.json();
-  if (!event_id) throw new Error("Gradio 未返回 event_id");
+  const event_id = await triggerGradioCall(endpoint, injected);
 
   // step 2: 拉 SSE 流
   const resultUrl = `${base}/gradio_api/call/${endpoint}/${event_id}`;
-  return new Promise((resolve, reject) => {
-    fetch(resultUrl, { headers: { Accept: "text/event-stream" } })
-      .then(async (res) => {
-        if (!res.ok || !res.body) {
-          reject(new Error(`SSE HTTP ${res.status}`));
-          return;
-        }
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const events = buf.split("\n\n");
-          buf = events.pop() || "";
-          for (const evt of events) {
-            const dataLine = evt.split("\n").find((l) => l.startsWith("data: "));
-            if (!dataLine) continue;
-            const dataStr = dataLine.slice(6);
-            try {
-              const msg = JSON.parse(dataStr);
-              if (msg.msg === "process_completed") {
-                const result = msg.output?.data?.[0] ?? null;
-                resolve(result);
-                return;
-              } else if (msg.msg === "process_failed") {
-                reject(new Error(msg.message || msg.output?.error || "处理失败"));
-                return;
-              }
-            } catch {
-              // 非 JSON 行忽略
-            }
-          }
-        }
-        reject(new Error("SSE 流提前结束"));
-      })
-      .catch(reject);
-  });
+  const res = await fetch(resultUrl, { headers: { Accept: "text/event-stream" } });
+  if (!res.ok || !res.body) throw new Error(`SSE HTTP ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let lastPartial;
+  while (true) {
+    const { done, value } = await reader.read();
+    buf += done ? decoder.decode() : decoder.decode(value, { stream: true });
+    buf = buf.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const events = buf.split(/\n\n+/);
+    buf = events.pop() || "";
+    for (const evt of events) {
+      const parsed = parseSseEvent(evt);
+      const interpreted = interpretGradioEvent(parsed.eventName, parsed.data);
+      if (interpreted.kind === "done") return interpreted.result;
+      if (interpreted.kind === "error") throw new Error(interpreted.message || "处理失败");
+      if (interpreted.kind === "partial" && interpreted.result !== null) {
+        lastPartial = interpreted.result;
+      }
+    }
+    if (done) break;
+  }
+
+  if (buf.trim()) {
+    const parsed = parseSseEvent(buf.trim());
+    const interpreted = interpretGradioEvent(parsed.eventName, parsed.data);
+    if (interpreted.kind === "done") return interpreted.result;
+    if (interpreted.kind === "error") throw new Error(interpreted.message || "处理失败");
+    if (interpreted.kind === "partial" && interpreted.result !== null) {
+      lastPartial = interpreted.result;
+    }
+  }
+  if (lastPartial !== undefined) return lastPartial;
+  throw new Error("SSE 流提前结束：未收到 Gradio 完成事件");
 }
 
 // ---- 通用 postJson（自动适配后端协议） ----

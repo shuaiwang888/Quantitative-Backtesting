@@ -158,31 +158,37 @@ rg "function setText|selector-meta|code_count" /tmp/quant_app_check.js
 Cmd + Shift + R
 ```
 
-## 部署到云端（GitHub Pages + Render）
+## 部署到云端（GitHub Pages + Hugging Face Space）
 
-GitHub Pages 只能托管静态文件，Python 后端必须单独部署。下面是推荐架构：
+GitHub Pages 只托管静态前端，Python 后端部署到 Hugging Face Space。当前仓库已经内置两条 GitHub Actions：
+
+- `.github/workflows/pages.yml`：push 到 `main` 后构建 `web/` 并发布到 GitHub Pages。
+- `.github/workflows/huggingface.yml`：push 到 `main` 后把后端文件同步到 HF Space。
+
+推荐架构：
 
 ```
-访客浏览器 → GitHub Pages (静态前端) → Render (Python 后端) → iwencai / MiniMax
+访客浏览器 → GitHub Pages (静态前端) → Hugging Face Space (Gradio 后端) → iwencai / MiniMax
                                           ↑ 没有 owner 的 key
                               访客在浏览器填自己的 key（localStorage）
 ```
 
 **关键设计**：后端**不持有 owner 的 key**。访客首次打开页面时，在左上方"API 密钥"按钮里填入自己的问财 key（MiniMax 可选），key 只保存在访客自己的浏览器 localStorage，每次 POST 时由 `config.js` 注入到 `payload.api_key` / `payload.minimax_api_key`。后端读到这些字段就用访客的，否则用 env var 的（如果有）。这样部署到公网后，**owner 完全不用暴露自己的密钥**。
 
-### 一、部署后端到 Render
+### 一、部署后端到 Hugging Face Space
 
-1. 注册 [render.com](https://render.com)（GitHub 账号直接登录）
-2. Dashboard → **New +** → **Blueprint** → 连 GitHub repo
-3. Render 读取 `render.yaml` 自动创建 web service
-4. **可选步骤**：Environment 页面填：
-   - `IWENCAI_API_KEY`：**可选**，不填也能启动；填了就作为兜底（访客没填 key 时 fallback 用）
-   - `MINIMAX_API_KEY`：**可选**，仅当你希望访客没填 MiniMax key 时还能用 AI 复盘
-   - `CORS_ORIGIN`：填你的 GitHub Pages URL，如 `https://<user>.github.io`
-     - 注意 Render 默认 `*`，部署后必须收窄到 Pages 域名
-5. 等 3-5 分钟部署完成，记下后端 URL：`https://quant-backtest-xxx.onrender.com`
-   - 免费层 15 分钟无活动会休眠，冷启动 ~30 秒
-   - 可用 [UptimeRobot](https://uptimerobot.com/) 免费 ping 防休眠
+1. 在 Hugging Face 创建 Space：`appQQQ/Quantitative-Backtesting-backend`。
+2. Space SDK 选择 **Gradio**，入口文件由 workflow 生成的 Space README 指定为 `app_hf.py`。
+3. 在 GitHub repo → Settings → Secrets and variables → Actions 中配置：
+   - `HF_TOKEN`：Hugging Face write token，账号必须有该 Space 的写权限。
+4. Space Settings → Variables and secrets 可选配置：
+   - `IWENCAI_API_KEY`：可选，owner 兜底问财 key；不填时访客必须在前端填写自己的 key。
+   - `MINIMAX_API_KEY`：可选，owner 兜底 MiniMax key。
+   - `CORS_ORIGIN`：建议填 `https://shuaiwang888.github.io`。
+   - `PORT`：`7860`。
+   - `MYSQL_PERSIST_ENABLED`：`0`。
+5. push 到 `main` 后，`Deploy HF Space` workflow 会上传后端并触发 Space rebuild。
+6. 后端 URL：`https://appQQQ-quantitative-backtesting-backend.hf.space`。
 
 > **如果你希望公开部署的 backend 完全不持有你的 key**（最安全）：第 4 步留空即可。访客必须自己填 key 才能用。
 
@@ -198,7 +204,7 @@ GitHub Pages 只能托管静态文件，Python 后端必须单独部署。下面
 首次访问时在 URL 后加 `?api=...`：
 
 ```
-https://<user>.github.io/<repo>/?api=https://quant-backtest-xxx.onrender.com
+https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appQQQ-quantitative-backtesting-backend.hf.space
 ```
 
 `config.js` 会把 URL 存到 localStorage，以后免带参数。本地开发保持 `?api=` 为空即同源。
@@ -221,14 +227,14 @@ https://<user>.github.io/<repo>/?api=https://quant-backtest-xxx.onrender.com
 | Owner key 进 Render | **可选**；不填则 backend 完全无 owner key，访客必须自带 |
 | API key 进 Pages | Pages 只托管静态文件，无密钥 |
 | 访客 key 泄漏 | key 只在访客浏览器 localStorage；HTTPS 才能防中间人 |
-| CORS 滥用 | 部署后必须把 `CORS_ORIGIN` 收窄到 Pages 域名 |
+| CORS 滥用 | 部署后建议把 `CORS_ORIGIN` 收窄到 Pages 域名 |
 | 公开部署被刷 API | 用 `RATE_LIMIT` + `RATE_WINDOW` 限流；考虑加 `API_KEY` 静态鉴权 |
-| iwencai key 绑本地 IP | 联系 iwencai 把 Render 出口 IP 加白，或改用 IP-无关的鉴权方式 |
+| iwencai key 绑本地 IP | 联系 iwencai 把 HF Space 出口 IP 加白，或改用 IP-无关的鉴权方式 |
 
 ### 成本
 
 - GitHub Pages：100GB 带宽 / 月（个人用绰绰有余），$0
-- Render Free：750 小时 / 月，512MB RAM，$0
+- Hugging Face Space CPU：免费额度按 HF 当前政策为准
 - iwencai / MiniMax：按访客各自的账号套餐计费（owner 不承担）
 - UptimeRobot 防休眠：50 个监控免费
 

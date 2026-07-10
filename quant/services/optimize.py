@@ -17,7 +17,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from quant.config import get_settings
-from quant.data.normalization import Bar
+from quant.data import iwencai
+from quant.data.iwencai import IwencaiError
+from quant.data.normalization import Bar, build_history_query, normalize_bars
 from quant.errors import ValidationError
 from quant.logging_setup import get_logger
 from quant.strategies import SPECS, get_spec, min_bars
@@ -327,6 +329,58 @@ def run_grid_search(
     return response
 
 
+def run_grid_search_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """HTTP/HF 统一入口：从 payload 拉 K 线后执行网格寻优。
+
+    本地 ``/api/optimize`` 和 HF Gradio endpoint 都走这里，避免两套入口
+    在 query/symbol/index/max_combinations 等字段上行为漂移。
+    """
+    from quant.errors import UpstreamError
+    from quant.services.backtest import INDEX_SYMBOLS
+
+    req = OptimizeRequest(
+        strategy=str(payload.get("strategy") or "momentum_atr"),
+        param_ranges=payload.get("param_ranges") or {},
+        start_date=str(payload.get("start_date", "")).strip(),
+        end_date=str(payload.get("end_date", "")).strip(),
+        query=str(payload.get("query", "")).strip(),
+        initial_cash=float(payload.get("initial_cash") or 100000),
+        fee_rate=float(payload.get("fee_rate") or 0.0003),
+        max_combinations=(
+            int(payload["max_combinations"])
+            if payload.get("max_combinations") not in (None, "", 0)
+            else None
+        ),
+    )
+    symbol = str(payload.get("symbol", "")).strip()
+    mode = str(payload.get("backtest_mode") or "single")
+    if mode == "index":
+        symbol = INDEX_SYMBOLS.get(str(payload.get("index_symbol") or "hs300"), symbol)
+
+    query_text = req.query
+    if not query_text:
+        if not symbol or not req.start_date or not req.end_date:
+            raise ValidationError("请填写股票代码/名称、开始日期和结束日期，或直接填写数据查询语句")
+        query_text = build_history_query(symbol, req.start_date, req.end_date)
+
+    try:
+        response = iwencai.fetch_all(
+            query_text,
+            api_key=payload.get("api_key") or None,
+            limit=min(int(payload.get("limit") or 100), 100),
+            max_pages=max(1, min(int(payload.get("max_pages") or 10), 20)),
+        )
+    except IwencaiError as exc:
+        raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
+
+    bars = normalize_bars(response.get("datas", []))
+    result = run_grid_search(req, bars)
+    result["success"] = True
+    result["query"] = query_text
+    result["trace_ids"] = response.get("trace_ids", [])
+    return result
+
+
 def _resolve_n_jobs(configured: int) -> int:
     """根据配置 + CPU 数决定 worker 数。"""
     if configured <= 0:
@@ -347,4 +401,4 @@ def _strategy_param_keys(strategy_cls: type) -> List[str]:
     ]
 
 
-__all__ = ["OptimizeRequest", "run_grid_search"]
+__all__ = ["OptimizeRequest", "run_grid_search", "run_grid_search_from_payload"]

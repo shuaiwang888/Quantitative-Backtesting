@@ -9,7 +9,7 @@ import pytest
 from quant.config import reset_settings_cache
 from quant.data.normalization import Bar
 from quant.errors import ValidationError
-from quant.services.optimize import OptimizeRequest, run_grid_search
+from quant.services.optimize import OptimizeRequest, run_grid_search, run_grid_search_from_payload
 
 
 def _bars(n: int = 80) -> list[Bar]:
@@ -73,6 +73,67 @@ class TestGridSearch:
         finally:
             os.environ.pop("OPTIMIZE_MAX_COMBINATIONS", None)
             reset_settings_cache()
+
+
+class TestGridSearchFromPayload:
+    def _raw_bars(self, n: int = 80):
+        return [
+            {
+                "日期": f"2024-{(i // 30) + 1:02d}-{(i % 30) + 1:02d}",
+                "股票代码": "000001.SZ",
+                "股票简称": "平安银行",
+                "开盘价": 10.0 + 0.04 * i,
+                "最高价": 10.0 + 0.06 * i,
+                "最低价": 10.0 + 0.03 * i,
+                "收盘价": 10.0 + 0.05 * i,
+                "成交量": 1000.0 + i * 10,
+            }
+            for i in range(n)
+        ]
+
+    def test_payload_entry_fetches_bars_and_returns_success(self, monkeypatch):
+        seen = {}
+
+        def fake_fetch_all(query, **kwargs):
+            seen["query"] = query
+            seen["kwargs"] = kwargs
+            return {"datas": self._raw_bars(80), "trace_ids": ["trace-1"]}
+
+        monkeypatch.setattr("quant.data.iwencai.fetch_all", fake_fetch_all)
+        result = run_grid_search_from_payload(
+            {
+                "strategy": "moving_average",
+                "symbol": "000001.SZ",
+                "start_date": "2024-01-01",
+                "end_date": "2024-03-31",
+                "param_ranges": {"fast_window": [3, 5], "slow_window": [10]},
+                "limit": 500,
+                "max_pages": 50,
+                "api_key": "visitor-key",
+            }
+        )
+        assert result["success"] is True
+        assert result["combinations"] == 2
+        assert "000001.SZ 2024-01-01到2024-03-31 每日行情" in seen["query"]
+        assert seen["kwargs"]["limit"] == 100
+        assert seen["kwargs"]["max_pages"] == 20
+        assert seen["kwargs"]["api_key"] == "visitor-key"
+        assert result["trace_ids"] == ["trace-1"]
+
+    def test_payload_entry_threads_max_combinations(self, monkeypatch):
+        monkeypatch.setattr(
+            "quant.data.iwencai.fetch_all",
+            lambda *args, **kwargs: {"datas": self._raw_bars(80)},
+        )
+        with pytest.raises(ValidationError, match="超过上限"):
+            run_grid_search_from_payload(
+                {
+                    "strategy": "moving_average",
+                    "query": "mock",
+                    "param_ranges": {"fast_window": [3, 5, 7], "slow_window": [10, 20]},
+                    "max_combinations": 4,
+                }
+            )
 
     def test_basic_grid_returns_sorted_results(self):
         result = run_grid_search(
