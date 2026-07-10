@@ -38,7 +38,7 @@ jobs:
 
       # 装 HF 官方 Python SDK
       - name: Install huggingface_hub
-        run: pip install --quiet "huggingface_hub>=0.20"
+        run: pip install --quiet "huggingface_hub>=0.25"
 
       # 只拷贝后端需要的文件 + HF Space 友好的 README（带 YAML frontmatter 标记 SDK = gradio）
       - name: Build filtered tree (server-only)
@@ -137,6 +137,28 @@ jobs:
           except Exception as e:
               print(f"   ❌ 读不到 Space 信息: {type(e).__name__}: {e}")
               print(f"   可能原因：Space 不存在 / 拼写错 / token 没权限读这个 repo")
+              sys.exit(1)
+          PY
+
+      # Space 如果仍配置在 ZeroGPU 硬件上，去掉 @spaces.GPU 后会启动失败。
+      # 这里显式切到免费 CPU basic，再上传代码并重启。
+      - name: Ensure HF Space uses CPU hardware
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          repo_id = "appQQQ/Quantitative-Backtesting-backend"
+          hardware = "cpu-basic"
+          print(f"--- request_space_hardware {repo_id} -> {hardware} ---")
+          try:
+              api.request_space_hardware(repo_id=repo_id, hardware=hardware)
+              print("✅ Space 硬件已请求为 cpu-basic")
+          except Exception as e:
+              print(f"❌ 切换 Space CPU 硬件失败: {type(e).__name__}: {e}")
+              print("   需要 HF_TOKEN 对该 Space 有 write/admin 权限，或在 HF Space Settings 手动切到 CPU basic。")
               sys.exit(1)
           PY
 
