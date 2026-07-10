@@ -15,6 +15,7 @@ on:
     paths:
       - 'quant/**'
       - 'app.py'
+      - 'app_hf.py'
       - 'requirements.txt'
       - 'Dockerfile'
       - '.dockerignore'
@@ -39,13 +40,14 @@ jobs:
       - name: Install huggingface_hub
         run: pip install --quiet "huggingface_hub>=0.20"
 
-      # 只拷贝后端需要的文件 + HF Space 友好的 README（带 YAML frontmatter 标记 SDK = docker）
+      # 只拷贝后端需要的文件 + HF Space 友好的 README（带 YAML frontmatter 标记 SDK = gradio）
       - name: Build filtered tree (server-only)
         run: |
           rm -rf hf-deploy
           mkdir hf-deploy
           cp -r quant/          hf-deploy/quant/
           cp app.py             hf-deploy/
+          cp app_hf.py          hf-deploy/
           cp requirements.txt   hf-deploy/
           cp Dockerfile         hf-deploy/
           cp .dockerignore      hf-deploy/
@@ -55,17 +57,18 @@ jobs:
           emoji: 📈
           colorFrom: blue
           colorTo: indigo
-          sdk: docker
+          sdk: gradio
           app_port: 7860
-          app_file: app.py
+          app_file: app_hf.py
           pinned: false
           license: mit
-          short_description: A股量化回测平台后端（Python stdlib http.server）
+          short_description: A股量化回测平台后端（FastAPI + Gradio Blocks，ZeroGPU 兼容）
           ---
 
           # A股量化回测平台后端
 
-          Docker SDK Space，监听 0.0.0.0:7860。
+          Gradio SDK Space（FastAPI 提供 /api/* + Gradio Blocks 占位 UI），
+          监听 0.0.0.0:7860。ZeroGPU 兼容。
 
           前端（GitHub Pages）：https://shuaiwang888.github.io/Quantitative-Backtesting/
           （首次访问加 `?api=https://appQQQ-quantitative-backtesting-backend.hf.space` 切换后端）

@@ -3,6 +3,11 @@ PyMySQL>=1.1.0
 DBUtils>=3.0.0
 cryptography>=42.0.0
 
+# FastAPI（HF Space 用：把 stdlib http.server 路由重写成 ASGI，兼容 ZeroGPU Gradio SDK）
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+gradio>=4.20.0
+
 # 开发/测试
 pytest>=7.4.0
 pytest-cov>=4.1.0
