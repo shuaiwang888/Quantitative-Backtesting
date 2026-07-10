@@ -1,9 +1,11 @@
 # 自动同步 GitHub main → Hugging Face Space 仓库
-# HF Space 本身是 git 仓库：https://huggingface.co/spaces/<owner>/<space>
-# 推送时只动我们关心的后端文件，避免误把 .github/、tests/、web/、docs/ 灌到 HF。
+# 用 HF 官方 Python SDK（huggingface_hub）替代 raw git push：
+#   - 不依赖 git over HTTPS（HF 端 git LFS 偶发 5xx）
+#   - 详细错误（"token 失效" / "scope 不足" / "Space 不存在"）
+#   - 一步完成"上传 + 触发 build"
 #
 # 触发：push 到 main 且 quant/** / app.py / requirements.txt / Dockerfile 变化
-# 所需 GitHub Secret：HF_TOKEN（write scope，限定到单个 Space）
+# 所需 GitHub Secret：HF_TOKEN（write scope，限定到 appQQQ/Quantitative-Backtesting-backend）
 
 name: Deploy HF Space
 
@@ -33,7 +35,11 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      # 只拷贝后端需要的文件 + HF Space 友好的 README
+      # 装 HF 官方 Python SDK
+      - name: Install huggingface_hub
+        run: pip install --quiet "huggingface_hub>=0.20"
+
+      # 只拷贝后端需要的文件 + HF Space 友好的 README（带 YAML frontmatter 标记 SDK = docker）
       - name: Build filtered tree (server-only)
         run: |
           rm -rf hf-deploy
@@ -71,65 +77,92 @@ jobs:
           - `POST /api/batch_backtest` — 批量回测
           - `POST /api/optimize`   — 网格寻优
           - `POST /api/analyze`    — AI 复盘
+
+          ## 配置
+
+          Space Settings → Variables and secrets：
+          - `CORS_ORIGIN` = `https://shuaiwang888.github.io`
+          - `IWENCAI_API_KEY`（secret）= owner 的问财 key
+          - `MINIMAX_API_KEY`（secret）= owner 的 M2.7 key
+          - `PORT` = `7860`
+          - `MYSQL_PERSIST_ENABLED` = `0`
           EOF
-          ls -la hf-deploy/
+          echo "--- hf-deploy 内容 ---"
+          find hf-deploy -maxdepth 2 -type f | sort
 
-      - name: Verify HF Space reachable + token valid
+      # 验证 token：whoami 告诉我们绑到哪个账号 + 是否有 write 权限
+      - name: Verify HF token
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          set -x
-          # 1) 打印 token 元信息（不打印 token 字符本身）
-          if [[ -z "${HF_TOKEN}" ]]; then
-            echo "❌ HF_TOKEN 未设置 —— 请到 GitHub repo Settings → Secrets 配 HF_TOKEN"
-            exit 1
-          fi
-          echo "✅ HF_TOKEN 已配置（长度 ${#HF_TOKEN}，前缀 ${HF_TOKEN:0:3}...）"
-          SPACE_URL="https://huggingface.co/spaces/appQQQ/Quantitative-Backtesting-backend"
-          # 2) 先只读探活 Space 是否存在（认证 + ls-remote）
-          echo "--- ls-remote HEAD（只读）---"
-          git ls-remote "${SPACE_URL}" HEAD
-          RC=$?
-          set +x
-          if [[ $RC -ne 0 ]]; then
-            echo ""
-            echo "❌ git ls-remote 失败 (exit $RC)。最常见原因："
-            echo "   1. HF_TOKEN 失效 / scope 不足（需要 write on appQQQ/Quantitative-Backtesting-backend）"
-            echo "   2. Space 仓库还不存在 —— 在 https://huggingface.co/spaces/appQQQ/Quantitative-Backtesting-backend 创建"
-            echo "      Space SDK 选 'Docker'，硬件选 'CPU basic'（免费）"
-            echo "   3. token 绑错了账号（绑到别的 HF 账号了）"
-            exit $RC
-          fi
-          echo "✅ Space 可达 + 认证通过"
+          python3 - <<'PY'
+          import os, sys
+          from huggingface_hub import HfApi
+          token = os.environ.get("HF_TOKEN", "")
+          if not token:
+              print("❌ HF_TOKEN 未配置 — 去 GitHub repo Settings → Secrets 配")
+              sys.exit(1)
+          print(f"✅ HF_TOKEN 已配置（长度 {len(token)}，前缀 {token[:3]}...）")
+          api = HfApi(token=token)
+          me = api.whoami()
+          print(f"   绑到账号: {me.get('name')}  (type={me.get('type')})")
+          # 检查 token 角色（HF 不暴露 scope，但写权限不足时会具体报错）
+          print(f"   token role: {me.get('role', '?')}")
+          # 检查 Space 当前状态（不触发 build）
+          try:
+              info = api.get_space_info("appQQQ/Quantitative-Backtesting-backend")
+              print(f"   Space 状态: sdk={info.sdk}  status={info.runtime.stage if info.runtime else '?'}  hardware={info.hardware}")
+          except Exception as e:
+              print(f"   ❌ 读不到 Space 信息: {type(e).__name__}: {e}")
+              print("   可能原因：token 没绑到 appQQQ 账号 / Space 不存在 / 拼写错")
+              sys.exit(1)
+          PY
 
-      - name: Push to Hugging Face Space
+      # 用 SDK 上传（一步覆盖）
+      - name: Upload to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          set -e
-          cd hf-deploy
-          git init -q
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -q -b main || true
-          git add -A
-          # commit.gpgsign=false 避免 Action runner 缺 GPG key 报错
-          git -c commit.gpgsign=false commit -qm "sync from shuaiwang888/Quantitative-Backtesting@${{ github.sha }}"
-          # -f 是因为我们用一个空仓库覆盖 HF 端（首次部署时 repo 已有 README）
-          SPACE_URL="https://appQQQ:${HF_TOKEN}@huggingface.co/spaces/appQQQ/Quantitative-Backtesting-backend"
-          echo "--- git push（带详细进度）---"
-          GIT_TRACE=1 GIT_CURL_VERBOSE=1 git push -f "$SPACE_URL" main 2>&1 | tail -30
-          echo "✅ push 完成"
+          python3 - <<'PY'
+          import os, sys
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          repo_id = "appQQQ/Quantitative-Backtesting-backend"
+          print(f"--- upload_folder {repo_id} ---")
+          try:
+              # commit_message 留个 trace，方便排查
+              url = api.upload_folder(
+                  folder_path="hf-deploy",
+                  repo_id=repo_id,
+                  repo_type="space",
+                  commit_message="sync from shuaiwang888/Quantitative-Backtesting@${{ github.sha }}",
+              )
+              print(f"✅ 上传成功: {url}")
+          except Exception as e:
+              print(f"❌ upload_folder 失败: {type(e).__name__}: {e}")
+              # 常见原因：
+              #   - 401 Token: token 无效或失效 → 重新生成
+              #   - 403 Forbidden: token 没有 write scope，或绑到错账号
+              #   - 404 Not Found: Space 不存在或路径拼错
+              print("   ↑ 上面的异常类型+消息就是根因，照着改 HF_TOKEN 或 Space 路径")
+              sys.exit(1)
+          PY
 
-      # push 完后显式调 HF restart API 触发 build（避免 HF 因 webhooks 漏掉第一次触发）
+      # 触发 build（upload_folder 在 Space 第一次创建时通常会自动触发 build，
+      # 但已有 Space 改文件可能不会，所以显式 restart）
       - name: Trigger HF Space rebuild
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          echo "--- POST /restart-space 触发 build ---"
-          curl -sS -X POST \
-            -H "Authorization: Bearer ${HF_TOKEN}" \
-            "https://huggingface.co/api/spaces/appQQQ/Quantitative-Backtesting-backend/restart" \
-            -w "\nHTTP %{http_code}\n" | tail -20
-          echo ""
-          echo "✅ restart API 已调用。HF 平台会异步启动 build（1-3 min）"
+          python3 - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          repo_id = "appQQQ/Quantitative-Backtesting-backend"
+          print(f"--- restart_space {repo_id} ---")
+          try:
+              api.restart_space(repo_id=repo_id)
+              print("✅ restart API 已调用，HF 平台将异步启动 build（1-3 min）")
+          except Exception as e:
+              print(f"⚠️ restart_space 失败（不阻塞 push，build 可能自动触发）: {type(e).__name__}: {e}")
+          PY
