@@ -54,7 +54,10 @@ class Settings:
     """运行期配置。"""
 
     # --- HTTP 服务 ---
-    host: str = field(default_factory=lambda: _get("HOST", "127.0.0.1"))
+    # 默认 0.0.0.0 同时满足：
+    #   - 本地 start.sh 显式 export HOST=127.0.0.1 → 走 127.0.0.1
+    #   - HF Space 不注入 HOST → 走 0.0.0.0 满足健康检查
+    host: str = field(default_factory=lambda: _get("HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: _get_int("PORT", 8000))
     cors_origin: str = field(default_factory=lambda: _get("CORS_ORIGIN", "*"))
 

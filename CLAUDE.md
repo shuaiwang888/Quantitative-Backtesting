@@ -227,7 +227,69 @@ gh secret list
 > ⚠️ **安全守则**：
 > 1. **绝对不要把 API key 用 `VITE_*` 注入前端**——`pages.yml` 会把这些值编进 `static/assets/*.js` 并公开到 GitHub Pages。当前 `web/src/*` 不读 env，干净。
 > 2. Fork 来的 PR 拿不到 secrets（GitHub 内置安全）；CI 里加了 `|| 'test-key-for-ci'` 回退，所以公仓贡献者不会因为缺 secret 而红。
-> 3. 后端要部署到云（Render / Railway / Fly.io 等——见 `pages.yml` 注释），把上面的 Secret 加到对应平台的 Environment Variables 里；它们**不是** GitHub Secrets，但命名一致便于维护。
+> 3. 后端要部署到云（Render / Railway / Fly.io / HF Space 等——见 `pages.yml` 注释），把上面的 Secret 加到对应平台的 Environment Variables 里；它们**不是** GitHub Secrets，但命名一致便于维护。
+
+## 部署到 Hugging Face Space（Docker SDK）
+
+后端镜像推到 `https://huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting`，子域 `https://appStoreQAQ-quantitative-backtesting.hf.space`。前端继续走 GitHub Pages，访客首次访问用 `?api=` 切到 HF 后端。
+
+### 关键改动
+
+| 文件 | 改动 |
+|---|---|
+| `quant/config.py` | `Settings.host` 默认 `"127.0.0.1"` → `"0.0.0.0"`（满足 HF 健康检查；本地 `start.sh` 仍显式 export 127.0.0.1，不影响） |
+| `app.py` | `main()` 顶部加 5 行注释说明 host 解析顺序 |
+| `Dockerfile` | 新建：`python:3.10-slim` + 单进程 `python app.py` + EXPOSE 7860 + HEALTHCHECK |
+| `.dockerignore` | 新建：排除 `web/`、`static/`、`tests/`、`*.md`、`.env`、cyber_ppt_output 等 |
+| `.github/workflows/huggingface.yml` | 新建：监听 `quant/**` 变化 → 构建 `hf-deploy/` → `git push -f` 到 HF Space 仓库 |
+
+### 镜像里跑什么
+
+```text
+python:3.10-slim
+  ├── PYTHONPYCACHEPREFIX=/tmp/pycache   ← 写业务目录会污染镜像
+  ├── WORKDIR /app
+  ├── requirements.txt → pip install      ← 单层缓存
+  ├── quant/ + app.py
+  ├── EXPOSE 7860
+  └── CMD ["python", "app.py"]
+```
+
+容器启动 → 读 HF 注入的 `PORT=7860` + Settings 默认 `HOST=0.0.0.0` → 监听 0.0.0.0:7860。
+
+### HF Space Variables and secrets 必填
+
+| 名 | 类型 | 值 |
+|---|---|---|
+| `CORS_ORIGIN` | variable | `https://shuaiwang888.github.io`（**必须收窄**） |
+| `PORT` | variable | `7860`（显式声明） |
+| `IWENCAI_API_KEY` | secret | owner 真实 key（访客用浏览器填自己的） |
+| `MYSQL_PERSIST_ENABLED` | variable | `0`（HF 无 MySQL） |
+| `RATE_LIMIT` | variable | `30`（比本地 60 收紧） |
+
+**不设 `HOST`** —— 让 `Settings.host` 默认 `0.0.0.0` 生效。
+**不设 `HF_TOKEN`** —— Docker SDK 构建由 HF 平台凭 Space 自身权限完成。
+
+### GitHub Secret 必填
+
+| Secret | 用途 |
+|---|---|
+| `HF_TOKEN` | GitHub Action 推 HF Space 用（**scope = write on appStoreQAQ/Quantitative-Backtesting 单个 Space**，不要给账号级 write） |
+
+### 访客切换后端
+
+```
+https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appStoreQAQ-quantitative-backtesting.hf.space
+```
+
+`web/src/api.js` 自动写入 `localStorage.quant_api_base`，后续免带参数。
+
+### 回滚
+
+- **前端切回**：DevTools → `localStorage.removeItem("quant_api_base")` → reload
+- **Space 暂停**：HF Space Settings → Pause Space（10 秒）
+- **业务代码回滚**：`git revert HEAD~1` + push
+- **新增文件回滚**：`git rm Dockerfile .dockerignore .github/workflows/huggingface.yml` + push
 
 ## 提交 GitHub 前的检查清单
 
@@ -235,9 +297,12 @@ gh secret list
 # 1. 语法检查
 python -m compileall -q quant/ app.py
 
-# 2. 测试全过
+# 2. 测试全过（HF 部署不引入新逻辑，pytest 仍应全过）
 python -m pytest tests/
 
 # 3. .env 不进 git（已在 .gitignore）
 git status   # 确认 .env 未被 add
+
+# 4. .dockerignore 防止 web/ / static/ / tests/ / docs/ 进 HF 镜像
+cat .dockerignore
 ```

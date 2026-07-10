@@ -34,6 +34,11 @@ def _load_dotenv() -> None:
 
 def main() -> int:
     _load_dotenv()
+    # 监听地址解析顺序：
+    #   1. 显式环境变量 HOST / PORT（start.sh / HF Space Variables）
+    #   2. Settings 默认值（HOST=0.0.0.0 / PORT=8000）
+    #   - 本地 start.sh：显式 export HOST=127.0.0.1 PORT=8000 → 127.0.0.1:8000
+    #   - HF Space：注入 PORT=7860，无 HOST → 0.0.0.0:7860（满足 HF 健康检查）
     # IWENCAI_API_KEY 不再硬性必填：
     # - 本地开发：填 .env 方便；
     # - 公开部署：把 key 留空，访客在浏览器里填自己的（POST 时通过 payload.api_key 透传）。

@@ -1,0 +1,91 @@
+# 自动同步 GitHub main → Hugging Face Space 仓库
+# HF Space 本身是 git 仓库：https://huggingface.co/spaces/<owner>/<space>
+# 推送时只动我们关心的后端文件，避免误把 .github/、tests/、web/、docs/ 灌到 HF。
+#
+# 触发：push 到 main 且 quant/** / app.py / requirements.txt / Dockerfile 变化
+# 所需 GitHub Secret：HF_TOKEN（write scope，限定到单个 Space）
+
+name: Deploy HF Space
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'quant/**'
+      - 'app.py'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/huggingface.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: huggingface
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # 只拷贝后端需要的文件 + HF Space 友好的 README
+      - name: Build filtered tree (server-only)
+        run: |
+          rm -rf hf-deploy
+          mkdir hf-deploy
+          cp -r quant/          hf-deploy/quant/
+          cp app.py             hf-deploy/
+          cp requirements.txt   hf-deploy/
+          cp Dockerfile         hf-deploy/
+          cp .dockerignore      hf-deploy/
+          cat > hf-deploy/README.md <<'EOF'
+          ---
+          title: Quantitative Backtesting
+          emoji: 📈
+          colorFrom: blue
+          colorTo: indigo
+          sdk: docker
+          app_port: 7860
+          pinned: false
+          license: mit
+          ---
+
+          # A股量化回测平台后端
+
+          Docker SDK Space，监听 0.0.0.0:7860。
+
+          前端（GitHub Pages）：https://shuaiwang888.github.io/Quantitative-Backtesting/
+          （首次访问加 `?api=https://appStoreQAQ-quantitative-backtesting.hf.space` 切换后端）
+
+          ## 端点
+
+          - `GET  /api/strategies` — 列出所有策略
+          - `POST /api/query`      — 单页问财
+          - `POST /api/bars`       — 近一年日 K
+          - `POST /api/backtest`   — 单标的回测
+          - `POST /api/batch_backtest` — 批量回测
+          - `POST /api/optimize`   — 网格寻优
+          - `POST /api/analyze`    — AI 复盘
+          EOF
+          ls -la hf-deploy/
+
+      - name: Push to Hugging Face Space
+        env:
+          # 必须预先在 GitHub repo Settings → Secrets 配 HF_TOKEN（write scope）
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          cd hf-deploy
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b main || true
+          git add -A
+          # commit.gpgsign=false 避免 Action runner 缺 GPG key 报错
+          git -c commit.gpgsign=false commit -qm "sync from shuaiwang888/Quantitative-Backtesting@${{ github.sha }}"
+          # -f 是因为我们用一个空仓库覆盖 HF 端（首次部署时 repo 已有 README）
+          git push -f https://appStoreQAQ:${HF_TOKEN}@huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting main

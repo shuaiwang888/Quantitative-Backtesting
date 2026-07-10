@@ -1,0 +1,30 @@
+# 版本控制 + 本地缓存
+.git
+.gitignore
+.github
+.venv
+venv
+__pycache__
+**/__pycache__
+.pytest_cache
+.DS_Store
+
+# 密钥（绝不入镜像）
+.env
+.env.*
+
+# 前端不进镜像（HF Space 只跑后端；前端由 GitHub Pages 提供）
+node_modules
+web/node_modules
+web/dist
+static
+
+# 测试 / 文档 / 脚本不进镜像
+cyber_ppt_output
+tests
+*.md
+CLAUDE.md
+README.md
+AGENTS.md
+render.yaml
+start.sh
