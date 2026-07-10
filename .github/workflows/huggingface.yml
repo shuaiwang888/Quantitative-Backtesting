@@ -120,3 +120,16 @@ jobs:
           echo "--- git push（带详细进度）---"
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 git push -f "$SPACE_URL" main 2>&1 | tail -30
           echo "✅ push 完成"
+
+      # push 完后显式调 HF restart API 触发 build（避免 HF 因 webhooks 漏掉第一次触发）
+      - name: Trigger HF Space rebuild
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "--- POST /restart-space 触发 build ---"
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${HF_TOKEN}" \
+            "https://huggingface.co/api/spaces/appQQQ/Quantitative-Backtesting-backend/restart" \
+            -w "\nHTTP %{http_code}\n" | tail -20
+          echo ""
+          echo "✅ restart API 已调用。HF 平台会异步启动 build（1-3 min）"
