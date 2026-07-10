@@ -123,8 +123,12 @@ jobs:
                   info = api.repo_info("appQQQ/Quantitative-Backtesting-backend", repo_type="space")
               except AttributeError:
                   info = api.get_repo_info("appQQQ/Quantitative-Backtesting-backend", repo_type="space")
-              runtime_stage = info.runtime.stage if info.runtime else '?'
-              print(f"   Space 状态: sdk={info.sdk}  status={runtime_stage}  hardware={info.hardware}")
+              # SpaceInfo 属性：id, sdk, runtime (SpaceRuntime), space_runtime (alias), ...
+              # runtime 是 SpaceRuntime 对象，有 stage / hardware / requested_hardware
+              runtime = getattr(info, "runtime", None) or getattr(info, "space_runtime", None)
+              runtime_stage = getattr(runtime, "stage", "?") if runtime else "?"
+              runtime_hw = getattr(runtime, "hardware", "?") if runtime else "?"
+              print(f"   Space 状态: sdk={info.sdk}  status={runtime_stage}  hardware={runtime_hw}")
           except Exception as e:
               print(f"   ❌ 读不到 Space 信息: {type(e).__name__}: {e}")
               print(f"   可能原因：Space 不存在 / 拼写错 / token 没权限读这个 repo")
