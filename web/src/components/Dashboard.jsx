@@ -114,7 +114,8 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
     try {
       const [market, watch] = await Promise.all([
         postJson("/api/query", {
-          query: "上证指数 深证成指 创业板指 最新行情",
+          // iwencai 自然语言：必须显式列字段名才能拿到价格/涨跌幅
+          query: "上证指数 深证成指 创业板指 最新价 涨跌幅 指数代码 指数简称",
           limit: 3,
         }),
         fetchWatchlist(hasIwencaiKey),
