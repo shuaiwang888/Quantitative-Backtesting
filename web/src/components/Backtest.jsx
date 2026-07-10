@@ -248,14 +248,9 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
         </div>
 
         <div className="form-actions" style={{ marginTop: 14 }}>
-          <button type="submit" className="btn btn-primary" disabled={loading || !hasIwencaiKey && backtestMode === "single"}>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? <><span className="loader" /> 回测中...</> : "开始回测"}
           </button>
-          {!hasIwencaiKey && (
-            <span className="hint" style={{ color: "var(--up-color)" }}>
-              需先在右上角配置 iwencai key
-            </span>
-          )}
         </div>
       </form>
 
@@ -263,7 +258,6 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
       {result && (
         <BacktestResult
           result={result}
-          hasMinimaxKey={hasMinimaxKey}
           onError={onError}
           onStatus={onStatus}
           cacheTs={cache.ts}
@@ -275,7 +269,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
 
 // ---- 结果区 ----
 
-function BacktestResult({ result, hasMinimaxKey, onError, onStatus, cacheTs }) {
+function BacktestResult({ result, onError, onStatus, cacheTs }) {
   const summary = result.summary || {};
   const [analysis, setAnalysis] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
@@ -361,16 +355,11 @@ function BacktestResult({ result, hasMinimaxKey, onError, onStatus, cacheTs }) {
             className="btn btn-primary"
             onClick={runAnalysis}
             disabled={analyzing}
-            title={hasMinimaxKey ? "调用 MiniMax M2.7 生成中文复盘" : "需先在右上角配置 MiniMax key"}
+            title="调用 MiniMax M2.7 生成中文复盘"
           >
             {analyzing ? <><span className="loader" /> 生成中（约 10-30s）</> : (analysis ? "重新生成" : "AI 复盘")}
           </button>
         </div>
-        {!hasMinimaxKey && (
-          <div className="error-box" style={{ marginBottom: analysis ? 10 : 0 }}>
-            未配置 MiniMax Key —— 请在右上角"API 密钥"里填入（每个访客自带 key，不会上传）
-          </div>
-        )}
         {analysisErr && <div className="error-box">{analysisErr}</div>}
         {analyzing && (
           <div className="chart-empty">
