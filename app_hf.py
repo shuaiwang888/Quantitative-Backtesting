@@ -25,6 +25,19 @@ try:
 except ImportError:
     gr = None
 
+# `spaces` 是 HF Space runtime 才提供的独立包（不是 huggingface_hub 子模块）。
+# 本地 import 失败时降级为 no-op 装饰器（不影响本地运行）。
+# ZeroGPU 平台要求至少一个 @spaces.GPU 函数，否则启动报
+# "No @spaces.GPU function detected during startup"。
+# 账号改不了 hardware（只能 ZeroGPU），所以必须加装饰器让容器能起来。
+try:
+    from spaces import GPU as _GPU
+except ImportError:
+    def _GPU(duration=None):
+        def decorator(fn):
+            return fn
+        return decorator
+
 from quant.config import get_settings
 from quant.logging_setup import setup_logging
 
@@ -36,8 +49,10 @@ def _dataclass_payload(cls, payload: dict) -> dict:
 
 
 # ---- Gradio function 包装：所有 API 用 dict payload 形式 ----
-# 这些接口都是 CPU/网络 I/O 任务，不要加 @spaces.GPU，否则会消耗 ZeroGPU 配额。
+# 加 @_GPU 装饰器：ZeroGPU 平台硬性要求至少一个，否则启动失败。
+# 装饰器让函数跑在 ZeroGPU 池上，duration 短（这些是 CPU/网络 I/O 任务）。
 
+@_GPU(duration=20)
 def api_strategies(payload: dict = None):
     """GET /api/strategies 的 Gradio 版本（payload 忽略，保持 GET 语义）。"""
     from quant.strategies import list_strategies
@@ -56,6 +71,7 @@ def api_strategies(payload: dict = None):
     }
 
 
+@_GPU(duration=60)
 def api_query(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -67,6 +83,7 @@ def api_query(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
+@_GPU(duration=60)
 def api_bars(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -85,6 +102,7 @@ def api_bars(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
+@_GPU(duration=300)
 def api_backtest(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -96,6 +114,7 @@ def api_backtest(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
+@_GPU(duration=300)
 def api_batch_backtest(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -107,6 +126,7 @@ def api_batch_backtest(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
+@_GPU(duration=300)
 def api_optimize(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
@@ -117,6 +137,7 @@ def api_optimize(payload: dict):
         return {"success": False, "code": "exception", "error": str(exc)}
 
 
+@_GPU(duration=120)
 def api_analyze(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
