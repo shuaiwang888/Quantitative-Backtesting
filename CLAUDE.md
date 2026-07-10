@@ -231,7 +231,7 @@ gh secret list
 
 ## 部署到 Hugging Face Space（Docker SDK）
 
-后端镜像推到 `https://huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting`，子域 `https://appStoreQAQ-quantitative-backtesting.hf.space`。前端继续走 GitHub Pages，访客首次访问用 `?api=` 切到 HF 后端。
+后端镜像推到 `https://huggingface.co/spaces/appQQQ/Quantitative-Backtesting-backend`，子域 `https://appQQQ-quantitative-backtesting-backend.hf.space`。前端继续走 GitHub Pages，访客首次访问用 `?api=` 切到 HF 后端。
 
 ### 关键改动
 
@@ -274,12 +274,12 @@ python:3.10-slim
 
 | Secret | 用途 |
 |---|---|
-| `HF_TOKEN` | GitHub Action 推 HF Space 用（**scope = write on appStoreQAQ/Quantitative-Backtesting 单个 Space**，不要给账号级 write） |
+| `HF_TOKEN` | GitHub Action 推 HF Space 用（**scope = write on appQQQ/Quantitative-Backtesting-backend 单个 Space**，不要给账号级 write） |
 
 ### 访客切换后端
 
 ```
-https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appStoreQAQ-quantitative-backtesting.hf.space
+https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appQQQ-quantitative-backtesting-backend.hf.space
 ```
 
 `web/src/api.js` 自动写入 `localStorage.quant_api_base`，后续免带参数。
