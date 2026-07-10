@@ -57,8 +57,10 @@ jobs:
           colorTo: indigo
           sdk: docker
           app_port: 7860
+          app_file: app.py
           pinned: false
           license: mit
+          short_description: A股量化回测平台后端（Python stdlib http.server）
           ---
 
           # A股量化回测平台后端
