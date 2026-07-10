@@ -74,11 +74,39 @@ jobs:
           EOF
           ls -la hf-deploy/
 
-      - name: Push to Hugging Face Space
+      - name: Verify HF Space reachable + token valid
         env:
-          # 必须预先在 GitHub repo Settings → Secrets 配 HF_TOKEN（write scope）
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          set -x
+          # 1) 打印 token 元信息（不打印 token 字符本身）
+          if [[ -z "${HF_TOKEN}" ]]; then
+            echo "❌ HF_TOKEN 未设置 —— 请到 GitHub repo Settings → Secrets 配 HF_TOKEN"
+            exit 1
+          fi
+          echo "✅ HF_TOKEN 已配置（长度 ${#HF_TOKEN}，前缀 ${HF_TOKEN:0:3}...）"
+          SPACE_URL="https://huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting"
+          # 2) 先只读探活 Space 是否存在（认证 + ls-remote）
+          echo "--- ls-remote HEAD（只读）---"
+          git ls-remote "${SPACE_URL}" HEAD
+          RC=$?
+          set +x
+          if [[ $RC -ne 0 ]]; then
+            echo ""
+            echo "❌ git ls-remote 失败 (exit $RC)。最常见原因："
+            echo "   1. HF_TOKEN 失效 / scope 不足（需要 write on appStoreQAQ/Quantitative-Backtesting）"
+            echo "   2. Space 仓库还不存在 —— 在 https://huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting 创建"
+            echo "      Space SDK 选 'Docker'，硬件选 'CPU basic'（免费）"
+            echo "   3. token 绑错了账号（绑到别的 HF 账号了）"
+            exit $RC
+          fi
+          echo "✅ Space 可达 + 认证通过"
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -e
           cd hf-deploy
           git init -q
           git config user.name "github-actions[bot]"
@@ -88,4 +116,7 @@ jobs:
           # commit.gpgsign=false 避免 Action runner 缺 GPG key 报错
           git -c commit.gpgsign=false commit -qm "sync from shuaiwang888/Quantitative-Backtesting@${{ github.sha }}"
           # -f 是因为我们用一个空仓库覆盖 HF 端（首次部署时 repo 已有 README）
-          git push -f https://appStoreQAQ:${HF_TOKEN}@huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting main
+          SPACE_URL="https://appStoreQAQ:${HF_TOKEN}@huggingface.co/spaces/appStoreQAQ/Quantitative-Backtesting"
+          echo "--- git push（带详细进度）---"
+          GIT_TRACE=1 GIT_CURL_VERBOSE=1 git push -f "$SPACE_URL" main 2>&1 | tail -30
+          echo "✅ push 完成"
