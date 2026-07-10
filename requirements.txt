@@ -6,8 +6,10 @@ cryptography>=42.0.0
 # FastAPI（HF Space 用：把 stdlib http.server 路由重写成 ASGI，兼容 ZeroGPU Gradio SDK）
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
-# Gradio 5.x：兼容新版 huggingface_hub（4.x 依赖 HfFolder，已被移除）
-gradio>=5.0.0,<6.0
+# Gradio / spaces / torch 都由 HF Space runtime 自动注入
+#   HF 命令：gradio[oauth,mcp]==6.20.0  +  spaces==0.50.4  +  torch<=2.11.0
+# 所以这里不约束版本，让 pip 解决（不写 gradio / spaces 即可）
+# 本地开发单独用：pip install gradio fastapi uvicorn
 
 # 开发/测试
 pytest>=7.4.0
