@@ -18,7 +18,7 @@ const SAMPLE_QUERIES = [
   "我的自选股 最新价 涨跌幅",
 ];
 
-export default function Query({ hasIwencaiKey, onError, onStatus }) {
+export default function Query({ onError, onStatus }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -124,10 +124,9 @@ export default function Query({ hasIwencaiKey, onError, onStatus }) {
         </div>
 
         <div className="form-actions" style={{ marginTop: 14 }}>
-          <button type="submit" className="btn btn-primary" disabled={loading || !hasIwencaiKey || !query.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={loading || !query.trim()}>
             {loading ? <><span className="loader" /> 查询中...</> : "查询"}
           </button>
-          {!hasIwencaiKey && <span className="hint" style={{ color: "var(--up-color)" }}>需先在右上角配置 iwencai key</span>}
         </div>
       </form>
 

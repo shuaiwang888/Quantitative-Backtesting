@@ -31,7 +31,7 @@ const PRESETS = [
   { label: "PE<20",         query: "市盈率小于20 股票代码 股票简称 市盈率 总市值" },
 ];
 
-export default function Selector({ hasIwencaiKey, onError, onStatus }) {
+export default function Selector({ onError, onStatus }) {
   const [query, setQuery] = useState(PRESETS[0].query);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(30);
@@ -175,10 +175,9 @@ export default function Selector({ hasIwencaiKey, onError, onStatus }) {
         </div>
 
         <div className="form-actions" style={{ marginTop: 14 }}>
-          <button type="submit" className="btn btn-primary" disabled={loading || !hasIwencaiKey || !query.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={loading || !query.trim()}>
             {loading ? <><span className="loader" /> 查询中...</> : "开始选股"}
           </button>
-          {!hasIwencaiKey && <span className="hint" style={{ color: "var(--up-color)" }}>需先在右上角配置 iwencai key</span>}
         </div>
       </form>
 

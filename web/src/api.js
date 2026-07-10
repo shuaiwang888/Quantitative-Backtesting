@@ -10,13 +10,9 @@
  *   - 我们的 FastAPI / stdlib http.server：POST {base}/api/{endpoint} body {key: val}
  *   - HF Space Gradio SDK：先触发 call 拿 event_id，再用 SSE 拉结果
  *
- * 访客密钥（quant_keys）：
- *   - 只存在访客浏览器 localStorage
- *   - postJson 每次自动注入到 payload.api_key / payload.minimax_api_key
- *   - 永远不上传到任何地方（除发往后端）
+ * 注：API key 全部在 Render 后端 Environment 配置，前端不再处理。
  */
 
-const KEYS_STORAGE = "quant_keys";
 const API_BASE_STORAGE = "quant_api_base";
 
 // ---- API BASE 解析 ----
@@ -60,67 +56,6 @@ export function getApiBase() {
 function isGradioBase() {
   const base = getApiBase();
   return /\.hf\.space$/.test(base);
-}
-
-// ---- 访客密钥管理 ----
-
-export function loadKeys() {
-  try {
-    const raw = localStorage.getItem(KEYS_STORAGE);
-    if (!raw) return { iwencai: "", minimax: "" };
-    const obj = JSON.parse(raw);
-    return {
-      iwencai: typeof obj.iwencai === "string" ? obj.iwencai : "",
-      minimax: typeof obj.minimax === "string" ? obj.minimax : "",
-    };
-  } catch {
-    return { iwencai: "", minimax: "" };
-  }
-}
-
-export function saveKeys(partial) {
-  const cur = loadKeys();
-  const next = {
-    iwencai: typeof partial.iwencai === "string" ? partial.iwencai : cur.iwencai,
-    minimax: typeof partial.minimax === "string" ? partial.minimax : cur.minimax,
-  };
-  try {
-    if (next.iwencai || next.minimax) {
-      localStorage.setItem(KEYS_STORAGE, JSON.stringify(next));
-    } else {
-      localStorage.removeItem(KEYS_STORAGE);
-    }
-  } catch {}
-  return next;
-}
-
-export function clearKeys() {
-  try { localStorage.removeItem(KEYS_STORAGE); } catch {}
-  return { iwencai: "", minimax: "" };
-}
-
-export function isKeysConfigured() {
-  const k = loadKeys();
-  return Boolean(k.iwencai || k.minimax);
-}
-
-export function maskKey(k) {
-  if (!k) return "";
-  if (k.length <= 10) return "•".repeat(k.length);
-  return k.slice(0, 4) + "•".repeat(Math.max(0, k.length - 8)) + k.slice(-4);
-}
-
-// 把访客 key 注入到 payload
-function injectKeys(payload) {
-  if (!payload || typeof payload !== "object") return payload;
-  const k = loadKeys();
-  if (k.iwencai && !("api_key" in payload)) {
-    payload.api_key = k.iwencai;
-  }
-  if (k.minimax && !("minimax_api_key" in payload)) {
-    payload.minimax_api_key = k.minimax;
-  }
-  return payload;
 }
 
 // ---- Gradio API 调用（SSE 流式） ----
@@ -225,8 +160,7 @@ async function triggerGradioCall(endpoint, payload) {
 
 async function postJsonGradio(endpoint, payload) {
   const base = getApiBase();
-  const injected = injectKeys({ ...(payload || {}) });
-  const event_id = await triggerGradioCall(endpoint, injected);
+  const event_id = await triggerGradioCall(endpoint, { ...(payload || {}) });
 
   // step 2: 拉 SSE 流
   const resultUrl = `${base}/gradio_api/call/${endpoint}/${event_id}`;
@@ -280,7 +214,7 @@ export async function postJson(path, payload) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(injectKeys({ ...(payload || {}) })),
+    body: JSON.stringify({ ...(payload || {}) }),
   });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;

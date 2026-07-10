@@ -40,8 +40,8 @@ function setLocalWatchlist(list) {
 /**
  * 拉自选股：先试 iwencai "我的自选股"（有 key 时），失败回退 localStorage
  */
-async function fetchWatchlist(hasIwencaiKey) {
-  if (hasIwencaiKey) {
+async function fetchWatchlist() {
+  if (true) {
     try {
       const res = await postJson("/api/query", {
         query: "我的自选股 最新价、涨跌幅、开盘价、收盘价、量比、换手率",
@@ -87,7 +87,7 @@ function buildChartTarget(row, type) {
   return { name, symbol: code, type, query };
 }
 
-export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
+export default function Dashboard({ onError, onStatus }) {
   // 两个独立缓存（大盘 / 自选股），都从 localStorage 恢复
   const marketCache = useCachedResult("dashboard_market");
   const watchlistCache = useCachedResult("dashboard_watchlist");
@@ -118,7 +118,7 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
           query: "上证指数 深证成指 创业板指 最新价 涨跌幅 指数代码 指数简称",
           limit: 3,
         }),
-        fetchWatchlist(hasIwencaiKey),
+        fetchWatchlist(),
       ]);
       if (market && Array.isArray(market.datas)) {
         setMarketData(market.datas);
@@ -134,12 +134,12 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
     } finally {
       setLoading(false);
     }
-  }, [hasIwencaiKey, onError, onStatus, marketCache, watchlistCache]);
+  }, [onError, onStatus, marketCache, watchlistCache]);
 
   // 首次挂载：只有当所有缓存都为空时才自动拉一次
   useEffect(() => {
     const hasAnyCache = marketCache.data || watchlistCache.data;
-    if (!hasAnyCache && hasIwencaiKey) {
+    if (!hasAnyCache) {
       refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,7 +178,7 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
       .map((r) => r["股票简称"] || r["code"] || r["股票代码"])
       .filter((n) => n && n !== "--");
     if (names.length === 0) {
-      alert("自选股为空，请先添加或配置 iwencai key");
+      alert("自选股为空，请先添加自选股");
       return;
     }
     window.dispatchEvent(new CustomEvent("quant:batch-watchlist", { detail: { names } }));
@@ -295,7 +295,7 @@ export default function Dashboard({ hasIwencaiKey, onError, onStatus }) {
                 <td colSpan={9} className="placeholder-row">
                   {watchResult.source === "iwencai"
                     ? "iwencai 上还没有自选股，请到 iwencai.com 添加后刷新"
-                    : "暂无自选股，请在左侧添加，或配置 iwencai key 后自动同步「我的自选股」"}
+                    : "暂无自选股，请在左侧添加"}
                 </td>
               </tr>
             ) : (

@@ -12,16 +12,16 @@
  *   - "quant:batch-watchlist" CustomEvent：从 Dashboard/Selector 跳到 Backtest 时，
  *     把股票池的 names 注入到 Backtest 的 symbol
  *   - "quant:watchlist-changed" 事件：自选股变化后 Dashboard 自动刷新
+ *
+ * 注：API key 全部在 Render 后端 Environment 配置，前端不再处理 key。
  */
 
 import { useState, useEffect, useRef } from "react";
-import KeysModal from "./components/KeysModal.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import Backtest from "./components/Backtest.jsx";
 import Optimize from "./components/Optimize.jsx";
 import Query from "./components/Query.jsx";
 import Selector from "./components/Selector.jsx";
-import useKeys from "./hooks/useKeys.js";
 
 const TABS = [
   { id: "dashboard", label: "首页" },
@@ -33,11 +33,9 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [keysOpen, setKeysOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [pendingBatchNames, setPendingBatchNames] = useState(null);
   const statusTimerRef = useRef(null);
-  const { keys, isConfigured } = useKeys();
 
   const showStatus = (msg) => {
     setStatusMsg(msg);
@@ -63,8 +61,6 @@ export default function App() {
     if (activeTab !== "backtest") setPendingBatchNames(null);
   }, [activeTab]);
 
-  const hasIwencaiKey = Boolean(keys.iwencai);
-  const hasMinimaxKey = Boolean(keys.minimax);
   const onError = (e) => showStatus("❌ " + (e.message || "请求失败"));
 
   return (
@@ -75,19 +71,6 @@ export default function App() {
           <h1>A股量化回测</h1>
           <p>问财数据接口 · 网格寻优 · K线复盘</p>
         </div>
-        <button
-          type="button"
-          className={`keys-status ${isConfigured() ? "keys-status--set" : "keys-status--unset"}`}
-          onClick={() => setKeysOpen(true)}
-          title={
-            isConfigured()
-              ? `问财: ${keys.iwencai ? "已配" : "(未填)"}\nMiniMax: ${keys.minimax ? "已配" : "(未填)"}\n点击修改`
-              : "未配置 API 密钥，点击配置"
-          }
-        >
-          <span className="keys-status-dot" />
-          <span className="keys-status-text">{isConfigured() ? "密钥✓" : "API 密钥"}</span>
-        </button>
       </header>
 
       <nav className="tabs" role="tablist">
@@ -109,15 +92,12 @@ export default function App() {
       <main>
         {activeTab === "dashboard" && (
           <Dashboard
-            hasIwencaiKey={hasIwencaiKey}
             onError={onError}
             onStatus={showStatus}
           />
         )}
         {activeTab === "backtest" && (
           <Backtest
-            hasIwencaiKey={hasIwencaiKey}
-            hasMinimaxKey={hasMinimaxKey}
             onError={onError}
             onStatus={showStatus}
             pendingBatchNames={pendingBatchNames}
@@ -125,21 +105,18 @@ export default function App() {
         )}
         {activeTab === "optimize" && (
           <Optimize
-            hasIwencaiKey={hasIwencaiKey}
             onError={onError}
             onStatus={showStatus}
           />
         )}
         {activeTab === "query" && (
           <Query
-            hasIwencaiKey={hasIwencaiKey}
             onError={onError}
             onStatus={showStatus}
           />
         )}
         {activeTab === "selector" && (
           <Selector
-            hasIwencaiKey={hasIwencaiKey}
             onError={onError}
             onStatus={showStatus}
           />
@@ -147,8 +124,6 @@ export default function App() {
       </main>
 
       {statusMsg && <div className="status-toast">{statusMsg}</div>}
-
-      {keysOpen && <KeysModal onClose={() => setKeysOpen(false)} />}
     </div>
   );
 }

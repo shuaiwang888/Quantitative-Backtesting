@@ -42,7 +42,7 @@ function defaultDateRange() {
   };
 }
 
-export default function Optimize({ hasIwencaiKey, onError, onStatus }) {
+export default function Optimize({ onError, onStatus }) {
   const _initRange = defaultDateRange();
   const [strategies, setStrategies] = useState([]);
   const [strategy, setStrategy] = useState("moving_average");
@@ -169,10 +169,9 @@ export default function Optimize({ hasIwencaiKey, onError, onStatus }) {
         )}
 
         <div className="form-actions" style={{ marginTop: 14 }}>
-          <button type="submit" className="btn btn-primary" disabled={loading || !hasIwencaiKey}>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? <><span className="loader" /> 寻优中...</> : "开始寻优"}
           </button>
-          {!hasIwencaiKey && <span className="hint" style={{ color: "var(--up-color)" }}>需先在右上角配置 iwencai key</span>}
         </div>
       </form>
 
