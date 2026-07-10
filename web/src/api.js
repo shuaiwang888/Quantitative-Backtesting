@@ -125,16 +125,21 @@ function injectKeys(payload) {
 }
 
 // ---- Gradio API 调用（SSE 流式） ----
+// Gradio 6.x 协议：
+//   - 触发：POST /gradio_api/call/v2/<endpoint>  body {"payload": <dict>}
+//   - 返回：{"event_id": "..."}
+//   - 拉流：GET  /gradio_api/call/<endpoint>/<event_id>  (text/event-stream)
+//   - 流最后一个 msg === "process_completed" 含 output.data[0] = fn 返回值
 
 async function postJsonGradio(endpoint, payload) {
   const base = getApiBase();
   const injected = injectKeys({ ...(payload || {}) });
-  // step 1: 触发调用
-  const triggerUrl = `${base}/gradio_api/call/${endpoint}`;
+  // step 1: 触发调用（Gradio 6.x 用 v2 路径 + payload 字段）
+  const triggerUrl = `${base}/gradio_api/call/v2/${endpoint}`;
   const triggerRes = await fetch(triggerUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: [injected] }),
+    body: JSON.stringify({ payload: injected }),
   });
   if (!triggerRes.ok) {
     let msg = `HTTP ${triggerRes.status}`;
@@ -150,8 +155,6 @@ async function postJsonGradio(endpoint, payload) {
   // step 2: 拉 SSE 流
   const resultUrl = `${base}/gradio_api/call/${endpoint}/${event_id}`;
   return new Promise((resolve, reject) => {
-    // 用 fetch + ReadableStream 拿 SSE（EventSource 不支持自定义 header，
-    // 但这里不需要 header，所以也可以用 EventSource——用 fetch 更灵活）
     fetch(resultUrl, { headers: { Accept: "text/event-stream" } })
       .then(async (res) => {
         if (!res.ok || !res.body) {
@@ -165,18 +168,15 @@ async function postJsonGradio(endpoint, payload) {
           const { done, value } = await reader.read();
           if (done) break;
           buf += decoder.decode(value, { stream: true });
-          // SSE event 用 \n\n 分隔
           const events = buf.split("\n\n");
-          buf = events.pop() || "";  // 未完成部分留到下次
+          buf = events.pop() || "";
           for (const evt of events) {
-            // 提取 "data: ..." 行
             const dataLine = evt.split("\n").find((l) => l.startsWith("data: "));
             if (!dataLine) continue;
             const dataStr = dataLine.slice(6);
             try {
               const msg = JSON.parse(dataStr);
               if (msg.msg === "process_completed") {
-                // msg.output.data[0] 是 fn 的返回值
                 const result = msg.output?.data?.[0] ?? null;
                 resolve(result);
                 return;
