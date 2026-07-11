@@ -7,7 +7,7 @@
 
 services:
   - type: web
-    name: quant-backtest
+    name: quant-backtest-wj92
     runtime: python
     plan: free
     rootDir: .
