@@ -80,7 +80,7 @@ class Settings:
     minimax_base_url: str = field(
         default_factory=lambda: _get("MINIMAX_BASE_URL", "https://api.minimaxi.com/anthropic")
     )
-    minimax_model: str = field(default_factory=lambda: _get("MINIMAX_MODEL", "MiniMax-M2.7"))
+    minimax_model: str = field(default_factory=lambda: _get("MINIMAX_MODEL", "MiniMax-M3"))
     minimax_timeout: int = field(default_factory=lambda: _get_int("MINIMAX_TIMEOUT", 180))
     minimax_max_tokens: int = field(default_factory=lambda: _get_int("MINIMAX_MAX_TOKENS", 4096))
 

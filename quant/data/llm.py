@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 
 DEFAULT_BASE_URL = "https://api.minimaxi.com/anthropic"
-DEFAULT_MODEL = "MiniMax-M2.7"
+DEFAULT_MODEL = "MiniMax-M3"
 
 
 class LLMError(Exception):
