@@ -13,6 +13,7 @@
  *   - 资金净流入额（红绿着色，单位亿）
  *   - 板块热度（小字，灰色）
  *   - 指数代码（小字，右下角）
+ *   - 点击方块 → 弹板块指数 K 线详情（SymbolChartModal）
  *
  * 缓存：5 分钟 TTL（资金数据频繁变化，比 Dashboard 短）
  */
@@ -20,6 +21,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { postJson, fuzzyFind } from "../api.js";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
+import SymbolChartModal from "./SymbolChartModal.jsx";
 
 const CACHE_NS = "funds_hot_sectors";
 // 与 Dashboard 一致：不设 TTL（一直缓存），只有用户点"刷新"才重拉
@@ -52,6 +54,31 @@ export default function Funds({ onError, onStatus }) {
   });
   const [loading, setLoading] = useState(false);
   const [lastError, setLastError] = useState("");
+  const [chartTarget, setChartTarget] = useState(null);
+
+  /**
+   * 构造板块 K 线弹窗的 target。
+   * 注意：必须用板块指数代码（如 "886078.TI"）而不是简称，
+   *   否则 iwencai 会返回成分股列表而不是板块指数 K 线。
+   */
+  const openSectorChart = (row) => {
+    const name = fuzzyFind(row, ["指数简称", "板块名称"]) ?? "--";
+    const code = fuzzyFind(row, ["指数代码", "板块代码"]) ?? "";
+    if (!code || code === "--") {
+      onError?.(new Error("板块指数代码缺失，无法拉 K 线"));
+      return;
+    }
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    setChartTarget({
+      name,
+      symbol: code,
+      type: "index",
+      query: `${code} ${fmt(start)}到${fmt(end)} 每日行情 交易日期 开盘价 最高价 最低价 收盘价 成交量`,
+    });
+  };
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -145,10 +172,19 @@ export default function Funds({ onError, onStatus }) {
             : "var(--text-secondary)";
           return (
             <div
-              className="sector-tile"
+              className="sector-tile sector-tile--clickable"
               key={i}
               style={{ borderLeftColor: flowColor }}
-              title={code || name}
+              title={`${name} (${code || "--"}) · 点击看 K 线`}
+              onClick={() => openSectorChart(row)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openSectorChart(row);
+                }
+              }}
             >
               <div className="sector-name">{name}</div>
               <div className="sector-flow" style={{ color: flowColor }}>
@@ -164,6 +200,13 @@ export default function Funds({ onError, onStatus }) {
           );
         })}
       </div>
+
+      {chartTarget && (
+        <SymbolChartModal
+          target={chartTarget}
+          onClose={() => setChartTarget(null)}
+        />
+      )}
     </section>
   );
 }

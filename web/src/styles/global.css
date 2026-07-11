@@ -1099,6 +1099,22 @@ table .readonly-tag {
   border-color: var(--text-tertiary);
 }
 
+.funds .sector-tile--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.funds .sector-tile--clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(78, 168, 255, 0.18);
+}
+
+.funds .sector-tile--clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .funds .sector-name {
   font-size: 13px;
   font-weight: 600;
