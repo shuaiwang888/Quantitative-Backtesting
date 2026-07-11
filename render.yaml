@@ -7,7 +7,10 @@
 
 services:
   - type: web
-    name: quant-backtest-wj92
+    # 用 -v2 后缀（永远不匹配任何 service name），避免 Render Blueprint
+    # 在 push 时重复创建 service（保留这个 yaml 仅作部署参考文档）。
+    # 真实运行的 service: quant-backtest-wj92（手动管理，不再自动部署）。
+    name: quant-backtest-wj92-v2
     runtime: python
     plan: free
     rootDir: .
@@ -16,7 +19,8 @@ services:
     startCommand: python app.py
     # 健康检查：GET /api/strategies 永远返回 200
     healthCheckPath: /api/strategies
-    autoDeploy: true
+    # 关掉自动部署，push 不会触发 Render 创建/更新
+    autoDeploy: false
     envVars:
       # === 必填：敏感信息（sync: false → 必须在 Render Dashboard 手动设置） ===
       - key: IWENCAI_API_KEY
