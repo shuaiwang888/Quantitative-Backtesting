@@ -9,6 +9,9 @@
  *   save(responseData);
  *   data // 恢复时是上次缓存的对象
  *
+ * 可选 TTL（资金数据这种频繁变化的，5 分钟后就当 cache miss）：
+ *   useCachedResult("funds_hot_sectors", { ttlMs: 5 * 60 * 1000 });
+ *
  * 每个模块独立 key（namespace），互不污染。
  */
 
@@ -18,30 +21,37 @@ function storageKey(namespace) {
   return `quant_cached_${namespace}`;
 }
 
-function readCache(namespace) {
+function readCache(namespace, ttlMs = 0) {
   try {
     const raw = localStorage.getItem(storageKey(namespace));
     if (!raw) return { data: null, ts: 0 };
     const obj = JSON.parse(raw);
-    if (obj && typeof obj === "object" && "data" in obj) return obj;
-    // 兼容旧版（直接存 data）：作为 data 看待
-    return { data: obj, ts: 0 };
+    if (!obj || typeof obj !== "object" || !("data" in obj)) {
+      // 兼容旧版（直接存 data）：作为 data 看待
+      return { data: obj, ts: 0 };
+    }
+    // TTL 检查：超过 ttlMs 视为过期
+    if (ttlMs > 0 && obj.ts > 0 && Date.now() - obj.ts > ttlMs) {
+      return { data: null, ts: 0 };
+    }
+    return obj;
   } catch {
     return { data: null, ts: 0 };
   }
 }
 
-export default function useCachedResult(namespace) {
-  const [{ data, ts }, setState] = useState(() => readCache(namespace));
+export default function useCachedResult(namespace, opts = {}) {
+  const ttlMs = opts.ttlMs || 0;
+  const [{ data, ts }, setState] = useState(() => readCache(namespace, ttlMs));
 
   // 跨 tab 同步
   useEffect(() => {
     const onStorage = (e) => {
-      if (e.key === storageKey(namespace)) setState(readCache(namespace));
+      if (e.key === storageKey(namespace)) setState(readCache(namespace, ttlMs));
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [namespace]);
+  }, [namespace, ttlMs]);
 
   const save = useCallback((newData) => {
     const next = { data: newData, ts: Date.now() };

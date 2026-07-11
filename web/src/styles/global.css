@@ -1068,3 +1068,115 @@ table .readonly-tag {
   min-width: 88px;
   text-align: center;
 }
+
+/* ============================================================== */
+/* Funds 资金模块 —— 5×4 热门板块 + 资金流向                        */
+/* ============================================================== */
+
+.funds .sector-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.funds .sector-tile {
+  border: 1px solid var(--line);
+  border-left-width: 3px;        /* 左侧 3px 强色条按涨/跌 */
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+  cursor: default;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.funds .sector-tile:hover {
+  transform: translateY(-1px);
+  border-color: var(--text-tertiary);
+}
+
+.funds .sector-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.funds .sector-pct {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.funds .sector-flow {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.funds .sector-leader {
+  background: transparent;
+  border: 1px dashed var(--line);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px 6px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.funds .sector-leader:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(78, 168, 255, 0.08);
+}
+
+.funds .sector-leader--empty {
+  cursor: default;
+  opacity: 0.4;
+  text-align: center;
+}
+
+.funds .sector-leader--empty:hover {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text-tertiary);
+}
+
+.funds .sector-heat {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.funds .sector-code {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  margin-top: auto;       /* 推到底部 */
+  align-self: flex-end;
+  opacity: 0.65;
+}
+
+@media (max-width: 1100px) {
+  .funds .sector-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 800px) {
+  .funds .sector-grid { grid-template-columns: repeat(2, 1fr); }
+}

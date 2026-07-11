@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Dashboard from "./components/Dashboard.jsx";
+import Funds from "./components/Funds.jsx";
 import Backtest from "./components/Backtest.jsx";
 import Optimize from "./components/Optimize.jsx";
 import Query from "./components/Query.jsx";
@@ -25,6 +26,7 @@ import Selector from "./components/Selector.jsx";
 
 const TABS = [
   { id: "dashboard", label: "首页" },
+  { id: "funds", label: "资金" },
   { id: "backtest", label: "回测" },
   { id: "optimize", label: "寻优" },
   { id: "query", label: "数据" },
@@ -92,6 +94,12 @@ export default function App() {
       <main>
         {activeTab === "dashboard" && (
           <Dashboard
+            onError={onError}
+            onStatus={showStatus}
+          />
+        )}
+        {activeTab === "funds" && (
+          <Funds
             onError={onError}
             onStatus={showStatus}
           />
