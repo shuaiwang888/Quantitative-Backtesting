@@ -14,6 +14,10 @@
  */
 
 const API_BASE_STORAGE = "quant_api_base";
+// 默认后端 URL（Render 实际部署的 service）
+// 优先用 localStorage 缓存；缓存空时 fallback 到这里。
+// 缓存 + URL 不匹配时会清空缓存（见 initApiBase）
+const DEFAULT_API_BASE = "https://quant-backtest-wj92.onrender.com";
 
 // ---- API BASE 解析 ----
 
@@ -46,10 +50,11 @@ function isValidHttpUrl(s) {
 
 export function getApiBase() {
   try {
-    return normalizeUrl(localStorage.getItem(API_BASE_STORAGE) || "");
-  } catch {
-    return "";
-  }
+    const stored = localStorage.getItem(API_BASE_STORAGE);
+    if (stored) return normalizeUrl(stored);
+  } catch {}
+  // 缓存为空时用默认 URL（避免历史缓存导致访问孤儿 service）
+  return normalizeUrl(DEFAULT_API_BASE);
 }
 
 // 后端是 Gradio SDK 吗？Gradio 用 SSE 协议 + 不同路径
