@@ -22,7 +22,7 @@ import { postJson, fuzzyFind } from "../api.js";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const CACHE_NS = "funds_hot_sectors";
-const CACHE_TTL_MS = 5 * 60 * 1000;  // 5 分钟
+// 与 Dashboard 一致：不设 TTL（一直缓存），只有用户点"刷新"才重拉
 
 /** 把数字格式化成 "X.XX 亿" / "X.XX 万"。例：7751563000 → "77.52 亿" */
 function formatYi(n) {
@@ -45,7 +45,7 @@ function formatK(n) {
 }
 
 export default function Funds({ onError, onStatus }) {
-  const cache = useCachedResult(CACHE_NS, { ttlMs: CACHE_TTL_MS });
+  const cache = useCachedResult(CACHE_NS);  // 无 TTL，与 Dashboard 风格一致
   const [data, setData] = useState(() => {
     const c = cache.data;
     return Array.isArray(c?.datas) ? c.datas : [];
