@@ -66,6 +66,13 @@ class Settings:
     api_key_hash: str = field(default_factory=lambda: _get("API_KEY_HASH", ""))
     rate_limit: int = field(default_factory=lambda: _get_int("RATE_LIMIT", 60))
     rate_window: int = field(default_factory=lambda: _get_int("RATE_WINDOW", 60))
+    # 信任的反向代理白名单（逗号分隔），可识别：
+    #   - cloudflare → CF-Connecting-IP
+    #   - render     → X-Real-IP
+    #   - forwarded  → X-Forwarded-For 第一段
+    #   - all / *    → 以上全部
+    # 默认空 → 不信任任何代理头，直接用 socket peer address（防伪造 XFF 绕过限流）
+    trusted_proxies: str = field(default_factory=lambda: _get("TRUSTED_PROXIES", ""))
 
     # --- 问财 API ---
     # 公开部署场景：owner 可以不配（访客在浏览器填自己的 key）。
@@ -140,6 +147,7 @@ class Settings:
             f"cors={self.cors_origin} "
             f"auth={'enabled' if self.api_key or self.api_key_hash else 'disabled'} "
             f"rate_limit={self.rate_limit}/{self.rate_window}s "
+            f"trusted_proxies={self.trusted_proxies or 'off'} "
             f"iwencai={'owner' if self.iwencai_api_key else 'visitor'} "
             f"mysql={'enabled' if self.mysql_persist_enabled else 'disabled'} "
             f"llm={'enabled' if self.minimax_api_key else 'visitor'}"

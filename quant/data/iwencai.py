@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import secrets
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -128,6 +129,17 @@ def query(
                 status_code=exc.code,
                 response=error_body,
             )
+        except (socket.timeout, TimeoutError) as exc:
+            # urllib 在 Python 3.10 之前抛 socket.timeout；3.10+ 在很多路径上抛
+            # built-in TimeoutError；同时捕获以兼容。专门给出一条明确 message 而不是
+            # 混在 URLError 里 —— 批量场景下某个标的卡超时不应影响其它标的的判断。
+            last_error = exc
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
+                continue
+            raise IwencaiError(
+                f"请求超时（>{timeout}s）: {type(exc).__name__}"
+            ) from exc
         except urllib.error.URLError as exc:
             last_error = exc
             if attempt < MAX_RETRIES - 1:
@@ -154,10 +166,21 @@ def fetch_all(
     max_pages: int = 10,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> Dict[str, Any]:
-    """翻页拉取直到 code_count 耗尽或达到 max_pages。"""
+    """翻页拉取直到 code_count 耗尽或达到 max_pages。
+
+    终止条件：
+      1. 本页没有行（rows 为空 / 非 list）
+      2. 已累计行数 ≥ 总数（仅当 code_count 是合法正整数时）
+      3. 翻到 max_pages
+
+    注意：当 ``code_count`` 不是 int（例如 None / 字符串 / 嵌套对象）时，
+    我们不再兜底用 ``max(total, len(all_rows))`` —— 那会让 total 永远 ≤ 当前
+    行数，导致翻页循环立刻终止（永远只 1 页）。这种情况改为 ``None`` 表示
+    "未知总数"，靠下一页为空行作为唯一终止信号。
+    """
     all_rows: List[Dict[str, Any]] = []
     traces: List[str] = []
-    total = 0
+    total: Optional[int] = None
 
     for page in range(1, max_pages + 1):
         result = query(
@@ -172,21 +195,24 @@ def fetch_all(
             rows = result.get("data") if isinstance(result.get("data"), list) else []
 
         all_rows.extend(row for row in rows if isinstance(row, dict))
-        if isinstance(result.get("code_count"), int):
-            total = result["code_count"]
-        else:
-            total = max(total, len(all_rows))
+        code_count_raw = result.get("code_count")
+        if isinstance(code_count_raw, int) and not isinstance(code_count_raw, bool):
+            total = code_count_raw
+        # else: 保持 None，让循环继续直到下一页空
         if result.get("_trace_id"):
             traces.append(result["_trace_id"])
 
-        if not rows or len(all_rows) >= total:
+        # 终止：当前页空 / 已读到 total（当 total 已知）
+        if not rows:
+            break
+        if total is not None and len(all_rows) >= total:
             break
 
     return {
         "success": True,
         "query": query_text,
         "datas": all_rows,
-        "code_count": total or len(all_rows),
+        "code_count": total if isinstance(total, int) else len(all_rows),
         "trace_ids": traces,
     }
 
@@ -198,20 +224,29 @@ def normalize_response(
     query_text: str,
     raw: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """把问财原始响应归一化成前端约定的字段。"""
+    """把问财原始响应归一化成前端约定的字段。
+
+    安全说明：上游响应里可能包含 iwencai 内部 session token 等敏感字段
+    （典型路径：``raw`` → ``data`` → 某个含 ``session_id`` / ``token`` 的字典）。
+    因此这里**显式不返回 raw 字段**，只放行白名单内的 metadata，
+    避免把上游凭据意外泄漏到前端 / 浏览器 DevTools。
+    """
     datas = raw.get("datas")
     if datas is None and isinstance(raw.get("data"), list):
         datas = raw.get("data")
     if not isinstance(datas, list):
         datas = []
+    chunks_info = raw.get("chunks_info")
+    if not isinstance(chunks_info, dict):
+        chunks_info = {}
+    code_count = raw.get("code_count", len(datas))
     return {
         "success": True,
         "query": query_text,
         "datas": datas,
-        "code_count": raw.get("code_count", len(datas)),
+        "code_count": code_count if isinstance(code_count, int) else len(datas),
         "trace_id": raw.get("trace_id") or raw.get("_trace_id", ""),
-        "chunks_info": raw.get("chunks_info", {}),
-        "raw": raw,
+        "chunks_info": chunks_info,
     }
 
 

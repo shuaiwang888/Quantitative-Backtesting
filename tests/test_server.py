@@ -70,20 +70,27 @@ class TestCheckAuth:
         check_auth({}, s)  # 不抛
 
     def test_missing_key_raises(self):
+        """P1-1：配了 API_KEY 但 payload 没带 → 抛"未提供"，不再回退到 settings.api_key。"""
         from quant.config import Settings
 
-        # api_key 已配置但 payload 没带 → 走 settings.api_key
-        # 用长度 < 16 的 key 触发"无效"
         s = Settings(api_key="shortkey", api_key_hash="")
-        with pytest.raises(AuthError, match="无效"):
+        with pytest.raises(AuthError, match="未提供"):
             check_auth({}, s)
 
-    def test_too_short_key_raises(self):
+    def test_wrong_key_raises(self):
+        """P1-1：删了长度 < 16 旁路后，错的 key 直接判无效（常时间比较）。"""
         from quant.config import Settings
 
-        s = Settings(api_key="configured", api_key_hash="")
+        s = Settings(api_key="configured-correct-key", api_key_hash="")
         with pytest.raises(AuthError, match="无效"):
             check_auth({"api_key": "short"}, s)
+
+    def test_correct_plain_key_passes(self):
+        """P1-1：明文 API_KEY 必须严格匹配，匹配则放行。"""
+        from quant.config import Settings
+
+        s = Settings(api_key="the-real-secret-key", api_key_hash="")
+        check_auth({"api_key": "the-real-secret-key"}, s)  # 不抛
 
     def test_hash_match(self):
         import hashlib
@@ -104,19 +111,71 @@ class TestCheckAuth:
 
 
 class TestGetClientKey:
-    def test_uses_xff(self):
-        h = _FakeHandler(headers={"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
-        assert get_client_key(h) == "1.2.3.4"
+    """P1-3：默认不信任任何代理头，必须显式配置 TRUSTED_PROXIES 才认。"""
 
-    def test_uses_x_real_ip(self):
+    def _settings(self, trusted: str = ""):
+        from quant.config import Settings
+
+        return Settings(trusted_proxies=trusted)
+
+    def test_xff_ignored_without_trust(self):
+        """回归：没配 TRUSTED_PROXIES 时，客户端伪造 XFF 不会被采用。"""
+        h = _FakeHandler(headers={"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
+        assert get_client_key(h, self._settings()) == "127.0.0.1"
+
+    def test_x_real_ip_ignored_without_trust(self):
         h = _FakeHandler(
             headers={"X-Real-IP": "1.2.3.4"}, client=("9.9.9.9", 12345)
         )
-        assert get_client_key(h) == "1.2.3.4"
+        assert get_client_key(h, self._settings()) == "9.9.9.9"
+
+    def test_uses_xff_when_forwarded_trusted(self):
+        h = _FakeHandler(headers={"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
+        assert get_client_key(h, self._settings("forwarded")) == "1.2.3.4"
+
+    def test_uses_x_real_ip_when_render_trusted(self):
+        h = _FakeHandler(
+            headers={"X-Real-IP": "1.2.3.4"}, client=("9.9.9.9", 12345)
+        )
+        assert get_client_key(h, self._settings("render")) == "1.2.3.4"
+
+    def test_uses_cf_connecting_ip_when_cloudflare_trusted(self):
+        h = _FakeHandler(headers={"CF-Connecting-IP": "203.0.113.5"})
+        assert get_client_key(h, self._settings("cloudflare")) == "203.0.113.5"
+
+    def test_all_trusts_everything(self):
+        h = _FakeHandler(
+            headers={
+                "CF-Connecting-IP": "203.0.113.5",
+                "X-Real-IP": "10.0.0.1",
+                "X-Forwarded-For": "1.2.3.4",
+            },
+            client=("9.9.9.9", 12345),
+        )
+        # cloudflare 优先级最高
+        assert get_client_key(h, self._settings("all")) == "203.0.113.5"
+
+    def test_wildcard_trusts_everything(self):
+        h = _FakeHandler(
+            headers={"X-Forwarded-For": "1.2.3.4"},
+            client=("9.9.9.9", 12345),
+        )
+        assert get_client_key(h, self._settings("*")) == "1.2.3.4"
 
     def test_falls_back_to_client_address(self):
         h = _FakeHandler(client=("9.9.9.9", 12345))
-        assert get_client_key(h) == "9.9.9.9"
+        assert get_client_key(h, self._settings()) == "9.9.9.9"
+
+    def test_only_forwarded_trusted_ignores_cf(self):
+        """开了 forwarded 但没开 cloudflare → CF-Connecting-IP 不生效。"""
+        h = _FakeHandler(
+            headers={
+                "CF-Connecting-IP": "203.0.113.5",
+                "X-Forwarded-For": "1.2.3.4",
+            },
+            client=("9.9.9.9", 12345),
+        )
+        assert get_client_key(h, self._settings("forwarded")) == "1.2.3.4"
 
 
 class TestServerEndpoints:
@@ -157,7 +216,20 @@ class TestServerEndpoints:
         assert "momentum_atr" in names
         assert "moving_average" in names
 
+    def test_strategies_with_query_string(self, server):
+        """P1-4：/api/strategies?nocache=1 必须命中（query string 不该导致 404）。"""
+        import urllib.request
+
+        with urllib.request.urlopen(f"{server}/api/strategies?nocache=1") as resp:
+            data = json.loads(resp.read())
+        assert data["success"] is True
+        assert isinstance(data["strategies"], list)
+
     def test_cors_preflight(self, server):
+        """CORS 行为：默认 ``*`` 白名单时 OPTIONS 必须返回 Allow-Origin。
+
+        详见 ``test_cors_whitelist_*`` 系列对白名单模式的覆盖。
+        """
         import urllib.request
 
         req = urllib.request.Request(
@@ -168,6 +240,103 @@ class TestServerEndpoints:
         with urllib.request.urlopen(req) as resp:
             assert resp.status == 204
             assert "Access-Control-Allow-Origin" in resp.headers
+
+
+class TestCorsWhitelist:
+    """P0-2：白名单模式 CORS。
+
+    - 配置 ``CORS_ORIGIN=https://allowed.com,https://other.com``
+    - Origin 命中 → 回显该 origin
+    - Origin 不命中 → 不发 Allow-Origin（浏览器拦截）
+    - 无 Origin 头 → 不发 Allow-Origin（curl 仍然能拿到 200）
+    """
+
+    @pytest.fixture
+    def server(self, monkeypatch):
+        monkeypatch.setenv("IWENCAI_API_KEY", "test")
+        monkeypatch.setenv("MYSQL_PERSIST_ENABLED", "0")
+        monkeypatch.setenv("PORT", "0")
+        monkeypatch.setenv(
+            "CORS_ORIGIN",
+            "https://allowed.com,https://other.com",
+        )
+        from quant.config import reset_settings_cache
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        reset_settings_cache()
+        from quant.server.app import BacktestHandler
+        from quant.server.middleware import RateLimiter
+
+        settings = __import__("quant.config", fromlist=["get_settings"]).get_settings()
+        assert "," in settings.cors_origin  # 白名单被原样保留（逗号分隔）
+
+        BacktestHandler.limiter = RateLimiter(
+            limit=settings.rate_limit, window_seconds=settings.rate_window
+        )
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), BacktestHandler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        yield f"http://127.0.0.1:{port}"
+        srv.shutdown()
+        srv.server_close()
+
+    def _preflight(self, server, origin):
+        req = urllib.request.Request(
+            f"{server}/api/query",
+            method="OPTIONS",
+            headers={"Origin": origin} if origin else {},
+        )
+        with urllib.request.urlopen(req) as resp:
+            return resp.status, dict(resp.headers)
+
+    def test_whitelist_matching_origin_echoed(self, server):
+        status, headers = self._preflight(server, "https://allowed.com")
+        assert status == 204
+        assert headers.get("Access-Control-Allow-Origin") == "https://allowed.com"
+        # 显式回显时带 credentials
+        assert headers.get("Access-Control-Allow-Credentials") == "true"
+        assert headers.get("Vary") == "Origin"
+
+    def test_whitelist_second_origin_echoed(self, server):
+        status, headers = self._preflight(server, "https://other.com")
+        assert status == 204
+        assert headers.get("Access-Control-Allow-Origin") == "https://other.com"
+
+    def test_whitelist_non_matching_origin_silent(self, server):
+        """不在白名单里的 origin 必须**不返回** Allow-Origin。"""
+        status, headers = self._preflight(server, "https://evil.com")
+        assert status == 204
+        assert "Access-Control-Allow-Origin" not in headers
+
+    def test_whitelist_no_origin_header_silent(self, server):
+        """curl / 服务端调用等没 Origin 头时也不发 Allow-Origin。"""
+        status, headers = self._preflight(server, None)
+        assert status == 204
+        assert "Access-Control-Allow-Origin" not in headers
+
+    def test_whitelist_post_matching_origin(self, server):
+        """POST 请求也应正确回显（不只是 OPTIONS）。"""
+        req = urllib.request.Request(
+            f"{server}/api/strategies",
+            data=b"",
+            headers={"Origin": "https://allowed.com"},
+            method="GET",
+        )
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+            assert resp.headers.get("Access-Control-Allow-Origin") == "https://allowed.com"
+
+    def test_whitelist_post_non_matching_silent(self, server):
+        req = urllib.request.Request(
+            f"{server}/api/strategies",
+            data=b"",
+            headers={"Origin": "https://evil.com"},
+            method="GET",
+        )
+        with urllib.request.urlopen(req) as resp:
+            assert resp.status == 200
+            assert "Access-Control-Allow-Origin" not in resp.headers
 
     def test_unknown_endpoint(self, server):
         import urllib.request
@@ -504,3 +673,145 @@ class TestApiBarsHandler:
             data = json.loads(resp.read().decode("utf-8"))
         assert data.get("success") is True
         assert seen["limit"] == 100, f"expected 100, got {seen['limit']}"
+
+
+class TestPayloadCoercion:
+    """回归：handler 收到非法数字字符串应当返回 400 (ValidationError)，而不是 500。
+
+    修 P2-5 之前 ``float(payload.get('initial_cash') or 100000)`` 在收到 ``"abc"`` 时抛
+    ValueError，被最外层 except 转成 500。修完之后用 ``quant.payload_utils._payload_float``
+    统一抛 ValidationError(400)。
+    """
+
+    def test_payload_float_string_number(self):
+        from quant.payload_utils import _payload_float
+        assert _payload_float("100000", 1, "x") == 100000.0
+
+    def test_payload_float_default_on_empty(self):
+        from quant.payload_utils import _payload_float
+        assert _payload_float("", 50000.0, "x") == 50000.0
+        assert _payload_float(None, 50000.0, "x") == 50000.0
+
+    def test_payload_float_rejects_garbage(self):
+        from quant.payload_utils import _payload_float
+        with pytest.raises(ValidationError, match="不是合法数字"):
+            _payload_float("abc", 100000.0, "initial_cash")
+
+    def test_payload_int_rejects_non_integer_float(self):
+        from quant.payload_utils import _payload_int
+        with pytest.raises(ValidationError, match="应当为整数"):
+            _payload_int("1.5", 10, "page")
+        with pytest.raises(ValidationError, match="应当为整数"):
+            _payload_int(1.5, 10, "page")
+
+    def test_payload_int_rejects_garbage(self):
+        from quant.payload_utils import _payload_int
+        with pytest.raises(ValidationError, match="不是合法整数"):
+            _payload_int("abc", 10, "page")
+
+    def test_payload_int_accepts_string_int(self):
+        from quant.payload_utils import _payload_int
+        assert _payload_int("42", 10, "page") == 42
+        # "1.0" 这种合法整数表达应被接受
+        assert _payload_int("1.0", 10, "page") == 1
+
+    def test_payload_str_strips_and_defaults(self):
+        from quant.payload_utils import _payload_str
+        assert _payload_str("  hello  ", "", "x") == "hello"
+        assert _payload_str(None, "fallback", "x") == "fallback"
+
+    def test_coerce_bool_truthy_strings(self):
+        from quant.payload_utils import _coerce_bool
+        for s in ("1", "true", "yes", "on", "TRUE"):
+            assert _coerce_bool(s) is True
+        for s in ("0", "false", "no", "off", ""):
+            assert _coerce_bool(s) is False
+
+
+class TestBacktestHandler400:
+    """通过真实 HTTP 验证：POST /api/backtest {"initial_cash": "abc"} 必须返回 400。"""
+
+    @pytest.fixture
+    def server(self, monkeypatch):
+        monkeypatch.setenv("IWENCAI_API_KEY", "test")
+        monkeypatch.setenv("MYSQL_PERSIST_ENABLED", "0")
+        monkeypatch.setenv("PORT", "0")
+        from quant.config import reset_settings_cache
+        reset_settings_cache()
+        from quant.server.app import BacktestHandler, run_server
+        from http.server import ThreadingHTTPServer
+        from quant.server.middleware import RateLimiter
+        import threading
+
+        settings = __import__("quant.config", fromlist=["get_settings"]).get_settings()
+        BacktestHandler.limiter = RateLimiter(
+            limit=settings.rate_limit, window_seconds=settings.rate_window
+        )
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), BacktestHandler)
+        port = srv.server_address[1]
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        yield f"http://127.0.0.1:{port}"
+        srv.shutdown()
+
+    def _post(self, base_url, payload):
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{base_url}/api/backtest",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return resp.status, json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode("utf-8"))
+
+    def test_initial_cash_abc_returns_400(self, server, monkeypatch):
+        """{"initial_cash": "abc"} 必须返 400，不再是 500。"""
+        # 1.18 之前：直接抛 ValueError，handler 兜底成 500
+        status, body = self._post(
+            server, {"strategy": "moving_average", "symbol": "000001.SZ",
+                     "start_date": "2024-01-01", "end_date": "2024-06-01",
+                     "initial_cash": "abc"}
+        )
+        assert status == 400, f"expected 400, got {status}: {body}"
+        assert body.get("code") == "validation_error"
+        assert "initial_cash" in (body.get("error") or "")
+        assert body.get("details", {}).get("field") == "initial_cash"
+
+    def test_initial_cash_1_5_returns_400(self, server, monkeypatch):
+        """只接受 int 的字段传入 '1.5' 必须返 400（不再静默截断或 500）。"""
+        status, body = self._post(
+            server, {"strategy": "moving_average", "symbol": "000001.SZ",
+                     "start_date": "2024-01-01", "end_date": "2024-06-01",
+                     "limit": "1.5"}
+        )
+        assert status == 400, f"expected 400, got {status}: {body}"
+        assert body.get("code") == "validation_error"
+
+    def test_numeric_string_initial_cash_still_accepted(self, server, monkeypatch):
+        """前端 FormData 通常把数字序列化成字符串，要兼容 "100000"。"""
+        # mock 掉 fetch_bars（路径在 services.query）以避免打真接口
+        from quant.services import query as query_svc
+        import datetime as _dt
+        bars = []
+        for i in range(120):
+            bars.append({
+                "date": (_dt.date(2024, 1, 1) + _dt.timedelta(days=i)).isoformat(),
+                "open": 10.0 + 0.01 * i, "close": 10.0 + 0.01 * (i + 1),
+                "high": 10.0 + 0.02 * i, "low": 10.0 - 0.005 * i,
+                "volume": 1000 + i * 5,
+            })
+        monkeypatch.setattr(query_svc, "fetch_bars",
+                            lambda *a, **k: bars)
+        status, body = self._post(
+            server, {"strategy": "moving_average", "symbol": "000001.SZ",
+                     "start_date": "2024-01-01", "end_date": "2024-12-31",
+                     "initial_cash": "100000"}
+        )
+        # 不一定 200（可能策略本身有别的问题），但绝对不能是 400/500 from handler
+        # 关键是"abc" 这种会失败而"100000"不会
+        assert status != 400 or "initial_cash" not in (body.get("error") or ""), body
+

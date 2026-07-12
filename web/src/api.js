@@ -127,7 +127,7 @@ function interpretGradioEvent(eventName, data) {
   return { kind: "ignore" };
 }
 
-async function triggerGradioCall(endpoint, payload) {
+async function triggerGradioCall(endpoint, payload, signal) {
   const base = getApiBase();
   const attempts = [
     {
@@ -145,6 +145,7 @@ async function triggerGradioCall(endpoint, payload) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(attempt.body),
+      ...(signal ? { signal } : {}),
     });
     if (!res.ok) {
       lastMessage = `HTTP ${res.status}`;
@@ -163,35 +164,67 @@ async function triggerGradioCall(endpoint, payload) {
   throw new Error(lastMessage || "Gradio 调用触发失败");
 }
 
-async function postJsonGradio(endpoint, payload) {
+async function postJsonGradio(endpoint, payload, options = {}) {
+  const { signal } = options;
   const base = getApiBase();
-  const event_id = await triggerGradioCall(endpoint, { ...(payload || {}) });
+  const event_id = await triggerGradioCall(endpoint, { ...(payload || {}) }, signal);
 
   // step 2: 拉 SSE 流
   const resultUrl = `${base}/gradio_api/call/${endpoint}/${event_id}`;
-  const res = await fetch(resultUrl, { headers: { Accept: "text/event-stream" } });
+  const res = await fetch(resultUrl, {
+    headers: { Accept: "text/event-stream" },
+    ...(signal ? { signal } : {}),
+  });
   if (!res.ok || !res.body) throw new Error(`SSE HTTP ${res.status}`);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
   let lastPartial;
-  while (true) {
-    const { done, value } = await reader.read();
-    buf += done ? decoder.decode() : decoder.decode(value, { stream: true });
-    buf = buf.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-    const events = buf.split(/\n\n+/);
-    buf = events.pop() || "";
-    for (const evt of events) {
-      const parsed = parseSseEvent(evt);
-      const interpreted = interpretGradioEvent(parsed.eventName, parsed.data);
-      if (interpreted.kind === "done") return interpreted.result;
-      if (interpreted.kind === "error") throw new Error(interpreted.message || "处理失败");
-      if (interpreted.kind === "partial" && interpreted.result !== null) {
-        lastPartial = interpreted.result;
-      }
+  let aborted = false;
+  // 把 abort 透传到 reader：触发 reader.cancel() 让 fetch 立刻释放连接
+  if (signal) {
+    if (signal.aborted) {
+      try { await reader.cancel(); } catch {}
+      throw new DOMException("Aborted", "AbortError");
     }
-    if (done) break;
+    signal.addEventListener(
+      "abort",
+      () => {
+        aborted = true;
+        try { reader.cancel(); } catch {}
+      },
+      { once: true },
+    );
+  }
+  try {
+    while (true) {
+      if (aborted) throw new DOMException("Aborted", "AbortError");
+      const { done, value } = await reader.read();
+      if (done) {
+        buf += decoder.decode();
+      } else {
+        buf += decoder.decode(value, { stream: true });
+      }
+      buf = buf.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      const events = buf.split(/\n\n+/);
+      buf = events.pop() || "";
+      for (const evt of events) {
+        const parsed = parseSseEvent(evt);
+        const interpreted = interpretGradioEvent(parsed.eventName, parsed.data);
+        if (interpreted.kind === "done") return interpreted.result;
+        if (interpreted.kind === "error") throw new Error(interpreted.message || "处理失败");
+        if (interpreted.kind === "partial" && interpreted.result !== null) {
+          lastPartial = interpreted.result;
+        }
+      }
+      if (done) break;
+    }
+  } catch (exc) {
+    if (aborted || (signal && signal.aborted)) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    throw exc;
   }
 
   if (buf.trim()) {
@@ -208,18 +241,22 @@ async function postJsonGradio(endpoint, payload) {
 }
 
 // ---- 通用 postJson（自动适配后端协议） ----
+// options.signal：可选的 AbortSignal，用于在组件 unmount 时取消未完成的请求。
+//   - 本地后端：透传给 fetch
+//   - Gradio 后端：同时用于 trigger 阶段 + SSE reader.cancel()
 
-export async function postJson(path, payload) {
+export async function postJson(path, payload, options = {}) {
   if (isGradioBase()) {
     // /api/strategies → strategies
     const endpoint = path.replace(/^\/api\//, "");
-    return postJsonGradio(endpoint, payload);
+    return postJsonGradio(endpoint, payload, options);
   }
   const url = getApiBase() + path;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...(payload || {}) }),
+    ...(options && options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;

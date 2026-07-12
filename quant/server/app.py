@@ -31,6 +31,7 @@ from quant.services import (
 from quant.services.backtest import BacktestRequest
 from quant.services.batch import BatchRequest
 from quant.services.query import QueryRequest
+from quant.payload_utils import _coerce_bool, _payload_float, _payload_int, _payload_str
 from quant.strategies import SPECS
 
 
@@ -56,7 +57,11 @@ class BacktestHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         # API 路由：仅 /api/strategies 支持 GET，其余 GET 走静态资源
-        if self.path == "/api/strategies":
+        # 先把 query string 切掉，否则 /api/strategies?nocache=1 不命中严格匹配
+        path = self.path.split("?", 1)[0]
+        if path == "/api/strategies":
+            # 同步规范化 self.path，让下游 _dispatch 也能命中路由
+            self.path = path
             try:
                 settings = get_settings()
                 self._dispatch({}, settings)
@@ -65,7 +70,7 @@ class BacktestHandler(SimpleHTTPRequestHandler):
                     self, exc.to_response(), status=exc.status, cors_origin=settings.cors_origin
                 )
             return
-        if self.path in ("/", "/index.html"):
+        if path in ("/", "/index.html"):
             self.path = "/index.html"
         return super().do_GET()
 
@@ -105,8 +110,13 @@ class BacktestHandler(SimpleHTTPRequestHandler):
                 status_holder["status"] = 200
             except RateLimitError as exc:
                 status_holder["status"] = exc.status
+                retry_after = getattr(exc, "retry_after", None) or settings.rate_window
                 return json_response(
-                    self, exc.to_response(), status=exc.status, cors_origin=settings.cors_origin
+                    self,
+                    exc.to_response(),
+                    status=exc.status,
+                    cors_origin=settings.cors_origin,
+                    extra_headers={"Retry-After": str(retry_after)},
                 )
             except AppError as exc:
                 status_holder["status"] = exc.status
@@ -172,11 +182,11 @@ class BacktestHandler(SimpleHTTPRequestHandler):
 
     def _handle_query(self, payload: Dict[str, Any]) -> None:
         req = QueryRequest(
-            query=str(payload.get("query", "")).strip(),
-            page=int(payload.get("page") or 1),
-            limit=int(payload.get("limit") or 50),
-            parser_logic=bool(payload.get("parser_logic", False)),
-            persist=bool(payload.get("persist", False)),
+            query=_payload_str(payload.get("query", ""), "", "query"),
+            page=_payload_int(payload.get("page"), 1, "page"),
+            limit=_payload_int(payload.get("limit"), 50, "limit"),
+            parser_logic=_coerce_bool(payload.get("parser_logic", False)),
+            persist=_coerce_bool(payload.get("persist", False)),
             api_key=payload.get("api_key") or None,
         )
         result = natural_language_query(req)
@@ -184,19 +194,19 @@ class BacktestHandler(SimpleHTTPRequestHandler):
 
     def _handle_backtest(self, payload: Dict[str, Any]) -> None:
         req = BacktestRequest(
-            strategy=str(payload.get("strategy") or "momentum_atr"),
-            backtest_mode=str(payload.get("backtest_mode") or "single"),
-            symbol=str(payload.get("symbol", "")).strip(),
-            index_symbol=str(payload.get("index_symbol") or "hs300"),
-            start_date=str(payload.get("start_date", "")).strip(),
-            end_date=str(payload.get("end_date", "")).strip(),
-            query=str(payload.get("query", "")).strip(),
-            initial_cash=float(payload.get("initial_cash") or 100000),
-            fee_rate=float(payload.get("fee_rate") or 0.0003),
-            persist=bool(payload.get("persist", False)),
+            strategy=_payload_str(payload.get("strategy"), "momentum_atr", "strategy"),
+            backtest_mode=_payload_str(payload.get("backtest_mode"), "single", "backtest_mode"),
+            symbol=_payload_str(payload.get("symbol", ""), "", "symbol"),
+            index_symbol=_payload_str(payload.get("index_symbol"), "hs300", "index_symbol"),
+            start_date=_payload_str(payload.get("start_date", ""), "", "start_date"),
+            end_date=_payload_str(payload.get("end_date", ""), "", "end_date"),
+            query=_payload_str(payload.get("query", ""), "", "query"),
+            initial_cash=_payload_float(payload.get("initial_cash"), 100000, "initial_cash"),
+            fee_rate=_payload_float(payload.get("fee_rate"), 0.0003, "fee_rate"),
+            persist=_coerce_bool(payload.get("persist", False)),
             api_key=payload.get("api_key") or None,
-            limit=int(payload.get("limit") or 100),
-            max_pages=int(payload.get("max_pages") or 10),
+            limit=_payload_int(payload.get("limit"), 100, "limit"),
+            max_pages=_payload_int(payload.get("max_pages"), 10, "max_pages"),
             strategy_params=_strategy_params(payload),
         )
         result = run_single_backtest(req)
@@ -204,21 +214,21 @@ class BacktestHandler(SimpleHTTPRequestHandler):
 
     def _handle_batch_backtest(self, payload: Dict[str, Any]) -> None:
         req = BatchRequest(
-            strategy=str(payload.get("strategy") or "momentum_atr"),
-            start_date=str(payload.get("start_date", "")).strip(),
-            end_date=str(payload.get("end_date", "")).strip(),
-            max_symbols=int(payload.get("max_symbols") or 20),
-            max_workers=int(payload.get("max_workers") or 10),
+            strategy=_payload_str(payload.get("strategy"), "momentum_atr", "strategy"),
+            start_date=_payload_str(payload.get("start_date", ""), "", "start_date"),
+            end_date=_payload_str(payload.get("end_date", ""), "", "end_date"),
+            max_symbols=_payload_int(payload.get("max_symbols"), 20, "max_symbols"),
+            max_workers=_payload_int(payload.get("max_workers"), 10, "max_workers"),
             universe=payload.get("universe") or None,
             custom_symbols=payload.get("symbols") or None,
-            initial_cash=float(payload.get("initial_cash") or 100000),
-            fee_rate=float(payload.get("fee_rate") or 0.0003),
-            persist=bool(payload.get("persist", False)),
+            initial_cash=_payload_float(payload.get("initial_cash"), 100000, "initial_cash"),
+            fee_rate=_payload_float(payload.get("fee_rate"), 0.0003, "fee_rate"),
+            persist=_coerce_bool(payload.get("persist", False)),
             api_key=payload.get("api_key") or None,
-            limit=int(payload.get("limit") or 100),
-            max_pages=int(payload.get("max_pages") or 10),
-            universe_limit=int(payload.get("universe_limit") or 100),
-            universe_pages=int(payload.get("universe_pages") or 5),
+            limit=_payload_int(payload.get("limit"), 100, "limit"),
+            max_pages=_payload_int(payload.get("max_pages"), 10, "max_pages"),
+            universe_limit=_payload_int(payload.get("universe_limit"), 100, "universe_limit"),
+            universe_pages=_payload_int(payload.get("universe_pages"), 5, "universe_pages"),
             strategy_params=_strategy_params(payload),
         )
         result = run_batch_backtest(req)
@@ -255,9 +265,9 @@ class BacktestHandler(SimpleHTTPRequestHandler):
 
     def _handle_bars(self, payload: Dict[str, Any]) -> None:
         """拉近一年日 K + 元信息。Dashboard 弹窗专用。"""
-        query_text = str(payload.get("query", "")).strip()
-        max_pages = int(payload.get("max_pages") or 3)
-        limit = int(payload.get("limit") or 100)
+        query_text = _payload_str(payload.get("query", ""), "", "query")
+        max_pages = _payload_int(payload.get("max_pages"), 3, "max_pages")
+        limit = _payload_int(payload.get("limit"), 100, "limit")
         api_key = payload.get("api_key") or None
         data = fetch_bars(query_text, api_key=api_key, max_pages=max_pages, limit=limit)
         json_response(

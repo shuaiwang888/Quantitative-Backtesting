@@ -63,6 +63,19 @@ class RateLimitError(AppError):
     code = "rate_limited"
     status = 429
     safe_message = "请求过于频繁，请稍后再试"
+    retry_after: int = 60  # 默认 60 秒，由 server 层覆写到实际窗口
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: Optional[Dict[str, Any]] = None,
+        cause: Optional[BaseException] = None,
+        retry_after: Optional[int] = None,
+    ) -> None:
+        super().__init__(message, details=details, cause=cause)
+        if retry_after is not None:
+            self.retry_after = retry_after
 
 
 class UpstreamError(AppError):

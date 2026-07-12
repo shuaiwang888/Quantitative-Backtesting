@@ -44,12 +44,21 @@ export default function SymbolChartModal({ target, onClose }) {
     };
     window.addEventListener("keydown", onKey);
 
-    // 拉数据
+    // 拉数据 —— 用 AbortController 在 unmount/重开时取消未完成的请求，
+    // 防止 setState on unmounted component 警告 + 防止悬空响应写入错误 modal
+    const controller = new AbortController();
+    let cancelled = false;
+
     setLoading(true);
     setError(null);
     setBars(null);
-    postJson("/api/bars", { query: target.query, max_pages: 3, limit: 100 })
+    postJson(
+      "/api/bars",
+      { query: target.query, max_pages: 3, limit: 100 },
+      { signal: controller.signal },
+    )
       .then((d) => {
+        if (cancelled) return;
         if (d && d.success && Array.isArray(d.bars) && d.bars.length) {
           setBars(d.bars);
           setMeta({ symbol: d.symbol || target.symbol || "", name: d.name || target.name || "" });
@@ -58,10 +67,20 @@ export default function SymbolChartModal({ target, onClose }) {
           setError(d?.error || "未返回 K 线数据");
         }
       })
-      .catch((e) => setError(e?.message || "请求失败"))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (cancelled) return;
+        // 用户主动取消：不把 error 显示成失败提示
+        if (e?.name === "AbortError") return;
+        setError(e?.message || "请求失败");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
 
     return () => {
+      cancelled = true;
+      controller.abort();
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
     };

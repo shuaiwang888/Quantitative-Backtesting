@@ -22,6 +22,7 @@ from quant.data.iwencai import IwencaiError
 from quant.data.normalization import Bar, build_history_query, normalize_bars
 from quant.errors import ValidationError
 from quant.logging_setup import get_logger
+from quant.payload_utils import _payload_float, _payload_int, _payload_str
 from quant.strategies import SPECS, get_spec, min_bars
 
 
@@ -339,23 +340,23 @@ def run_grid_search_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     from quant.services.backtest import INDEX_SYMBOLS
 
     req = OptimizeRequest(
-        strategy=str(payload.get("strategy") or "momentum_atr"),
+        strategy=_payload_str(payload.get("strategy"), "momentum_atr", "strategy"),
         param_ranges=payload.get("param_ranges") or {},
-        start_date=str(payload.get("start_date", "")).strip(),
-        end_date=str(payload.get("end_date", "")).strip(),
-        query=str(payload.get("query", "")).strip(),
-        initial_cash=float(payload.get("initial_cash") or 100000),
-        fee_rate=float(payload.get("fee_rate") or 0.0003),
+        start_date=_payload_str(payload.get("start_date", ""), "", "start_date"),
+        end_date=_payload_str(payload.get("end_date", ""), "", "end_date"),
+        query=_payload_str(payload.get("query", ""), "", "query"),
+        initial_cash=_payload_float(payload.get("initial_cash"), 100000, "initial_cash"),
+        fee_rate=_payload_float(payload.get("fee_rate"), 0.0003, "fee_rate"),
         max_combinations=(
-            int(payload["max_combinations"])
+            _payload_int(payload["max_combinations"], 0, "max_combinations")
             if payload.get("max_combinations") not in (None, "", 0)
             else None
         ),
     )
-    symbol = str(payload.get("symbol", "")).strip()
-    mode = str(payload.get("backtest_mode") or "single")
+    symbol = _payload_str(payload.get("symbol", ""), "", "symbol")
+    mode = _payload_str(payload.get("backtest_mode"), "single", "backtest_mode")
     if mode == "index":
-        symbol = INDEX_SYMBOLS.get(str(payload.get("index_symbol") or "hs300"), symbol)
+        symbol = INDEX_SYMBOLS.get(_payload_str(payload.get("index_symbol"), "hs300", "index_symbol"), symbol)
 
     query_text = req.query
     if not query_text:
@@ -367,8 +368,8 @@ def run_grid_search_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         response = iwencai.fetch_all(
             query_text,
             api_key=payload.get("api_key") or None,
-            limit=min(int(payload.get("limit") or 100), 100),
-            max_pages=max(1, min(int(payload.get("max_pages") or 10), 20)),
+            limit=min(_payload_int(payload.get("limit"), 100, "limit"), 100),
+            max_pages=max(1, min(_payload_int(payload.get("max_pages"), 10, "max_pages"), 20)),
         )
     except IwencaiError as exc:
         raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc

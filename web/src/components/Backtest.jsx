@@ -409,11 +409,37 @@ function renderMarkdown(src) {
     if (inUl) { out.push("</ul>"); inUl = false; }
     if (inOl) { out.push("</ol>"); inOl = false; }
   };
+  // URL scheme 白名单：只放行 http(s) / mailto；其他（包括 javascript: / data: / vbscript:）一律降级为纯文本
+  const SAFE_URL_RE = /^(https?:|mailto:)/i;
+  const safeUrl = (u) => {
+    const trimmed = (u || "").trim();
+    if (!trimmed) return "";
+    if (!SAFE_URL_RE.test(trimmed)) return "";
+    return trimmed;
+  };
+  // 对 src / href 属性值做防御性编码：先 encodeURI 然后把可能破坏属性的字符还原成 HTML entity
+  // （encodeURI 不编码 `"` 和 `'`，但它们会破坏外层引号）
+  const attrEncode = (u) => {
+    try {
+      return encodeURI(u)
+        .replace(/"/g, "%22")
+        .replace(/'/g, "%27")
+        .replace(/&/g, "%26")
+        .replace(/</g, "%3C")
+        .replace(/>/g, "%3E");
+    } catch {
+      return "";
+    }
+  };
   const inline = (s) => esc(s)
     .replace(/`([^`]+)`/g, (_, c) => `<code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:12px;">${c}</code>`)
     .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
     .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<i>$1</i>")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, rawUrl) => {
+      const ok = safeUrl(rawUrl);
+      if (!ok) return label; // 不通过白名单：降级为纯文本，避免 javascript: 之类的注入
+      return `<a href="${attrEncode(ok)}" target="_blank" rel="noreferrer noopener">${label}</a>`;
+    });
 
   for (const line of lines) {
     if (/^\s*$/.test(line)) { closeLists(); out.push(""); continue; }

@@ -43,18 +43,16 @@ function setLocalWatchlist(list) {
  * 注：API key 全部在 Render 后端配，前端不用 key。
  */
 async function fetchWatchlist() {
-  if (true) {
-    try {
-      const res = await postJson("/api/query", {
-        query: "我的自选股 最新价、涨跌幅、开盘价、收盘价、量比、换手率",
-        limit: 50,
-      });
-      if (res && Array.isArray(res.datas) && res.datas.length > 0) {
-        return { source: "iwencai", items: res.datas };
-      }
-    } catch (e) {
-      console.warn("[quant] iwencai 我的自选股拉取失败，回退本地:", e);
+  try {
+    const res = await postJson("/api/query", {
+      query: "我的自选股 最新价、涨跌幅、开盘价、收盘价、量比、换手率",
+      limit: 50,
+    });
+    if (res && Array.isArray(res.datas) && res.datas.length > 0) {
+      return { source: "iwencai", items: res.datas };
     }
+  } catch (e) {
+    console.warn("[quant] iwencai 我的自选股拉取失败，回退本地:", e);
   }
   const local = getLocalWatchlist();
   if (local.length > 0) {

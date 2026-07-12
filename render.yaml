@@ -23,6 +23,10 @@ services:
     autoDeploy: false
     envVars:
       # === 必填：敏感信息（sync: false → 必须在 Render Dashboard 手动设置） ===
+      # API_KEY / IWENCAI_API_KEY / MINIMAX_API_KEY 都要去 Render Service → Environment
+      # → Add Secret 手动填。sync: false 阻止 Render 从 .env 自动同步，确保密钥不进 git。
+      - key: API_KEY
+        sync: false
       - key: IWENCAI_API_KEY
         sync: false
       - key: MINIMAX_API_KEY
@@ -38,7 +42,7 @@ services:
       # CORS：允许 GitHub Pages 域名调用（部署后改成你的 Pages URL）
       # 多个域名用逗号分隔；如果暂时不填，默认允许所有 origin
       - key: CORS_ORIGIN
-        value: "*"
+        value: "https://shuaiwang888.github.io"
 
       # 日志
       - key: LOG_LEVEL
@@ -48,8 +52,16 @@ services:
       - key: MYSQL_PERSIST_ENABLED
         value: "0"
 
-      # 寻优
+      # 限流（公开部署收紧到 30 req / 60s，防止被恶意刷爆）
+      - key: RATE_LIMIT
+        value: "30"
+
+      # 寻优（公开部署收紧上限到 500 组合，避免单请求 CPU 跑满）
       - key: OPTIMIZE_MAX_COMBINATIONS
-        value: "2000"
+        value: "500"
       - key: OPTIMIZE_TIMEOUT_SECONDS
         value: "120"
+
+      # 批量回测（公开部署把标的数上限降到 30，防止被滥用）
+      - key: BATCH_MAX_SYMBOLS
+        value: "30"

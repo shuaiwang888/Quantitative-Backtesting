@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import socket
 import urllib.error
@@ -14,8 +15,15 @@ DEFAULT_BASE_URL = "https://api.minimaxi.com/anthropic"
 DEFAULT_MODEL = "MiniMax-M3"
 
 
+_LOG = logging.getLogger("quant.llm")
+
+
 class LLMError(Exception):
-    """LLM 接口错误。"""
+    """LLM 接口错误。
+
+    ``message`` 面向客户端展示，必须**不**包含上游 body / URL / 凭据等敏感信息。
+    原始响应体走 logger.error，由运维在日志里排查。
+    """
 
 
 def analyze_backtest(
@@ -72,17 +80,22 @@ def analyze_backtest(
             return _extract_text(data)
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8") if exc.fp else ""
-        raise LLMError(f"大模型接口错误 {exc.code}: {body[:500]}") from exc
+        # body 可能很长且包含敏感信息，**不入**对外 message，仅入日志
+        _LOG.error("大模型上游 HTTP %s: %s", exc.code, body[:500])
+        raise LLMError(f"大模型服务暂时不可用 (HTTP {exc.code})") from exc
     except urllib.error.URLError as exc:
         # 包含 DNS / 连接拒绝 / 超时（reason 可能是 socket.timeout）
-        raise LLMError(f"大模型网络错误: {exc.reason}") from exc
+        # reason 仅入日志；对外只暴露通用文案，避免暴露内网主机 / 临时 host
+        _LOG.warning("大模型网络错误: %s", exc.reason)
+        raise LLMError("大模型网络错误，请稍后再试") from exc
     except (socket.timeout, TimeoutError) as exc:
         # M3 thinking 模式 + 大 payload 容易超出默认 60s
         raise LLMError(
             f"大模型响应超时（>{timeout}s），可调大 MINIMAX_TIMEOUT 或减小 prompt 体积"
         ) from exc
     except json.JSONDecodeError as exc:
-        raise LLMError(f"大模型返回解析失败: {exc}") from exc
+        _LOG.warning("大模型返回解析失败: %s", exc)
+        raise LLMError("大模型返回解析失败，请稍后再试") from exc
 
 
 def _build_prompt(payload: Dict[str, Any]) -> str:

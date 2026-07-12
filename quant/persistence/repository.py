@@ -35,7 +35,17 @@ def _query_hash(query_text: str, page: int = 0, limit: int = 0) -> str:
 
 
 def persistence_enabled() -> bool:
-    return get_settings().mysql_persist_enabled
+    """持久化是否启用。
+
+    - ``MYSQL_PERSIST_ENABLED=1`` → 全局启用（无论 auto_persist）
+    - ``MYSQL_AUTO_PERSIST=1``    → 显式自动写库（兼容旧配置）
+    - 两者都没开 → 关闭（写库入口直接 short-circuit 返回 disabled 元数据）
+
+    历史上 ``persistence_enabled`` 只看 ``mysql_persist_enabled``，会让用户
+    配了 ``MYSQL_AUTO_PERSIST=1`` 却发现没写库的踩坑。两者取 OR 才是正确语义。
+    """
+    settings = get_settings()
+    return settings.mysql_persist_enabled or settings.mysql_auto_persist
 
 
 def persist_bars(
