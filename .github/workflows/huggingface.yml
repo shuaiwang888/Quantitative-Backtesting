@@ -4,22 +4,13 @@
 #   - 详细错误（"token 失效" / "scope 不足" / "Space 不存在"）
 #   - 一步完成"上传 + 触发 build"
 #
-# 触发：push 到 main 且 quant/** / app.py / requirements.txt / Dockerfile 变化
+# 触发：仅手动。HF 目前新建 Gradio/Docker CPU Space 需要 PRO，
+# 在 Space 已重建且 HF_TOKEN 恢复前，不让每次 push 都产生必然失败的工作流。
 # 所需 GitHub Secret：HF_TOKEN（write scope，限定到 appQQQ/Quantitative-Backtesting-backend）
 
 name: Deploy HF Space
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'quant/**'
-      - 'app.py'
-      - 'app_hf.py'
-      - 'requirements.txt'
-      - 'Dockerfile'
-      - '.dockerignore'
-      - '.github/workflows/huggingface.yml'
   workflow_dispatch:
 
 concurrency:

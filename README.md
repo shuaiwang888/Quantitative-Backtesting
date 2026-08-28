@@ -165,7 +165,7 @@ GitHub Pages 只托管静态前端，Python 后端推荐部署到 Render（**首
 仓库已经内置：
 
 - `.github/workflows/pages.yml`：push 到 `main` 后构建 `web/` 并发布到 GitHub Pages。
-- `.github/workflows/huggingface.yml`（可选）：push 到 `main` 后把后端文件同步到 HF Space。
+- `.github/workflows/huggingface.yml`（可选）：手动把后端文件同步到已存在的 HF Space。
 - `Dockerfile`：现有 Render Service / 容器平台的统一后端入口。
 
 ### 部署到 Render（**首选**）
@@ -187,7 +187,7 @@ GitHub Pages 只托管静态前端，Python 后端推荐部署到 Render（**首
 
 ### 备选：部署到 Hugging Face Space
 
-⚠️ **注意**：HF 强制 ZeroGPU 配额，每次 API 调用都消耗 GPU 池（即使我们的代码是 CPU 任务）。如果调用量小可接受，否则选 Render。
+⚠️ **注意**：截至 2026-08，HF 新建 Gradio/Docker CPU Space 需要 PRO。当前目标 Space 已不存在，workflow 改为仅手动触发；先在 `appQQQ` 账号重建 `Quantitative-Backtesting-backend` 并更新 `HF_TOKEN`，再运行它。
 
 HF Space 适合：低频测试 / 演示 / 不追求稳定运行。
 
@@ -226,7 +226,7 @@ HF 前端与 Render 使用相同的会话密钥机制；默认不把访客密钥
    - `CORS_ORIGIN`：建议填 `https://github.wsllm.top,https://shuaiwang888.github.io`。
    - `PORT`：`7860`。
    - `MYSQL_PERSIST_ENABLED`：`0`。
-5. push 到 `main` 后，`Deploy HF Space` workflow 会上传后端并触发 Space rebuild。
+5. 在 Actions 页面手动运行 `Deploy HF Space`，workflow 会上传后端并触发 Space rebuild。
 6. 后端 URL：`https://appQQQ-quantitative-backtesting-backend.hf.space`。
 
 > **如果你希望公开部署的 backend 完全不持有你的 key**（最安全）：第 4 步留空即可。访客必须自己填 key 才能用。
