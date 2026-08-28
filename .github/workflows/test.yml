@@ -24,8 +24,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # 测试不需要真实 MySQL
-          pip install pytest pytest-cov
+          pip install -r requirements-dev.txt
+
+      - name: Static checks
+        run: ruff check quant app.py app_hf.py --select F
 
       - name: Run tests
         env:
@@ -39,4 +41,16 @@ jobs:
 
       - name: Compile check
         run: |
-          python -m compileall -q quant/ app.py
+          python -m compileall -q quant/ app.py app_hf.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org

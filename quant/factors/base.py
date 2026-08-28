@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Type
+from typing import Dict, List
 
 from quant.data.normalization import Bar
 from quant.factors.operators import Series

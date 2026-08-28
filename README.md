@@ -11,7 +11,8 @@
 - K线和交易可视化：展示权益曲线、K线图、买入/卖出点，支持鼠标悬停查看数据。
 - AI 分析总结：回测完成后调用 MiniMax Anthropic 兼容接口生成策略复盘。
 - MySQL 持久化：可将历史 K 线和选股/指标结果落库。
-- 稳定性保护：前端关键 DOM 写入已做空节点保护，避免页面缓存或局部结构变动导致选股流程中断。
+- 现实成交：收盘信号下一根 K 线开盘撮合，支持滑点、最低佣金、印花税、过户费、停牌和一字涨跌停延期。
+- 稳定性保护：请求校验、超时、本地限流/寻优互斥；配置 Redis 后自动升级为多实例保护。
 
 ## 项目结构
 
@@ -19,13 +20,15 @@
 .
 ├── app.py                 # 启动入口（薄壳：加载 .env、启动 quant.server）
 ├── start.sh               # 启动脚本
-├── requirements.txt       # Python 依赖
+├── requirements.txt       # Python 运行时依赖
+├── requirements-dev.txt   # 测试 / 静态检查依赖
 ├── pytest.ini             # pytest 配置
 ├── mysql_schema.sql       # MySQL 建库建表脚本
 ├── .github/workflows/     # CI（pytest 多 Python 版本）
 │
 ├── quant/                 # 主包
 │   ├── config.py          # 集中式配置（Settings dataclass）
+│   ├── distributed.py     # 可选 Redis 限流 / 分布式锁
 │   ├── errors.py          # 错误码体系
 │   ├── logging_setup.py   # 结构化日志
 │   ├── server/            # HTTP 层（handler / middleware / responses）
@@ -35,12 +38,10 @@
 │   ├── data/              # 问财 + LLM + K 线规范化
 │   └── persistence/       # MySQL 池（线程安全状态机）+ 仓库
 │
-├── tests/                 # pytest 套件（106 个测试）
+├── tests/                 # pytest 回归套件
 │
-└── static/                # 前端（未改动）
-    ├── index.html
-    ├── app.js
-    └── styles.css
+├── web/                   # React + Vite 前端源码
+└── static/                # Vite 生产构建产物 + 图标
 ```
 
 ## 架构
@@ -68,10 +69,10 @@ app.py 入口 → quant.server.BacktestHandler
 
 1. 页面提交查询或回测参数。
 2. `app.py` 接收请求。
-3. `astock_api.py` 调用问财接口。
-4. `backtester.py` 将问财返回数据规范化为 K 线并执行策略。
+3. `quant/data/iwencai.py` 调用问财接口。
+4. `quant/data/normalization.py` 规范化 K 线，`quant/strategies/` 执行策略。
 5. 前端展示指标、图表、交易记录。
-6. 若开启持久化，`db.py` 写入 MySQL。
+6. 若开启持久化，`quant/persistence/` 写入 MySQL。
 7. 若是回测请求，前端会调用 `/api/analyze` 生成 AI 总结。
 
 ## 启动
@@ -115,7 +116,7 @@ PORT=8000 \
 
 说明：
 
-- `db.py` 会优先使用 `DBUtils` 连接池；如果当前环境没有安装 `DBUtils`，会自动降级为 `PyMySQL` 直连。
+- `quant/persistence/pool.py` 优先使用 `DBUtils` 连接池；不可用时会降级为 `PyMySQL` 直连。
 - 如果开启 MySQL 持久化，请确认 `MYSQL_SOCKET`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE` 与本机数据库一致。
 - 指数本身回测使用指数代码请求行情，例如沪深300为 `000300.SH`、中证500为 `000905.SH`、中证1000为 `000852.SH`。
 
@@ -148,8 +149,7 @@ PORT=8000 \
 验证静态资源是否是新版本：
 
 ```bash
-curl -s -o /tmp/quant_app_check.js http://127.0.0.1:8000/app.js
-rg "function setText|selector-meta|code_count" /tmp/quant_app_check.js
+curl -s http://127.0.0.1:8000/ | rg "assets/index-.*\\.js"
 ```
 
 浏览器端建议使用强制刷新：
@@ -166,21 +166,22 @@ GitHub Pages 只托管静态前端，Python 后端推荐部署到 Render（**首
 
 - `.github/workflows/pages.yml`：push 到 `main` 后构建 `web/` 并发布到 GitHub Pages。
 - `.github/workflows/huggingface.yml`（可选）：push 到 `main` 后把后端文件同步到 HF Space。
-- `render.yaml`（**推荐**）：Render Blueprint 一键部署后端。
+- `Dockerfile`：现有 Render Service / 容器平台的统一后端入口。
 
-### 一键部署到 Render（**首选**）
+### 部署到 Render（**首选**）
 
-Render 免费 tier：750 小时/月，512MB RAM，2 vCPU，**无限 API 调用**。Dockerfile 复用、代码零改动。
+本仓库故意不提供 `render.yaml`：已有服务名为 `quant-backtest-wj92`，Blueprint 会额外创建孤立服务。在现有 Render Service 中连接此 GitHub 仓库并选择 Docker runtime：
 
-1. 注册 [render.com](https://render.com)（GitHub 账号直接登录）
-2. Dashboard → **New +** → **Blueprint** → 连 GitHub 仓库
-3. Render 自动读 `render.yaml` 创建 web service
-4. Environment 页面**手动填**（不要 .env 同步）：
+1. Build context 使用仓库根目录，由 `Dockerfile` 构建。
+2. Health check path 设为 `/api/health`。
+3. 设置 `HOST=0.0.0.0`，`PORT` 使用 Render 注入值。
+4. Environment 页面**手动填**（不把密钥写入仓库）：
    - `IWENCAI_API_KEY` = 你的问财 key（**可选**，不填则访客必须自带）
    - `MINIMAX_API_KEY` = 你的 M2.7 key（**可选**）
-5. 等 3-5 分钟部署，记下后端 URL：`https://quant-backtest-backend.onrender.com`
-   - 免费层 15 分钟无活动会**休眠**（冷启动 ~30s）
-   - 可用 [UptimeRobot](https://uptimerobot.com/) 免费 ping 防休眠
+   - `CORS_ORIGIN=https://github.wsllm.top,https://shuaiwang888.github.io`（实际前端 origin + Pages 备用 origin）
+   - `TRUSTED_PROXIES=render`
+   - `REDIS_URL` = 可选，多实例部署时建议配置
+5. 启用 Git 自动部署后，push `main` 会触发新版本；上线后检查 `https://quant-backtest-wj92.onrender.com/api/health`。
 
 > **如果你希望公开部署的 backend 完全不持有你的 key**（最安全）：第 4 步留空即可。访客必须自己填 key 才能用。
 
@@ -195,10 +196,10 @@ HF Space 适合：低频测试 / 演示 / 不追求稳定运行。
 ```
 访客浏览器 → GitHub Pages (静态前端) → Render (Python 后端) → iwencai / MiniMax
                                           ↑ 没有 owner 的 key
-                              访客在浏览器填自己的 key（localStorage）
+                              访客在浏览器填自己的 key（sessionStorage）
 ```
 
-**关键设计**：后端**不持有 owner 的 key**。访客首次打开页面时，在左上方"API 密钥"按钮里填入自己的问财 key（MiniMax 可选），key 只保存在访客自己的浏览器 localStorage，每次 POST 时由 `config.js` 注入到 `payload.api_key` / `payload.minimax_api_key`。后端读到这些字段就用访客的，否则用 env var 的（如果有）。这样部署到公网后，**owner 完全不用暴露自己的密钥**。
+**关键设计**：owner 密钥可以不放在后端。访客可在「连接设置」中填入自己的问财 / MiniMax key；密钥只保存在当前标签页的 `sessionStorage`，由 `web/src/api.js` 注入请求，关闭标签页即清除。站点鉴权使用独立的 `X-API-Key`，不会被当作问财密钥透传。
 
 - `.github/workflows/pages.yml`：push 到 `main` 后构建 `web/` 并发布到 GitHub Pages。
 - `.github/workflows/huggingface.yml`：push 到 `main` 后把后端文件同步到 HF Space。
@@ -208,10 +209,10 @@ HF Space 适合：低频测试 / 演示 / 不追求稳定运行。
 ```
 访客浏览器 → GitHub Pages (静态前端) → Hugging Face Space (Gradio 后端) → iwencai / MiniMax
                                           ↑ 没有 owner 的 key
-                              访客在浏览器填自己的 key（localStorage）
+                              访客在浏览器填自己的 key（sessionStorage）
 ```
 
-**关键设计**：后端**不持有 owner 的 key**。访客首次打开页面时，在左上方"API 密钥"按钮里填入自己的问财 key（MiniMax 可选），key 只保存在访客自己的浏览器 localStorage，每次 POST 时由 `config.js` 注入到 `payload.api_key` / `payload.minimax_api_key`。后端读到这些字段就用访客的，否则用 env var 的（如果有）。这样部署到公网后，**owner 完全不用暴露自己的密钥**。
+HF 前端与 Render 使用相同的会话密钥机制；默认不把访客密钥写入长期浏览器存储。
 
 ### 一、部署后端到 Hugging Face Space
 
@@ -222,7 +223,7 @@ HF Space 适合：低频测试 / 演示 / 不追求稳定运行。
 4. Space Settings → Variables and secrets 可选配置：
    - `IWENCAI_API_KEY`：可选，owner 兜底问财 key；不填时访客必须在前端填写自己的 key。
    - `MINIMAX_API_KEY`：可选，owner 兜底 MiniMax key。
-   - `CORS_ORIGIN`：建议填 `https://shuaiwang888.github.io`。
+   - `CORS_ORIGIN`：建议填 `https://github.wsllm.top,https://shuaiwang888.github.io`。
    - `PORT`：`7860`。
    - `MYSQL_PERSIST_ENABLED`：`0`。
 5. push 到 `main` 后，`Deploy HF Space` workflow 会上传后端并触发 Space rebuild。
@@ -245,15 +246,15 @@ HF Space 适合：低频测试 / 演示 / 不追求稳定运行。
 https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appQQQ-quantitative-backtesting-backend.hf.space
 ```
 
-`config.js` 会把 URL 存到 localStorage，以后免带参数。本地开发保持 `?api=` 为空即同源。
+`web/src/api.js` 会把后端 URL 存到 localStorage（URL 不是密钥）。使用 `?api=local` 可恢复同源/默认后端。
 
 ### 四、访客配置自己的 API 密钥
 
-首次访问时，**左上方"API 密钥"按钮是红色脉冲状态**，页面顶部还有横幅提醒。点击按钮 → 弹出模态框 → 填入自己的问财 OpenAPI Key（必填）+ MiniMax Key（可选）→ 保存。
+点击右上角「连接设置」，可配置后端地址、问财 Key、MiniMax Key 和独立的站点访问密钥。
 
-- key 只存在访客浏览器 `localStorage.quant_keys`，绝不上传到任何地方
-- 关闭浏览器后仍在；点模态框里的"清除"按钮才能删
-- 后续所有 `/api/*` 请求自动带上 `api_key` / `minimax_api_key`
+- key 只存在当前标签页的 `sessionStorage.quant_session_credentials`
+- 关闭标签页后自动清除，也可在模态框中点「清空」
+- `/api/*` 请求自动带上 `iwencai_api_key` / `minimax_api_key`；站点密钥通过 `X-API-Key` 发送
 - 后端优先用访客的 key，没有时再 fallback 到 Settings / env var
 
 ### 安全原则
@@ -261,12 +262,12 @@ https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appQQQ-quan
 | 风险 | 缓解 |
 |---|---|
 | `.env` 进 git | 已 gitignore；CI / Render 都不读 .env |
-| API key 进 yaml | `sync: false` 阻止 Render 从 .env 同步，改为 dashboard 手动填 |
+| API key 进仓库 | Render / HF Dashboard 中手动配置 secret，不写入 yaml / `.env.example` |
 | Owner key 进 Render | **可选**；不填则 backend 完全无 owner key，访客必须自带 |
 | API key 进 Pages | Pages 只托管静态文件，无密钥 |
-| 访客 key 泄漏 | key 只在访客浏览器 localStorage；HTTPS 才能防中间人 |
+| 访客 key 泄漏 | key 只在会话存储；CSP 降低 XSS 风险；公网必须使用 HTTPS |
 | CORS 滥用 | 部署后建议把 `CORS_ORIGIN` 收窄到 Pages 域名 |
-| 公开部署被刷 API | 用 `RATE_LIMIT` + `RATE_WINDOW` 限流；考虑加 `API_KEY` 静态鉴权 |
+| 公开部署被刷 API | `RATE_LIMIT` + `RATE_WINDOW`；多实例配 `REDIS_URL`；必要时启用 `API_KEY` |
 | iwencai key 绑本地 IP | 联系 iwencai 把 HF Space 出口 IP 加白，或改用 IP-无关的鉴权方式 |
 
 ### 成本
@@ -415,12 +416,13 @@ MA5 < MA20 或 RSI6 > 60
 
 ## 回测约定
 
-- 使用收盘价成交。
+- 当日收盘数据产生信号，下一根可交易 K 线的开盘价加/减滑点成交，避免前视偏差。
 - 买入尽量使用可用现金。
 - A 股按 `100` 股整数手下单。
 - 卖出时一次性卖出全部持仓。
-- 买入和卖出均扣手续费。
-- 默认手续费率为 `0.0003`。
+- 默认券商佣金率 `0.0003`（每笔最低 5 元），卖出印花税 `0.0005`，双边过户费 `0.00001`，单边滑点 `0.0005`。
+- 明确 `volume=0` 时视为停牌/无成交；一字涨停不买、一字跌停不卖，指令默认最多延期 5 根 K 线。
+- 涨跌停比例根据代码/名称推断；新股初期等特例应通过 `price_limit_pct` 显式覆盖。
 - 回测结果中的基准收益为区间首尾收盘价收益。
 - 权益曲线中的 `signal` 表示当天交易信号，K线图买卖点按交易发生日期标记。
 - 卖出交易记录会保留实际卖出的股数，便于 K 线标记和交易复盘。
@@ -484,6 +486,8 @@ MA5 < MA20 或 RSI6 > 60
 - `summary`
 - `equity_curve`
 - `trades`
+- `order_events`
+- `execution`
 - `bars`
 - `query`
 - `persistence`
@@ -681,6 +685,11 @@ mysql --protocol=SOCKET --socket=/tmp/quant_mysql.sock -u quant_user -pyour_mysq
 | `MINIMAX_MODEL` | AI 分析模型 | `MiniMax-M2.7` |
 | `HOST` | HTTP 服务 host | `127.0.0.1` |
 | `PORT` | HTTP 服务端口 | `8000` |
+| `REQUEST_TIMEOUT` | 单个 HTTP 连接超时秒数 | `30` |
+| `MAX_BODY_BYTES` | JSON 请求体上限 | `1048576` |
+| `RATE_LIMIT` / `RATE_WINDOW` | 单 IP 限流 | `60 / 60s` |
+| `TRUSTED_PROXIES` | 可信代理头来源，如 `render` | 空 |
+| `REDIS_URL` | 可选多实例限流/寻优锁 | 空（本地保护） |
 | `MYSQL_PERSIST_ENABLED` | 是否允许 MySQL 持久化 | 关闭 |
 | `MYSQL_AUTO_PERSIST` | 是否每次查询/回测自动写库 | 关闭 |
 | `MYSQL_HOST` | MySQL host | `127.0.0.1` |
@@ -730,41 +739,24 @@ export MYSQL_DATABASE=quant_backtest
 /usr/local/opt/python@3.10/bin/python3.10 app.py
 ```
 
-### 4. `cli.py` 缺失
-
-`astock_api.py` 依赖 `cli.py` 中的问财请求函数。确保项目根目录存在 `cli.py`。
-
 ### 5. AI 分析总结被截断
 
-当前 `llm_analyzer.py` 已将 `max_tokens` 提高到 `4096`，并要求模型输出简洁完整。如仍被截断，可继续提高 `max_tokens` 或减少输入的 K 线数量。
+调整 `.env` 中的 `MINIMAX_MAX_TOKENS`，或减少传给 `quant/data/llm.py` 的 K 线数量。
 
-### 6. 选股时报 `Cannot set properties of null (setting 'textContent')`
+### 6. 前端修改后看不到变化
 
-通常是浏览器还加载了旧版 `app.js`，或页面结构和脚本版本不一致。
-
-处理方式：
+重新构建 React 生产资源：
 
 ```bash
-rm -rf __pycache__ /private/tmp/astock-pycache
+npm ci
+npm run build
 ```
 
-重新启动服务后，在浏览器执行强制刷新：
+重新启动服务后强制刷新：
 
 ```text
 Cmd + Shift + R
 ```
-
-当前 `static/app.js` 已对关键 DOM 写入做保护，正常情况下不会再因为单个节点不存在而中断选股。
-
-### 7. 页面修改后看不到变化
-
-优先确认服务返回的新脚本是否包含最新代码：
-
-```bash
-curl -s http://127.0.0.1:8000/app.js | rg "function setText|selector-meta"
-```
-
-如果命令能搜到，但浏览器还是旧表现，就是浏览器缓存。强制刷新或清理站点缓存即可。
 
 ## 最近稳定性修复
 
@@ -778,17 +770,18 @@ curl -s http://127.0.0.1:8000/app.js | rg "function setText|selector-meta"
 
 ## 开发建议
 
-- 策略新增优先放在 `backtester.py`。
-- 数据源适配优先放在 `astock_api.py`。
-- 页面交互优先放在 `static/app.js`。
-- 数据库结构变更先改 `mysql_schema.sql`，再同步 `db.py`。
-- 密钥建议后续迁移到 `.env`，不要硬编码在 README、脚本或 shell 历史中。
+- 策略新增放在 `quant/strategies/`，并同步 `SPECS` 注册表与测试。
+- 数据源适配放在 `quant/data/`，业务编排放在 `quant/services/`。
+- 页面交互放在 `web/src/`，不要直接编辑 Vite 生成的 `static/assets/`。
+- 数据库结构变更先改 `mysql_schema.sql`，再同步 `quant/persistence/`。
+- 密钥只放在 `.env` / 部署平台 Secret 或前端会话存储，不要硬编码。
 - 批量回测建议增加行情缓存，避免重复请求问财接口。
 - 策略验证建议加入样本内/样本外切分、参数网格搜索和基准对比。
-- 后端规模继续扩大时，可以从 `http.server` 迁移到 FastAPI，获得更好的参数校验、接口文档和异步任务管理。
+- 若需要多实例共享限流、长任务排队或水平扩展，建议迁移到 ASGI + Redis 任务队列。
 - 高风险改动后至少运行：
 
 ```bash
-PYTHONPYCACHEPREFIX=/private/tmp/astock-pycache python3 -m py_compile app.py backtester.py astock_api.py db.py llm_analyzer.py
-node --check static/app.js
+python3 -m compileall -q quant app.py app_hf.py
+python3 -m pytest -q
+npm run build
 ```

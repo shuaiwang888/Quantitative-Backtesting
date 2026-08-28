@@ -41,7 +41,7 @@ def main() -> int:
     #   - HF Space：注入 PORT=7860，无 HOST → 0.0.0.0:7860（满足 HF 健康检查）
     # IWENCAI_API_KEY 不再硬性必填：
     # - 本地开发：填 .env 方便；
-    # - 公开部署：把 key 留空，访客在浏览器里填自己的（POST 时通过 payload.api_key 透传）。
+    # - 公开部署：把 key 留空，访客在浏览器里填自己的（POST 时通过 iwencai_api_key 透传）。
     if not os.environ.get("IWENCAI_API_KEY"):
         print(
             "提示: IWENCAI_API_KEY 未配置 —— 访客需在浏览器里填入自己的 key 才能调用 /api/*",

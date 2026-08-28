@@ -11,7 +11,16 @@ from quant.data.normalization import build_history_query, normalize_bars
 from quant.errors import UpstreamError, ValidationError
 from quant.logging_setup import get_logger
 from quant.persistence import persist_bars
-from quant.strategies import SPECS, get_spec, min_bars, run_backtest
+from quant.strategies import SPECS, min_bars, run_backtest
+from quant.services.validation import (
+    validate_date_range,
+    validate_execution_inputs,
+    validate_financial_inputs,
+    validate_paging,
+    validate_query_text,
+    validate_single_series,
+    validate_symbol,
+)
 
 
 _LOG = get_logger("backtest_service")
@@ -40,6 +49,13 @@ class BacktestRequest:
     query: str = ""
     initial_cash: float = 100000.0
     fee_rate: float = 0.0003
+    slippage_rate: float = 0.0005
+    min_commission: float = 5.0
+    stamp_duty_rate: float = 0.0005
+    transfer_fee_rate: float = 0.00001
+    lot_size: int = 100
+    max_pending_bars: int = 5
+    price_limit_pct: Optional[float] = None
     persist: bool = False
     api_key: Optional[str] = None
     limit: int = 100
@@ -49,6 +65,18 @@ class BacktestRequest:
 
 def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
     """单标的 / 指数回测全流程。"""
+    validate_financial_inputs(req.initial_cash, req.fee_rate)
+    validate_execution_inputs(
+        slippage_rate=req.slippage_rate,
+        min_commission=req.min_commission,
+        stamp_duty_rate=req.stamp_duty_rate,
+        transfer_fee_rate=req.transfer_fee_rate,
+        lot_size=req.lot_size,
+        max_pending_bars=req.max_pending_bars,
+        price_limit_pct=req.price_limit_pct,
+    )
+    validate_paging(req.limit, req.max_pages)
+    validate_date_range(req.start_date, req.end_date)
     if req.strategy not in SPECS:
         raise ValidationError(
             f"未知策略: {req.strategy}",
@@ -60,7 +88,7 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
             details={"field": "backtest_mode"},
         )
 
-    symbol = req.symbol.strip()
+    symbol = validate_symbol(req.symbol)
     if req.backtest_mode == "index":
         symbol = INDEX_SYMBOLS.get(req.index_symbol)
         if not symbol:
@@ -69,7 +97,7 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
                 details={"field": "index_symbol", "available": list(INDEX_SYMBOLS)},
             )
 
-    query_text = req.query.strip()
+    query_text = validate_query_text(req.query)
     if not query_text:
         if not symbol or not req.start_date or not req.end_date:
             raise ValidationError(
@@ -89,6 +117,7 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
         raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
 
     bars = normalize_bars(response.get("datas", []))
+    validate_single_series(bars)
     if len(bars) < min_bars(req.strategy):
         raise ValidationError(
             f"可用K线不足，至少需要 {min_bars(req.strategy)} 条",
@@ -102,6 +131,13 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
         bars,
         initial_cash=req.initial_cash,
         fee_rate=req.fee_rate,
+        slippage_rate=req.slippage_rate,
+        min_commission=req.min_commission,
+        stamp_duty_rate=req.stamp_duty_rate,
+        transfer_fee_rate=req.transfer_fee_rate,
+        lot_size=req.lot_size,
+        max_pending_bars=req.max_pending_bars,
+        price_limit_pct=req.price_limit_pct,
         **params,
     )
     result["success"] = True

@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import itertools
 import os
-from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeout
+import threading
+import time
+from concurrent.futures import ProcessPoolExecutor, wait
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -20,16 +22,26 @@ from quant.config import get_settings
 from quant.data import iwencai
 from quant.data.iwencai import IwencaiError
 from quant.data.normalization import Bar, build_history_query, normalize_bars
-from quant.errors import ValidationError
+from quant.errors import RateLimitError, ValidationError
 from quant.logging_setup import get_logger
 from quant.payload_utils import _payload_float, _payload_int, _payload_str
 from quant.strategies import SPECS, get_spec, min_bars
+from quant.strategies.base import ExecutionConfig
+from quant.services.validation import (
+    validate_date_range,
+    validate_execution_inputs,
+    validate_financial_inputs,
+    validate_query_text,
+    validate_single_series,
+    validate_symbol,
+)
 
 
 _LOG = get_logger("optimize_service")
 
 # 低于此组合数直接顺序跑，避免进程池启动开销得不偿失
 MIN_PARALLEL_THRESHOLD = 8
+_OPTIMIZE_GATE = threading.BoundedSemaphore(1)
 
 # 2 参数热力图要展示的 6 个指标（顺序就是前端 toggle 按钮的顺序）
 OPTIMIZE_HEATMAP_METRICS = (
@@ -109,6 +121,13 @@ class OptimizeRequest:
     bars: Optional[List[Bar]] = None
     initial_cash: float = 100000.0
     fee_rate: float = 0.0003
+    slippage_rate: float = 0.0005
+    min_commission: float = 5.0
+    stamp_duty_rate: float = 0.0005
+    transfer_fee_rate: float = 0.00001
+    lot_size: int = 100
+    max_pending_bars: int = 5
+    price_limit_pct: Optional[float] = None
     # 单次寻优可临时覆盖默认上限；None 时使用 Settings.optimize_max_combinations
     max_combinations: Optional[int] = None
 
@@ -116,7 +135,7 @@ class OptimizeRequest:
 def _count_combinations(ranges: Dict[str, List[Any]]) -> int:
     total = 1
     for values in ranges.values():
-        total *= max(1, len(values or []))
+        total *= len(values)
     return total
 
 
@@ -130,6 +149,7 @@ def _worker_run_combo(
     bars: List[Bar],
     initial_cash: float,
     fee_rate: float,
+    execution: ExecutionConfig,
 ) -> Dict[str, Any]:
     """跑单组参数。返回 params + 关键指标；异常包成 ``_error``。"""
     spec = get_spec(strategy_name)
@@ -141,6 +161,7 @@ def _worker_run_combo(
             fee_rate=fee_rate,
             **{k: v for k, v in full.items() if k != "fee_rate"},
         )
+        instance.configure_execution(execution)
         result = instance.run(bars)
         summary = result.get("summary", {})
         return {
@@ -202,20 +223,71 @@ def run_grid_search(
     req: OptimizeRequest,
     bars: List[Bar],
 ) -> Dict[str, Any]:
+    """进程内一次只允许一个 CPU 密集型寻优，防止并发请求压垮主机。"""
+    if not _OPTIMIZE_GATE.acquire(blocking=False):
+        raise RateLimitError("已有寻优任务在运行，请稍后重试", retry_after=5)
+    lock_token: Optional[str] = None
+    try:
+        from quant.distributed import get_redis_coordinator
+
+        coordinator = get_redis_coordinator()
+        if coordinator is not None:
+            acquired, lock_token = coordinator.acquire_lock(
+                "optimize", get_settings().optimize_timeout_seconds + 60
+            )
+            if not acquired:
+                raise RateLimitError("已有寻优任务在运行，请稍后重试", retry_after=5)
+        return _run_grid_search(req, bars)
+    finally:
+        if "coordinator" in locals() and coordinator is not None:
+            coordinator.release_lock("optimize", lock_token)
+        _OPTIMIZE_GATE.release()
+
+
+def _run_grid_search(
+    req: OptimizeRequest,
+    bars: List[Bar],
+) -> Dict[str, Any]:
     """对一组 (bars, param_ranges) 跑网格寻优。"""
     if req.strategy not in SPECS:
         raise ValidationError(
             f"未知策略: {req.strategy}",
             details={"field": "strategy", "available": list(SPECS)},
         )
-    if not req.param_ranges:
+    validate_financial_inputs(req.initial_cash, req.fee_rate)
+    validate_execution_inputs(
+        slippage_rate=req.slippage_rate,
+        min_commission=req.min_commission,
+        stamp_duty_rate=req.stamp_duty_rate,
+        transfer_fee_rate=req.transfer_fee_rate,
+        lot_size=req.lot_size,
+        max_pending_bars=req.max_pending_bars,
+        price_limit_pct=req.price_limit_pct,
+    )
+    if not isinstance(req.param_ranges, dict) or not req.param_ranges:
         raise ValidationError("param_ranges 不能为空", details={"field": "param_ranges"})
+    invalid_ranges = [
+        key
+        for key, values in req.param_ranges.items()
+        if not isinstance(key, str) or not isinstance(values, list) or not values
+    ]
+    if invalid_ranges:
+        raise ValidationError(
+            "param_ranges 的每个参数都必须对应一个非空数组",
+            details={"field": "param_ranges", "invalid": [str(k) for k in invalid_ranges]},
+        )
 
     spec = get_spec(req.strategy)
     settings = get_settings()
 
     n_combos = _count_combinations(req.param_ranges)
-    effective_limit = req.max_combinations if (req.max_combinations and req.max_combinations > 0) else settings.optimize_max_combinations
+    # 请求只能收紧服务端上限，不能通过传入大值绕过 DoS 保护。
+    requested_limit = (
+        req.max_combinations
+        if req.max_combinations is not None and req.max_combinations > 0
+        else settings.optimize_max_combinations
+    )
+    effective_limit = min(requested_limit, settings.optimize_max_combinations)
     if n_combos > effective_limit:
         raise ValidationError(
             f"参数组合数 {n_combos} 超过上限 {effective_limit}",
@@ -241,17 +313,21 @@ def run_grid_search(
     combos = list(itertools.product(*values))
     results: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
+    timed_out = False
 
     n_jobs = _resolve_n_jobs(settings.optimize_n_jobs)
     timeout = settings.optimize_timeout_seconds
     use_parallel = n_jobs > 1 and len(combos) >= MIN_PARALLEL_THRESHOLD
+    execution = _execution_config(req)
 
     if use_parallel:
         _LOG.info(
             "寻优并行: strategy=%s combos=%d n_jobs=%d",
             req.strategy, len(combos), n_jobs,
         )
-        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+        executor = ProcessPoolExecutor(max_workers=n_jobs)
+        pending = set()
+        try:
             futures = {
                 executor.submit(
                     _worker_run_combo,
@@ -261,31 +337,60 @@ def run_grid_search(
                     bars,
                     req.initial_cash,
                     req.fee_rate,
+                    execution,
                 ): combo
                 for combo in combos
             }
-            per_combo_timeout = max(10.0, timeout / max(1, len(combos)))
-            for future in futures:
+            done, pending = wait(futures, timeout=timeout)
+            for future in done:
+                combo = futures[future]
                 try:
-                    outcome = future.result(timeout=per_combo_timeout)
-                except FuturesTimeout:
-                    errors.append({"params": {}, "error": "combo timeout"})
-                    continue
-                except Exception as exc:  # noqa: BLE001
-                    errors.append({"params": {}, "error": str(exc)})
+                    outcome = future.result()
+                except Exception:  # noqa: BLE001
+                    _LOG.exception("寻优 worker 失败: params=%s", dict(zip(keys, combo)))
+                    errors.append({"params": dict(zip(keys, combo)), "error": "worker 执行失败"})
                     continue
                 if "_error" in outcome:
                     errors.append({"params": outcome["params"], "error": outcome["_error"]})
                 else:
                     results.append(outcome)
+            if pending:
+                timed_out = True
+                for future in pending:
+                    future.cancel()
+                errors.append(
+                    {
+                        "params": {},
+                        "error": f"寻优超时，未完成 {len(pending)} 个参数组合",
+                    }
+                )
+        finally:
+            # 超时时不等待尚未响应的 worker；已排队任务全部取消。
+            executor.shutdown(wait=not pending, cancel_futures=True)
     else:
         _LOG.info(
             "寻优顺序: strategy=%s combos=%d threshold=%d",
             req.strategy, len(combos), MIN_PARALLEL_THRESHOLD,
         )
-        for combo in combos:
+        deadline = time.monotonic() + timeout
+        for index, combo in enumerate(combos):
+            if time.monotonic() >= deadline:
+                timed_out = True
+                errors.append(
+                    {
+                        "params": {},
+                        "error": f"寻优超时，跳过 {len(combos) - index} 个参数组合",
+                    }
+                )
+                break
             outcome = _worker_run_combo(
-                req.strategy, combo, tuple(keys), bars, req.initial_cash, req.fee_rate
+                req.strategy,
+                combo,
+                tuple(keys),
+                bars,
+                req.initial_cash,
+                req.fee_rate,
+                execution,
             )
             if "_error" in outcome:
                 errors.append({"params": outcome["params"], "error": outcome["_error"]})
@@ -304,6 +409,7 @@ def run_grid_search(
         "optimization_errors": errors,
         "parallel": use_parallel,
         "n_jobs": n_jobs if use_parallel else 1,
+        "timed_out": timed_out,
     }
 
     # 2 参数：6 个 metric 都生成 heatmap，前端可一键切换
@@ -347,13 +453,29 @@ def run_grid_search_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         query=_payload_str(payload.get("query", ""), "", "query"),
         initial_cash=_payload_float(payload.get("initial_cash"), 100000, "initial_cash"),
         fee_rate=_payload_float(payload.get("fee_rate"), 0.0003, "fee_rate"),
+        slippage_rate=_payload_float(payload.get("slippage_rate"), 0.0005, "slippage_rate"),
+        min_commission=_payload_float(payload.get("min_commission"), 5.0, "min_commission"),
+        stamp_duty_rate=_payload_float(payload.get("stamp_duty_rate"), 0.0005, "stamp_duty_rate"),
+        transfer_fee_rate=_payload_float(payload.get("transfer_fee_rate"), 0.00001, "transfer_fee_rate"),
+        lot_size=_payload_int(payload.get("lot_size"), 100, "lot_size"),
+        max_pending_bars=_payload_int(
+            payload.get("max_pending_bars"), 5, "max_pending_bars"
+        ),
+        price_limit_pct=(
+            _payload_float(payload.get("price_limit_pct"), 0.0, "price_limit_pct")
+            if payload.get("price_limit_pct") not in (None, "")
+            else None
+        ),
         max_combinations=(
             _payload_int(payload["max_combinations"], 0, "max_combinations")
             if payload.get("max_combinations") not in (None, "", 0)
             else None
         ),
     )
-    symbol = _payload_str(payload.get("symbol", ""), "", "symbol")
+    validate_financial_inputs(req.initial_cash, req.fee_rate)
+    validate_date_range(req.start_date, req.end_date)
+    req.query = validate_query_text(req.query)
+    symbol = validate_symbol(_payload_str(payload.get("symbol", ""), "", "symbol"))
     mode = _payload_str(payload.get("backtest_mode"), "single", "backtest_mode")
     if mode == "index":
         symbol = INDEX_SYMBOLS.get(_payload_str(payload.get("index_symbol"), "hs300", "index_symbol"), symbol)
@@ -375,6 +497,7 @@ def run_grid_search_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
 
     bars = normalize_bars(response.get("datas", []))
+    validate_single_series(bars)
     result = run_grid_search(req, bars)
     result["success"] = True
     result["query"] = query_text
@@ -388,6 +511,18 @@ def _resolve_n_jobs(configured: int) -> int:
         return 1
     cpu = max(1, os.cpu_count() or 1)
     return max(1, min(configured, cpu))
+
+
+def _execution_config(req: OptimizeRequest) -> ExecutionConfig:
+    return ExecutionConfig(
+        slippage_rate=req.slippage_rate,
+        min_commission=req.min_commission,
+        stamp_duty_rate=req.stamp_duty_rate,
+        transfer_fee_rate=req.transfer_fee_rate,
+        lot_size=req.lot_size,
+        max_pending_bars=req.max_pending_bars,
+        price_limit_pct=req.price_limit_pct,
+    )
 
 
 def _strategy_param_keys(strategy_cls: type) -> List[str]:

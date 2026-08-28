@@ -11,7 +11,7 @@ from quant.indicators import (
     precompute_rolling_high,
     slope,
 )
-from quant.strategies.base import BaseStrategy, _round_or_none
+from quant.strategies.base import BaseStrategy, PendingOrder, Trade, _round_or_none
 
 
 class MomentumATRStrategy(BaseStrategy):
@@ -75,9 +75,6 @@ class MomentumATRStrategy(BaseStrategy):
             stop_break = self.trailing_stop is not None and bar.close < self.trailing_stop
             if stop_break or trend_break:
                 self.sell(bar, bar.close)
-                self.entry_price = None
-                self.highest_since_entry = None
-                self.trailing_stop = None
                 return
 
         # 入场逻辑
@@ -98,10 +95,28 @@ class MomentumATRStrategy(BaseStrategy):
                 cash_sized = self.calc_buyable_shares(bar.close)
                 buyable = max(0, min(risk_sized, cash_sized))
                 if buyable > 0:
-                    self.entry_price = bar.close
-                    self.highest_since_entry = self.highs[index]
-                    self.trailing_stop = stop_price
                     self.buy(bar, bar.close, buyable)
+
+    def on_trade(self, trade: Trade) -> None:
+        if trade.side == "buy":
+            self.entry_price = trade.price
+            self.highest_since_entry = trade.price
+            self.trailing_stop = None
+        else:
+            self.entry_price = None
+            self.highest_since_entry = None
+            self.trailing_stop = None
+
+    def on_order_cancelled(self, order: PendingOrder) -> None:
+        if order.side == "buy" and self.shares == 0:
+            self.entry_price = None
+            self.highest_since_entry = None
+            self.trailing_stop = None
+
+    def reset_strategy_state(self) -> None:
+        self.entry_price = None
+        self.highest_since_entry = None
+        self.trailing_stop = None
 
 
 __all__ = ["MomentumATRStrategy"]

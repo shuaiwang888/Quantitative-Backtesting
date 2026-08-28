@@ -19,7 +19,6 @@ from typing import Any, Dict, List, Optional
 
 from quant.data.normalization import Bar
 from quant.factors import get_factor
-from quant.indicators import precompute_ma
 from quant.strategies.base import BaseStrategy, _round_or_none
 
 

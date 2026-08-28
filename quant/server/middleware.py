@@ -7,7 +7,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from hashlib import sha256
-from typing import Dict, Optional, Tuple
+from typing import Dict, Mapping, Optional, Tuple
 
 from quant.config import Settings
 from quant.errors import AuthError, RateLimitError
@@ -43,6 +43,21 @@ class RateLimiter:
                     retry_after=self.window_seconds,
                 )
             self._buckets[key] = (count + 1, window_start)
+        # 本地限流通过后再检查可选 Redis 全局计数；Redis 故障时保留本地结果。
+        from quant.distributed import get_redis_coordinator
+
+        coordinator = get_redis_coordinator()
+        distributed = (
+            coordinator.rate_limit(key, self.limit, self.window_seconds)
+            if coordinator is not None
+            else None
+        )
+        if distributed is not None and not distributed[0]:
+            raise RateLimitError(
+                "请求过于频繁，请稍后再试",
+                details={"limit": self.limit, "window": self.window_seconds},
+                retry_after=distributed[1],
+            )
 
     def _gc_locked(self, now: float) -> None:
         cutoff = now - self.window_seconds * 2
@@ -56,18 +71,46 @@ class RateLimiter:
                 self._buckets.pop(k, None)
 
 
-def check_auth(payload: dict, settings: Settings) -> None:
+def _header_access_key(headers: Optional[Mapping[str, str]]) -> str:
+    """从标准 HTTP 头中读取站点访问密钥。"""
+    if not headers:
+        return ""
+    explicit = (headers.get("X-API-Key") or "").strip()
+    if explicit:
+        return explicit
+    authorization = (headers.get("Authorization") or "").strip()
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() == "bearer" and token.strip():
+        return token.strip()
+    return ""
+
+
+def check_auth(
+    payload: dict,
+    settings: Settings,
+    headers: Optional[Mapping[str, str]] = None,
+) -> None:
     """根据配置校验 API Key。
 
     - API_KEY 和 API_KEY_HASH 都未配置 → 公开访问（向后兼容）。
-    - 至少配了一项 → **强制**要求请求带 `api_key` 字段，并用
+    - 至少配了一项 → **强制**要求请求带 `access_key`、
+      `X-API-Key` 或 `Authorization: Bearer ...`，并用
       `hmac.compare_digest` 常时间比较，杜绝侧信道 + 长度旁路。
+    - 为兼容旧客户端，payload `api_key` 仍作最后回退；新客户端应
+      将站点密钥与问财密钥分开，避免将站点密钥透传给上游。
     """
     auth_enabled = bool(settings.api_key or settings.api_key_hash)
     if not auth_enabled:
         return
 
-    provided = payload.get("api_key") or ""
+    provided = (
+        payload.get("access_key")
+        or _header_access_key(headers)
+        or payload.get("api_key")
+        or ""
+    )
+    if not isinstance(provided, str):
+        raise AuthError("API 密钥格式无效")
     if not provided:
         raise AuthError("API 密钥未提供")
 

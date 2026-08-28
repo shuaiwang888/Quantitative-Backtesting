@@ -67,8 +67,8 @@ jobs:
 
           # A股量化回测平台后端
 
-          Gradio SDK Space，监听 0.0.0.0:7860。接口为 CPU/网络 I/O 任务，
-          不使用 `@spaces.GPU`，因此不会消耗 ZeroGPU 配额。
+          Gradio SDK Space，监听 0.0.0.0:7860。业务为 CPU/网络 I/O 任务；
+          `@spaces.GPU` 仅用于兼容当前 Space 的 ZeroGPU 硬件约束。
 
           前端（GitHub Pages）：https://shuaiwang888.github.io/Quantitative-Backtesting/
           （首次访问加 `?api=https://appQQQ-quantitative-backtesting-backend.hf.space` 切换后端）
@@ -86,7 +86,7 @@ jobs:
           ## 配置
 
           Space Settings → Variables and secrets：
-          - `CORS_ORIGIN` = `https://shuaiwang888.github.io`
+          - `CORS_ORIGIN` = `https://github.wsllm.top,https://shuaiwang888.github.io`
           - `IWENCAI_API_KEY`（secret）= owner 的问财 key
           - `MINIMAX_API_KEY`（secret）= owner 的 M2.7 key
           - `PORT` = `7860`

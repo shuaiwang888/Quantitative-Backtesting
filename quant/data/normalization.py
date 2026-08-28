@@ -136,7 +136,7 @@ def to_float(value: Any) -> Optional[float]:
 
 
 def normalize_date(value: Any) -> str:
-    """统一日期为 `YYYY-MM-DD`。无法解析时截取前 10 字符。"""
+    """统一日期为 `YYYY-MM-DD`。无法解析时返回空字符串。"""
     if not value:
         return ""
     text = str(value).strip()
@@ -145,7 +145,7 @@ def normalize_date(value: Any) -> str:
             return datetime.strptime(text[:length], fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
-    return text[:10]
+    return ""
 
 
 # --- K 线规范化主入口 ---
@@ -178,18 +178,20 @@ def normalize_bars(rows: Iterable[Any]) -> List[Bar]:
 def _normalize_long_row(row: Mapping[str, Any]) -> Optional[Bar]:
     date = normalize_date(pick_text(row, DATE_KEYS, DATE_FUZZY))
     close = pick_float(row, CLOSE_KEYS, CLOSE_FUZZY)
-    if not date or close is None:
+    if not date or close is None or close <= 0:
         return None
-    return Bar(
+    bar = Bar(
         date=date,
         close=close,
         open=pick_float(row, OPEN_KEYS, OPEN_FUZZY),
         high=pick_float(row, HIGH_KEYS, HIGH_FUZZY),
         low=pick_float(row, LOW_KEYS, LOW_FUZZY),
         volume=pick_float(row, VOLUME_KEYS, VOLUME_FUZZY),
+        amount=pick_float(row, AMOUNT_KEYS),
         code=pick_text(row, CODE_KEYS, CODE_FUZZY),
         name=pick_text(row, NAME_KEYS, NAME_FUZZY),
     )
+    return bar if _valid_ohlc(bar) else None
 
 
 def _normalize_wide_row(row: Mapping[str, Any]) -> List[Bar]:
@@ -219,22 +221,41 @@ def _normalize_wide_row(row: Mapping[str, Any]) -> List[Bar]:
     bars: List[Bar] = []
     for date, fields in by_date.items():
         close = to_float(fields.get("close"))
-        if close is None:
+        if close is None or close <= 0:
             continue
-        bars.append(
-            Bar(
-                date=date,
-                close=close,
-                open=to_float(fields.get("open")),
-                high=to_float(fields.get("high")),
-                low=to_float(fields.get("low")),
-                volume=to_float(fields.get("volume")),
-                amount=to_float(fields.get("amount")),
-                code=code,
-                name=name,
-            )
+        bar = Bar(
+            date=date,
+            close=close,
+            open=to_float(fields.get("open")),
+            high=to_float(fields.get("high")),
+            low=to_float(fields.get("low")),
+            volume=to_float(fields.get("volume")),
+            amount=to_float(fields.get("amount")),
+            code=code,
+            name=name,
         )
+        if _valid_ohlc(bar):
+            bars.append(bar)
     return bars
+
+
+def _valid_ohlc(bar: Bar) -> bool:
+    prices = [value for value in (bar.open, bar.high, bar.low, bar.close) if value is not None]
+    if any(value <= 0 or not math.isfinite(value) for value in prices):
+        return False
+    if bar.volume is not None and (bar.volume < 0 or not math.isfinite(bar.volume)):
+        return False
+    if bar.amount is not None and (bar.amount < 0 or not math.isfinite(bar.amount)):
+        return False
+    if bar.high is not None and bar.high < max(
+        value for value in (bar.open, bar.low, bar.close) if value is not None
+    ):
+        return False
+    if bar.low is not None and bar.low > min(
+        value for value in (bar.open, bar.high, bar.close) if value is not None
+    ):
+        return False
+    return True
 
 
 # --- 行情查询语句构造 ---
@@ -250,7 +271,7 @@ def build_history_query(symbol: str, start_date: str, end_date: str) -> str:
         )
     return (
         f"{text} {start_date}到{end_date} 每日行情 "
-        "交易日期 开盘价 最高价 最低价 收盘价 成交量"
+        "股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额"
     )
 
 

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from quant.errors import ValidationError
@@ -53,16 +54,28 @@ def _payload_float(
             details={"got": value, "type": "bool"},
         )
     if isinstance(value, (int, float)):
-        return float(value)
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValidationError(
+                f"参数 {field_name} 必须是有限数值",
+                details={"field": field_name, "got": str(value)},
+            )
+        return result
     if isinstance(value, str):
         s = value.strip()
         try:
-            return float(s)
+            result = float(s)
         except ValueError as exc:
             raise ValidationError(
                 f"参数 {field_name} 不是合法数字: {value!r}",
                 details={"field": field_name, "got": value},
             ) from exc
+        if not math.isfinite(result):
+            raise ValidationError(
+                f"参数 {field_name} 必须是有限数值",
+                details={"field": field_name, "got": value},
+            )
+        return result
     raise ValidationError(
         f"参数 {field_name} 类型不支持",
         details={"field": field_name, "got": value, "type": type(value).__name__},
@@ -89,7 +102,7 @@ def _payload_int(
     if isinstance(value, int):
         return value
     if isinstance(value, float):
-        if not float(value).is_integer():
+        if not math.isfinite(value) or not float(value).is_integer():
             raise ValidationError(
                 f"参数 {field_name} 应当为整数（不能是小数）",
                 details={"field": field_name, "got": value},
@@ -108,7 +121,7 @@ def _payload_int(
                     f"参数 {field_name} 不是合法整数: {value!r}",
                     details={"field": field_name, "got": value},
                 ) from exc
-            if not f.is_integer():
+            if not math.isfinite(f) or not f.is_integer():
                 raise ValidationError(
                     f"参数 {field_name} 应当为整数（不能是小数）",
                     details={"field": field_name, "got": value},

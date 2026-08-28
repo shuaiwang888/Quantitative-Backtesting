@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from quant.config import get_settings
 from quant.data.llm import LLMError, analyze_backtest as _llm_analyze

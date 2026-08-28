@@ -11,6 +11,7 @@ from quant.data.normalization import normalize_bars
 from quant.errors import UpstreamError, ValidationError
 from quant.logging_setup import get_logger
 from quant.persistence import persist_indicator_rows
+from quant.services.validation import validate_query_text, validate_single_series
 
 
 _LOG = get_logger("query_service")
@@ -28,8 +29,7 @@ class QueryRequest:
 
 def natural_language_query(req: QueryRequest) -> Dict[str, Any]:
     """单页查询问财。强制 limit 上限避免单次响应过大。"""
-    if not req.query.strip():
-        raise ValidationError("查询语句不能为空", details={"field": "query"})
+    query_text = validate_query_text(req.query, required=True)
     if req.limit < 1 or req.limit > 100:
         raise ValidationError(
             "limit 必须在 1-100 之间",
@@ -39,7 +39,7 @@ def natural_language_query(req: QueryRequest) -> Dict[str, Any]:
         raise ValidationError("page 必须 >= 1", details={"field": "page", "got": req.page})
     try:
         result = query(
-            req.query,
+            query_text,
             page=req.page,
             limit=req.limit,
             api_key=req.api_key,
@@ -48,9 +48,9 @@ def natural_language_query(req: QueryRequest) -> Dict[str, Any]:
     except IwencaiError as exc:
         _LOG.warning("问财查询失败: %s", exc.message)
         raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
-    payload = normalize_response(req.query, result)
+    payload = normalize_response(query_text, result)
     payload["persistence"] = _safe_persist_indicators(
-        payload.get("datas", []), req.query, req.page, req.limit, req.persist
+        payload.get("datas", []), query_text, req.page, req.limit, req.persist
     )
     return payload
 
@@ -63,8 +63,7 @@ def natural_language_query_all(
     max_pages: int = 10,
 ) -> Dict[str, Any]:
     """翻页拉取全部数据。"""
-    if not query_text.strip():
-        raise ValidationError("查询语句不能为空", details={"field": "query"})
+    query_text = validate_query_text(query_text, required=True)
     try:
         return fetch_all(
             query_text,
@@ -116,8 +115,7 @@ def fetch_bars(
         {symbol, name, bars: [{date, open, high, low, close, volume, ...}], source_count}
         失败时 raise UpstreamError。
     """
-    if not query_text.strip():
-        raise ValidationError("查询语句不能为空", details={"field": "query"})
+    query_text = validate_query_text(query_text, required=True)
     safe_limit = min(max(int(limit), 1), 100)
     safe_pages = max(1, min(int(max_pages), 20))
     try:
@@ -136,6 +134,7 @@ def fetch_bars(
         raise UpstreamError("问财未返回 K 线数据", details={"query": query_text})
 
     bars = normalize_bars(datas)
+    validate_single_series(bars)
     if not bars:
         raise UpstreamError("K 线数据归一化失败（无有效 OHLC）", details={"query": query_text})
 

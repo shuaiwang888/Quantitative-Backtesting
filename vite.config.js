@@ -11,12 +11,13 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   // Vite 项目根：所有源文件（index.html、src/、public/）都从这里算
   root: "web",
-  // GitHub Pages subpath: https://shuaiwang888.github.io/Quantitative-Backtesting/
-  base: "/Quantitative-Backtesting/",
+  // 相对路径同时适用于：本地根路径 + GitHub Pages 子目录。
+  base: "./",
   build: {
     // 关键：把构建产物输出到上层 static/ 目录（Pages 已经部署这个）
     outDir: "../static",
-    emptyOutDir: false,  // 不要清空 static/，里面还有 config.js 等老文件
+    // public/ 会在构建时重新复制图标；清空输出可防止哈希资源无限堆积。
+    emptyOutDir: true,
     assetsDir: "assets",
     sourcemap: false,
     minify: "esbuild",

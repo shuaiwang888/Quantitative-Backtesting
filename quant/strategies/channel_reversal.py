@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from quant.data.normalization import Bar
 from quant.indicators import precompute_rolling_high, precompute_rolling_low
-from quant.strategies.base import BaseStrategy, _round_or_none
+from quant.strategies.base import BaseStrategy, PendingOrder, Trade, _round_or_none
 
 
 class ChannelReversalStrategy(BaseStrategy):
@@ -66,15 +66,28 @@ class ChannelReversalStrategy(BaseStrategy):
         if self.shares == 0 and bar.close < prior_low:
             buyable = self.calc_buyable_shares(bar.close)
             if buyable > 0:
-                self.entry_price = bar.close
-                self.stop_price = self.entry_price * (1 - self.stop_loss_pct)
                 self.buy(bar, bar.close, buyable)
         elif self.shares > 0 and (
             bar.close > prior_high or (self.stop_price and bar.close <= self.stop_price)
         ):
             self.sell(bar, bar.close)
+
+    def on_trade(self, trade: Trade) -> None:
+        if trade.side == "buy":
+            self.entry_price = trade.price
+            self.stop_price = trade.price * (1 - self.stop_loss_pct)
+        else:
             self.entry_price = None
             self.stop_price = None
+
+    def on_order_cancelled(self, order: PendingOrder) -> None:
+        if order.side == "buy" and self.shares == 0:
+            self.entry_price = None
+            self.stop_price = None
+
+    def reset_strategy_state(self) -> None:
+        self.entry_price = None
+        self.stop_price = None
 
 
 __all__ = ["ChannelReversalStrategy"]

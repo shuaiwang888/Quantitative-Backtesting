@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 from quant.data.normalization import Bar
 from quant.factors.base import Factor, register_factor
@@ -22,10 +22,8 @@ from quant.factors.operators import (
     Series,
     _to_float,
     adv,
-    decay_linear,
     delay,
     delta,
-    product,
     rank,
     rolling_corr,
     scale,
@@ -33,13 +31,10 @@ from quant.factors.operators import (
     signedpower,
     ts_argmax,
     ts_max,
-    ts_mean,
     ts_min,
     ts_rank,
     ts_stddev,
     ts_sum,
-    vwap_from_bars,
-    where,
 )
 
 
@@ -245,11 +240,11 @@ class Alpha019(Alpha101Factor):
 
     def formula(self, o, h, l, c, v, r):
         d7 = delay(c, 7)
-        dc7 = delta(c, 7)
-        s_arg: Series = [None if (a is None or b is None) else (a - b + b) for a, b in zip(c, d7)]
-        s_arg = [None if (a is None or b is None) else (a + b) for a, b in zip(c, d7)]
-        # 重新算干净: close - delay(close,7) + delta(close,7) = 2*close - 2*delay(close,7)
-        s_arg = [None if (a is None or b is None) else (2 * a - 2 * b) for a, b in zip(c, d7)]
+        # close - delay(close,7) + delta(close,7) = 2*close - 2*delay(close,7)
+        s_arg: Series = [
+            None if (a is None or b is None) else (2 * a - 2 * b)
+            for a, b in zip(c, d7)
+        ]
         s_sign = sign(s_arg)
         sum_r = ts_sum(r, 250)
         long_rank = rank([None if x is None else (1 + x) for x in sum_r])

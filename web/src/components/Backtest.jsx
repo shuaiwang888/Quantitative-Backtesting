@@ -41,6 +41,12 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
   const [endDate, setEndDate] = useState(_initRange.end);
   const [initialCash, setInitialCash] = useState(100000);
   const [feeRate, setFeeRate] = useState(0.0003);
+  const [slippageRate, setSlippageRate] = useState(0.0005);
+  const [minCommission, setMinCommission] = useState(5);
+  const [stampDutyRate, setStampDutyRate] = useState(0.0005);
+  const [transferFeeRate, setTransferFeeRate] = useState(0.00001);
+  const [maxPendingBars, setMaxPendingBars] = useState(5);
+  const [priceLimitPct, setPriceLimitPct] = useState("");
   const [paramValues, setParamValues] = useState({});
   const [loading, setLoading] = useState(false);
   const [strategiesErr, setStrategiesErr] = useState("");
@@ -107,6 +113,12 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
         end_date: endDate,
         initial_cash: Number(initialCash),
         fee_rate: Number(feeRate),
+        slippage_rate: Number(slippageRate),
+        min_commission: Number(minCommission),
+        stamp_duty_rate: Number(stampDutyRate),
+        transfer_fee_rate: Number(transferFeeRate),
+        max_pending_bars: Number(maxPendingBars),
+        price_limit_pct: priceLimitPct === "" ? null : Number(priceLimitPct),
         strategy_params: paramValues,
       });
       if (data && data.success) {
@@ -234,7 +246,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
             />
           </div>
           <div className="form-field">
-            <label>费率 (单边)</label>
+            <label>券商佣金率 (单边)</label>
             <input
               className="mono"
               type="number"
@@ -243,9 +255,45 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
               value={feeRate}
               onChange={(e) => setFeeRate(e.target.value)}
             />
-            <span className="hint">A 股双边 0.03% ≈ 单边 0.0003</span>
+            <span className="hint">默认万三；印花税和过户费在下方单独计算</span>
           </div>
         </div>
+
+        <details style={{ marginTop: 12 }}>
+          <summary style={{ cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }}>
+            高级成交设置（次日开盘撮合 / 滑点 / A 股费用 / 涨跌停）
+          </summary>
+          <div className="form-grid" style={{ marginTop: 10 }}>
+            <div className="form-field">
+              <label>单边滑点率</label>
+              <input className="mono" type="number" step="0.0001" min="0" max="0.1" value={slippageRate} onChange={(e) => setSlippageRate(e.target.value)} />
+              <span className="hint">0.0005 = 5 bp</span>
+            </div>
+            <div className="form-field">
+              <label>每笔最低佣金 (元)</label>
+              <input className="mono" type="number" step="1" min="0" value={minCommission} onChange={(e) => setMinCommission(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>卖出印花税率</label>
+              <input className="mono" type="number" step="0.0001" min="0" max="0.1" value={stampDutyRate} onChange={(e) => setStampDutyRate(e.target.value)} />
+              <span className="hint">0.0005 = 0.05%，仅卖出</span>
+            </div>
+            <div className="form-field">
+              <label>过户费率 (双边)</label>
+              <input className="mono" type="number" step="0.000001" min="0" max="0.1" value={transferFeeRate} onChange={(e) => setTransferFeeRate(e.target.value)} />
+              <span className="hint">0.00001 = 0.001%</span>
+            </div>
+            <div className="form-field">
+              <label>指令最大等待 K 线</label>
+              <input className="mono" type="number" step="1" min="1" max="100" value={maxPendingBars} onChange={(e) => setMaxPendingBars(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>涨跌停幅覆盖</label>
+              <input className="mono" type="number" step="0.01" min="0.01" max="0.99" value={priceLimitPct} onChange={(e) => setPriceLimitPct(e.target.value)} placeholder="留空自动" />
+              <span className="hint">自动识别 ST / 创业板 / 科创板 / 北交所</span>
+            </div>
+          </div>
+        </details>
 
         <div className="form-actions" style={{ marginTop: 14 }}>
           <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -328,7 +376,15 @@ function BacktestResult({ result, onError, onStatus, cacheTs }) {
         <MetricCard label="夏普" value={numberOrDash(summary.sharpe_ratio, 2)} />
         <MetricCard label="胜率" value={formatPercentText(summary.win_rate)} />
         <MetricCard label="交易次数" value={String(summary.trade_count ?? 0)} />
+        <MetricCard label="总交易成本" value={money(summary.total_cost)} />
         <MetricCard label="最终资金" value={money(summary.final_equity)} />
+      </div>
+
+      <div className="hint" style={{ lineHeight: 1.7 }}>
+        成交模型：收盘产生信号，下一根可交易 K 线开盘成交。
+        佣金 {money(summary.commission)} · 印花税 {money(summary.stamp_duty)} ·
+        过户费 {money(summary.transfer_fee)} · 滑点 {money(summary.slippage_cost)}
+        {(summary.deferred_orders || summary.cancelled_orders) ? ` · 延期 ${summary.deferred_orders || 0} · 取消 ${summary.cancelled_orders || 0}` : ""}
       </div>
 
       <div className="chart-panel">
@@ -345,6 +401,13 @@ function BacktestResult({ result, onError, onStatus, cacheTs }) {
         <h4>交易记录 ({result.trades?.length || 0})</h4>
         <TradesTable trades={result.trades || []} />
       </div>
+
+      {(result.order_events || []).some((e) => e.status !== "filled") && (
+        <div className="chart-panel">
+          <h4>未即时成交的指令</h4>
+          <OrderEvents events={result.order_events || []} />
+        </div>
+      )}
 
       {/* ===== AI 复盘 ===== */}
       <div className="chart-panel">
@@ -1140,17 +1203,20 @@ function TradesTable({ trades }) {
       <table>
         <thead>
           <tr>
-            <th style={{ textAlign: "left" }}>日期</th>
+            <th style={{ textAlign: "left" }}>信号日</th>
+            <th style={{ textAlign: "left" }}>成交日</th>
             <th>方向</th>
             <th>价格</th>
             <th>股数</th>
-            <th>手续费</th>
+            <th>税费</th>
+            <th>滑点成本</th>
             <th>剩余资金</th>
           </tr>
         </thead>
         <tbody>
           {trades.slice(0, 200).map((t, i) => (
             <tr key={i}>
+              <td style={{ textAlign: "left" }} className="mono">{(t.signal_date || t.date || "").slice(0, 10)}</td>
               <td style={{ textAlign: "left" }} className="mono">{(t.date || "").slice(0, 10)}</td>
               <td>
                 <span className={t.side === "buy" ? "down" : "up"} style={{ fontWeight: 500 }}>
@@ -1160,6 +1226,7 @@ function TradesTable({ trades }) {
               <td className="mono">{money(t.price)}</td>
               <td className="mono">{t.shares}</td>
               <td className="mono">{money(t.fee)}</td>
+              <td className="mono">{money(t.slippage_cost)}</td>
               <td className="mono">{money(t.cash_after)}</td>
             </tr>
           ))}
@@ -1170,6 +1237,27 @@ function TradesTable({ trades }) {
           仅显示前 200 条（合计 {trades.length} 笔）
         </div>
       )}
+    </div>
+  );
+}
+
+function OrderEvents({ events }) {
+  const rows = events.filter((e) => e.status !== "filled").slice(0, 100);
+  return (
+    <div className="table-wrap" style={{ maxHeight: 240 }}>
+      <table>
+        <thead><tr><th>信号日</th><th>处理日</th><th>方向</th><th>状态</th><th style={{ textAlign: "left" }}>原因</th></tr></thead>
+        <tbody>
+          {rows.map((e, i) => (
+            <tr key={i}>
+              <td className="mono">{e.signal_date}</td><td className="mono">{e.date}</td>
+              <td>{e.side === "buy" ? "买" : "卖"}</td>
+              <td>{e.status === "deferred" ? "延期" : "取消"}</td>
+              <td style={{ textAlign: "left" }}>{e.reason || "--"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

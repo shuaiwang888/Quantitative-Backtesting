@@ -29,8 +29,7 @@ export MYSQL_HOST MYSQL_PORT MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE
 export PYTHONPYCACHEPREFIX
 
 if [[ -z "${IWENCAI_API_KEY:-}" ]]; then
-  echo "错误: .env 中未设置 IWENCAI_API_KEY" >&2
-  exit 1
+  echo "提示: 未设置 IWENCAI_API_KEY，可在页面「连接设置」中填入会话密钥" >&2
 fi
 
 # 当 MySQL 持久化启用时强制要求提供凭据

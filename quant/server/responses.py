@@ -13,6 +13,7 @@ CORS 策略：
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, Dict, Iterable, Optional
 
 
@@ -56,7 +57,9 @@ def _send_cors_headers(handler, allowed_origin: Optional[str]) -> None:
         if allowed_origin != "*":
             handler.send_header("Access-Control-Allow-Credentials", "true")
     handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    handler.send_header(
+        "Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key"
+    )
 
 
 def json_response(
@@ -71,7 +74,7 @@ def json_response(
 
     ``extra_headers`` 用于补充特殊场景下的响应头（如 429 携带 Retry-After）。
     """
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    body = json.dumps(_json_safe(payload), ensure_ascii=False, allow_nan=False).encode("utf-8")
     whitelist = _parse_whitelist(cors_origin)
     request_origin = handler.headers.get("Origin") if hasattr(handler, "headers") else None
     allowed = _resolve_allowed_origin(whitelist, request_origin)
@@ -79,12 +82,24 @@ def json_response(
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
     handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Cache-Control", "no-store")
     _send_cors_headers(handler, allowed)
     if extra_headers:
         for key, value in extra_headers.items():
             handler.send_header(key, value)
     handler.end_headers()
     handler.wfile.write(body)
+
+
+def _json_safe(value: Any) -> Any:
+    """把 NaN / Infinity 转成 null，保证输出是标准 JSON。"""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 def cors_preflight(handler, cors_origin: str = "") -> None:

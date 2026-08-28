@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from quant.config import get_settings
 from quant.data.iwencai import IwencaiError, fetch_all
 from quant.data.normalization import (
-    Bar,
     build_history_query,
     normalize_bars,
     pick_text,
@@ -19,6 +18,13 @@ from quant.errors import UpstreamError, ValidationError
 from quant.logging_setup import get_logger
 from quant.services.backtest import UNIVERSE_QUERIES, _safe_persist_bars
 from quant.strategies import SPECS, min_bars, run_backtest
+from quant.services.validation import (
+    validate_date_range,
+    validate_execution_inputs,
+    validate_financial_inputs,
+    validate_paging,
+    validate_symbol,
+)
 
 
 _LOG = get_logger("batch_service")
@@ -48,6 +54,13 @@ class BatchRequest:
     custom_symbols: Optional[str] = None
     initial_cash: float = 100000.0
     fee_rate: float = 0.0003
+    slippage_rate: float = 0.0005
+    min_commission: float = 5.0
+    stamp_duty_rate: float = 0.0005
+    transfer_fee_rate: float = 0.00001
+    lot_size: int = 100
+    max_pending_bars: int = 5
+    price_limit_pct: Optional[float] = None
     persist: bool = False
     api_key: Optional[str] = None
     limit: int = 100
@@ -59,17 +72,33 @@ class BatchRequest:
 
 def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
     """批量回测入口。返回每只标的的 summary + 总体汇总。"""
+    validate_financial_inputs(req.initial_cash, req.fee_rate)
+    validate_execution_inputs(
+        slippage_rate=req.slippage_rate,
+        min_commission=req.min_commission,
+        stamp_duty_rate=req.stamp_duty_rate,
+        transfer_fee_rate=req.transfer_fee_rate,
+        lot_size=req.lot_size,
+        max_pending_bars=req.max_pending_bars,
+        price_limit_pct=req.price_limit_pct,
+    )
+    validate_date_range(req.start_date, req.end_date, required=True)
+    validate_paging(req.limit, req.max_pages)
+    if req.max_symbols < 1 or req.max_workers < 1:
+        raise ValidationError(
+            "max_symbols 和 max_workers 必须大于 0",
+            details={"field": "max_symbols/max_workers"},
+        )
+    if not 1 <= req.universe_limit <= 100 or not 1 <= req.universe_pages <= 10:
+        raise ValidationError(
+            "universe_limit 必须在 1-100，universe_pages 必须在 1-10",
+            details={"field": "universe_limit/universe_pages"},
+        )
     if req.strategy not in SPECS:
         raise ValidationError(
             f"未知策略: {req.strategy}",
             details={"field": "strategy", "available": list(SPECS)},
         )
-    if not req.start_date or not req.end_date:
-        raise ValidationError(
-            "批量回测请填写开始日期和结束日期",
-            details={"field": "start_date/end_date"},
-        )
-
     settings = get_settings()
     max_symbols = max(1, min(req.max_symbols, settings.batch_max_symbols))
     max_workers = max(1, min(req.max_workers, settings.batch_max_workers))
@@ -107,6 +136,13 @@ def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
                 bars,
                 initial_cash=req.initial_cash,
                 fee_rate=req.fee_rate,
+                slippage_rate=req.slippage_rate,
+                min_commission=req.min_commission,
+                stamp_duty_rate=req.stamp_duty_rate,
+                transfer_fee_rate=req.transfer_fee_rate,
+                lot_size=req.lot_size,
+                max_pending_bars=req.max_pending_bars,
+                price_limit_pct=req.price_limit_pct,
                 **(req.strategy_params or {}),
             )
             summary = result["summary"]
@@ -127,9 +163,9 @@ def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
             )
         except IwencaiError as exc:
             return (None, {"symbol": code, "name": name, "error": f"问财错误: {exc.message}"})
-        except Exception as exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             _LOG.exception("批量回测 %s 失败", code)
-            return (None, {"symbol": code, "name": name, "error": f"{exc.__class__.__name__}: {exc}"})
+            return (None, {"symbol": code, "name": name, "error": "回测执行失败（详见服务端日志）"})
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(run_one, code, name): (code, name) for code, name in symbols}
@@ -139,6 +175,9 @@ def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
                 errors.append(err)
             elif row:
                 rows.append(row)
+
+    rows.sort(key=lambda row: str(row.get("symbol") or ""))
+    errors.sort(key=lambda row: str(row.get("symbol") or ""))
 
     return {
         "success": True,
@@ -163,7 +202,6 @@ def _resolve_symbols(req: BatchRequest) -> List[Tuple[str, str]]:
             f"未知股票池: {req.universe}",
             details={"field": "universe", "available": list(UNIVERSE_QUERIES)},
         )
-    settings = get_settings()
     try:
         response = fetch_all(
             query_text,
@@ -177,10 +215,15 @@ def _resolve_symbols(req: BatchRequest) -> List[Tuple[str, str]]:
 
 
 def _parse_custom_symbols(raw: str) -> List[Tuple[str, str]]:
+    if not isinstance(raw, str):
+        raise ValidationError(
+            "symbols 必须是逗号或换行分隔的字符串",
+            details={"field": "symbols"},
+        )
     result: List[Tuple[str, str]] = []
     seen = set()
     for token in raw.replace("\n", ",").replace("，", ",").split(","):
-        value = token.strip()
+        value = validate_symbol(token)
         if value and value not in seen:
             seen.add(value)
             result.append((value, ""))
@@ -229,7 +272,15 @@ def summarize_batch(rows: List[Dict[str, Any]], errors: List[Dict[str, str]]) ->
     ]
     wins = [v for v in returns if v > 0]
     sorted_returns = sorted(returns)
-    median = sorted_returns[len(sorted_returns) // 2] if sorted_returns else None
+    if not sorted_returns:
+        median = None
+    else:
+        middle = len(sorted_returns) // 2
+        median = (
+            sorted_returns[middle]
+            if len(sorted_returns) % 2
+            else (sorted_returns[middle - 1] + sorted_returns[middle]) / 2
+        )
     return {
         "tested_count": len(rows),
         "error_count": len(errors),

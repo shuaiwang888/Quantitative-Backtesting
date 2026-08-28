@@ -54,12 +54,18 @@ class Settings:
     """运行期配置。"""
 
     # --- HTTP 服务 ---
-    # 默认 0.0.0.0 同时满足：
-    #   - 本地 start.sh 显式 export HOST=127.0.0.1 → 走 127.0.0.1
-    #   - HF Space 不注入 HOST → 走 0.0.0.0 满足健康检查
-    host: str = field(default_factory=lambda: _get("HOST", "0.0.0.0"))
+    # 默认仅本机可访问；Docker / Render 必须显式配置 HOST=0.0.0.0。
+    host: str = field(default_factory=lambda: _get("HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: _get_int("PORT", 8000))
-    cors_origin: str = field(default_factory=lambda: _get("CORS_ORIGIN", "*"))
+    cors_origin: str = field(
+        default_factory=lambda: _get(
+            "CORS_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173"
+        )
+    )
+    request_timeout: int = field(default_factory=lambda: _get_int("REQUEST_TIMEOUT", 30))
+    max_body_bytes: int = field(
+        default_factory=lambda: _get_int("MAX_BODY_BYTES", 1 * 1024 * 1024)
+    )
 
     # --- 鉴权与限流 ---
     api_key: str = field(default_factory=lambda: _get("API_KEY", ""))
@@ -73,6 +79,12 @@ class Settings:
     #   - all / *    → 以上全部
     # 默认空 → 不信任任何代理头，直接用 socket peer address（防伪造 XFF 绕过限流）
     trusted_proxies: str = field(default_factory=lambda: _get("TRUSTED_PROXIES", ""))
+    # 多实例部署可选：跨进程限流 + 寻优互斥锁。未配置时自动用本地保护。
+    redis_url: str = field(default_factory=lambda: _get("REDIS_URL", ""))
+    redis_prefix: str = field(default_factory=lambda: _get("REDIS_PREFIX", "quant-backtest"))
+    redis_socket_timeout: float = field(
+        default_factory=lambda: _get_float("REDIS_SOCKET_TIMEOUT", 1.0)
+    )
 
     # --- 问财 API ---
     # 公开部署场景：owner 可以不配（访客在浏览器填自己的 key）。
@@ -92,7 +104,24 @@ class Settings:
     minimax_max_tokens: int = field(default_factory=lambda: _get_int("MINIMAX_MAX_TOKENS", 4096))
 
     def __post_init__(self) -> None:
-        """构造时校验 LLM 配置，提前发现不匹配。"""
+        """构造时校验运行配置，提前发现不安全或不可用的值。"""
+        if not 0 <= self.port <= 65535:
+            raise RuntimeError(f"PORT 必须在 0-65535 之间，得到: {self.port}")
+        positive = {
+            "REQUEST_TIMEOUT": self.request_timeout,
+            "MAX_BODY_BYTES": self.max_body_bytes,
+            "RATE_LIMIT": self.rate_limit,
+            "RATE_WINDOW": self.rate_window,
+            "OPTIMIZE_MAX_COMBINATIONS": self.optimize_max_combinations,
+            "OPTIMIZE_TIMEOUT_SECONDS": self.optimize_timeout_seconds,
+            "BATCH_MAX_SYMBOLS": self.batch_max_symbols,
+            "BATCH_MAX_WORKERS": self.batch_max_workers,
+            "REDIS_SOCKET_TIMEOUT": self.redis_socket_timeout,
+        }
+        invalid = {name: value for name, value in positive.items() if value <= 0}
+        if invalid:
+            rendered = ", ".join(f"{k}={v}" for k, v in invalid.items())
+            raise RuntimeError(f"以下环境变量必须大于 0: {rendered}")
         if not self.minimax_api_key:
             return  # LLM 关闭，跳过
         url = self.minimax_base_url.rstrip("/")
@@ -148,6 +177,7 @@ class Settings:
             f"auth={'enabled' if self.api_key or self.api_key_hash else 'disabled'} "
             f"rate_limit={self.rate_limit}/{self.rate_window}s "
             f"trusted_proxies={self.trusted_proxies or 'off'} "
+            f"redis={'enabled' if self.redis_url else 'local'} "
             f"iwencai={'owner' if self.iwencai_api_key else 'visitor'} "
             f"mysql={'enabled' if self.mysql_persist_enabled else 'disabled'} "
             f"llm={'enabled' if self.minimax_api_key else 'visitor'}"

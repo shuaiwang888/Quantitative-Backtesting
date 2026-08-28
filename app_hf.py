@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import logging
 from dataclasses import fields
 
 try:
@@ -42,10 +43,37 @@ from quant.config import get_settings
 from quant.logging_setup import setup_logging
 
 
+_LOG = logging.getLogger("quant.hf")
+
+
+def _error_response(exc: Exception) -> dict:
+    """只向访客暴露应用层明确标记过的错误。"""
+    from quant.errors import AppError
+
+    if isinstance(exc, AppError):
+        return exc.to_response()
+    _LOG.exception("HF API 未处理异常")
+    return {"success": False, "code": "internal_error", "error": "服务器内部错误"}
+
+
+def _prepare_payload(payload: dict | None) -> dict:
+    """让 HF 入口与 stdlib HTTP 入口使用相同的鉴权/密钥分离规则。"""
+    from quant.server.app import _normalize_request_credentials
+    from quant.server.middleware import check_auth
+
+    normalized = dict(payload or {})
+    settings = get_settings()
+    check_auth(normalized, settings)
+    return _normalize_request_credentials(normalized, settings, {})
+
+
 def _dataclass_payload(cls, payload: dict) -> dict:
     """只保留 dataclass 支持的字段，兼容前端统一注入的访客密钥。"""
     allowed = {f.name for f in fields(cls)}
-    return {k: v for k, v in (payload or {}).items() if k in allowed}
+    normalized = dict(payload or {})
+    if normalized.get("iwencai_api_key"):
+        normalized["api_key"] = normalized["iwencai_api_key"]
+    return {k: v for k, v in normalized.items() if k in allowed}
 
 
 # ---- Gradio function 包装：所有 API 用 dict payload 形式 ----
@@ -55,20 +83,24 @@ def _dataclass_payload(cls, payload: dict) -> dict:
 @_GPU(duration=20)
 def api_strategies(payload: dict = None):
     """GET /api/strategies 的 Gradio 版本（payload 忽略，保持 GET 语义）。"""
-    from quant.strategies import list_strategies
-    specs = list_strategies()
-    return {
-        "success": True,
-        "strategies": [
-            {
-                "name": s.name,
-                "display_name": s.display_name,
-                "default_params": s.default_params,
-                "default_grid": s.default_grid,
-            }
-            for s in specs
-        ],
-    }
+    try:
+        _prepare_payload(payload)
+        from quant.strategies import list_strategies
+        specs = list_strategies()
+        return {
+            "success": True,
+            "strategies": [
+                {
+                    "name": s.name,
+                    "display_name": s.display_name,
+                    "default_params": s.default_params,
+                    "default_grid": s.default_grid,
+                }
+                for s in specs
+            ],
+        }
+    except Exception as exc:
+        return _error_response(exc)
 
 
 @_GPU(duration=60)
@@ -76,11 +108,12 @@ def api_query(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
+        payload = _prepare_payload(payload)
         from quant.services.query import natural_language_query, QueryRequest
         req = QueryRequest(**_dataclass_payload(QueryRequest, payload))
         return natural_language_query(req)
     except Exception as exc:
-        return {"success": False, "code": "exception", "error": str(exc)}
+        return _error_response(exc)
 
 
 @_GPU(duration=60)
@@ -88,6 +121,7 @@ def api_bars(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
+        payload = _prepare_payload(payload)
         from quant.services.query import fetch_bars
         query = (payload.get("query") or "").strip()
         if not query:
@@ -99,7 +133,7 @@ def api_bars(payload: dict):
             limit=int(payload.get("limit") or 100),
         )
     except Exception as exc:
-        return {"success": False, "code": "exception", "error": str(exc)}
+        return _error_response(exc)
 
 
 @_GPU(duration=300)
@@ -107,11 +141,12 @@ def api_backtest(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
+        payload = _prepare_payload(payload)
         from quant.services.backtest import run_single_backtest, BacktestRequest
         req = BacktestRequest(**_dataclass_payload(BacktestRequest, payload))
         return run_single_backtest(req)
     except Exception as exc:
-        return {"success": False, "code": "exception", "error": str(exc)}
+        return _error_response(exc)
 
 
 @_GPU(duration=300)
@@ -119,11 +154,12 @@ def api_batch_backtest(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
+        payload = _prepare_payload(payload)
         from quant.services.batch import run_batch_backtest, BatchRequest
         req = BatchRequest(**_dataclass_payload(BatchRequest, payload))
         return run_batch_backtest(req)
     except Exception as exc:
-        return {"success": False, "code": "exception", "error": str(exc)}
+        return _error_response(exc)
 
 
 @_GPU(duration=300)
@@ -131,10 +167,11 @@ def api_optimize(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
+        payload = _prepare_payload(payload)
         from quant.services.optimize import run_grid_search_from_payload
         return run_grid_search_from_payload(payload)
     except Exception as exc:
-        return {"success": False, "code": "exception", "error": str(exc)}
+        return _error_response(exc)
 
 
 @_GPU(duration=120)
@@ -142,10 +179,11 @@ def api_analyze(payload: dict):
     if not isinstance(payload, dict):
         return {"success": False, "code": "validation", "error": "payload 必须是 dict"}
     try:
+        payload = _prepare_payload(payload)
         from quant.services.analyze import analyze
         return {"success": True, "analysis": analyze(payload)}
     except Exception as exc:
-        return {"success": False, "code": "exception", "error": str(exc)}
+        return _error_response(exc)
 
 
 def build_ui() -> gr.Blocks:
@@ -211,7 +249,7 @@ def build_ui() -> gr.Blocks:
             api_name="analyze",
         )
 
-    return demo
+    return demo.queue(max_size=32, default_concurrency_limit=2)
 
 
 def main() -> None:
@@ -227,7 +265,7 @@ def main() -> None:
     demo.launch(
         server_name="0.0.0.0",
         server_port=port,
-        show_error=True,
+        show_error=False,
     )
 
 

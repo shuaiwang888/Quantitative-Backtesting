@@ -9,10 +9,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Type
+from typing import Any, Dict, List, Type
 
 from quant.data.normalization import Bar
-from quant.strategies.base import BaseStrategy
+from quant.strategies.base import BaseStrategy, ExecutionConfig
 from quant.strategies.channel_reversal import ChannelReversalStrategy
 from quant.strategies.factor_strategy import FactorStrategy
 from quant.strategies.ma_rsi import MARSIStrategy
@@ -186,6 +186,7 @@ def make_strategy(
     *,
     initial_cash: float,
     fee_rate: float = 0.0003,
+    execution: ExecutionConfig | None = None,
     **params: Any,
 ) -> BaseStrategy:
     """根据 name 构造策略实例。
@@ -197,7 +198,9 @@ def make_strategy(
     merged = {**spec.default_params, **params}
     merged["initial_cash"] = initial_cash
     merged["fee_rate"] = fee_rate
-    return spec.strategy_cls(**merged)
+    strategy = spec.strategy_cls(**merged)
+    strategy.configure_execution(execution)
+    return strategy
 
 
 def min_bars(name: str) -> int:
@@ -225,6 +228,13 @@ def run_backtest(
     *,
     initial_cash: float = 100000.0,
     fee_rate: float = 0.0003,
+    slippage_rate: float = 0.0005,
+    min_commission: float = 5.0,
+    stamp_duty_rate: float = 0.0005,
+    transfer_fee_rate: float = 0.00001,
+    lot_size: int = 100,
+    max_pending_bars: int = 5,
+    price_limit_pct: float | None = None,
     **params: Any,
 ) -> Dict[str, Any]:
     """便捷入口：构造 + run。"""
@@ -235,7 +245,22 @@ def run_backtest(
             f"可用K线不足，至少需要 {needed} 条",
             details={"got": len(bars), "required": needed, "strategy": name},
         )
-    strategy = make_strategy(name, initial_cash=initial_cash, fee_rate=fee_rate, **params)
+    execution = ExecutionConfig(
+        slippage_rate=slippage_rate,
+        min_commission=min_commission,
+        stamp_duty_rate=stamp_duty_rate,
+        transfer_fee_rate=transfer_fee_rate,
+        lot_size=lot_size,
+        max_pending_bars=max_pending_bars,
+        price_limit_pct=price_limit_pct,
+    )
+    strategy = make_strategy(
+        name,
+        initial_cash=initial_cash,
+        fee_rate=fee_rate,
+        execution=execution,
+        **params,
+    )
     return strategy.run(bars)
 
 

@@ -186,6 +186,7 @@ class TestServerEndpoints:
         monkeypatch.setenv("IWENCAI_API_KEY", "test")
         monkeypatch.setenv("MYSQL_PERSIST_ENABLED", "0")
         monkeypatch.setenv("PORT", "0")  # 系统分配
+        monkeypatch.setenv("CORS_ORIGIN", "*")
         from quant.config import reset_settings_cache
 
         reset_settings_cache()
@@ -814,4 +815,3 @@ class TestBacktestHandler400:
         # 不一定 200（可能策略本身有别的问题），但绝对不能是 400/500 from handler
         # 关键是"abc" 这种会失败而"100000"不会
         assert status != 400 or "initial_cash" not in (body.get("error") or ""), body
-

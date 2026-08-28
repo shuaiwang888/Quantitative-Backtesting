@@ -55,6 +55,8 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Build (Vite → static/)
+        env:
+          VITE_API_BASE: https://quant-backtest-wj92.onrender.com
         run: npm run build
 
       # 用 `continue-on-error` 兜底：即使 configure-pages 在已启用 Pages 的 repo
