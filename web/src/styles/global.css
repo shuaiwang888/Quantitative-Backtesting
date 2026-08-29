@@ -1251,6 +1251,13 @@ svg {
   stroke-linejoin: round;
 }
 
+/* 图标与数据图表使用不同的尺寸系统。金融 SVG 必须跟随父容器宽度，
+   不能继承通用图标的 1.25em 尺寸，否则会被压缩到几乎不可见。 */
+svg.financial-chart {
+  width: 100%;
+  height: auto;
+}
+
 button,
 [role="button"] {
   -webkit-tap-highlight-color: transparent;

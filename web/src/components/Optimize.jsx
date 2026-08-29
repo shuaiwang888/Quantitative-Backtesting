@@ -297,7 +297,7 @@ function ParamLineChart({ data, metric }) {
   return (
     <div className="chart-panel" ref={wrapRef}>
       <h4>{m.label} vs {xKey}</h4>
-      <svg width={w} height={h} style={{ display: "block" }}>
+      <svg className="financial-chart" width={w} height={h} style={{ display: "block" }}>
         {ticks.map((t, i) => (
           <g key={i}>
             <line x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} stroke="var(--line)" strokeWidth="0.5" />
@@ -394,7 +394,7 @@ function ParamHeatmap({ data, metric }) {
   return (
     <div className="chart-panel" style={{ overflowX: "auto" }}>
       <h4>{heat.x_key} × {heat.y_key} → {m.label}</h4>
-      <svg width={w} height={h} style={{ display: "block" }}>
+      <svg className="financial-chart" width={w} height={h} style={{ display: "block" }}>
         {/* Y 轴标签 */}
         {ys.map((y, j) => (
           <text key={j} x={padL - 6} y={padT + j * cellH + cellH / 2 + 4} textAnchor="end" fontSize="11" fill="var(--text-secondary)" className="mono">

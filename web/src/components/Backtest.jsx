@@ -625,7 +625,7 @@ function EquityChart({ equity, bars }) {
 
   return (
     <div ref={wrapRef} style={{ width: "100%" }}>
-      <svg width={w} height={h} style={{ display: "block" }}>
+      <svg className="financial-chart" width={w} height={h} style={{ display: "block" }}>
         {/* 网格 */}
         {ticks.map((t, i) => (
           <g key={i}>
@@ -936,6 +936,7 @@ function CandleChart({ bars, trades }) {
       </div>
 
       <svg
+        className="financial-chart"
         width={w}
         height={h}
         style={{ display: "block", cursor: dragRef.current ? "grabbing" : "grab" }}

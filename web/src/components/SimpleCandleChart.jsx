@@ -127,6 +127,7 @@ export default function SimpleCandleChart({ bars }) {
   return (
     <div className="candle-chart" ref={containerRef}>
       <svg
+        className="financial-chart"
         viewBox={`0 0 ${width} ${H}`}
         width="100%"
         height={H}
