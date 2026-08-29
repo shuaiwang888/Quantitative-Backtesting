@@ -1256,6 +1256,11 @@ svg {
 svg.financial-chart {
   width: 100%;
   height: auto;
+  fill: none;
+  stroke: none;
+  stroke-width: initial;
+  stroke-linecap: initial;
+  stroke-linejoin: initial;
 }
 
 button,
@@ -1537,8 +1542,131 @@ summary:focus-visible {
 .metric-card-label { margin-bottom: 10px; font-size: 10px; letter-spacing: .08em; }
 .metric-card-value { font-size: 20px; letter-spacing: -.025em; }
 
-.chart-panel { padding: 18px; border-radius: var(--radius-md); }
-.chart-panel h4 { margin-bottom: 14px; font-size: 13px; letter-spacing: -.005em; }
+.chart-panel { padding: 18px; border-radius: var(--radius-md); overflow: hidden; }
+.chart-panel h4 { margin: 0 0 14px; font-size: 13px; letter-spacing: -.005em; }
+.equity-chart-shell,
+.candle-chart-shell {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 13%, var(--line));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 12% -18%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg) 85%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+.equity-chart-summary {
+  position: absolute;
+  z-index: 3;
+  top: 11px;
+  left: 62px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+}
+.chart-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 27px;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--material-heavy) 88%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter: blur(16px) saturate(140%);
+  font-size: 10px;
+}
+.chart-summary-item i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+.chart-summary-item strong { color: var(--text-primary); font-family: var(--font-mono); font-weight: 650; }
+.chart-summary-item--primary i { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 62%, transparent); }
+.chart-summary-item--excess { border-color: color-mix(in srgb, var(--accent) 20%, var(--line)); }
+.chart-summary-item--excess.up strong { color: var(--up-color); }
+.chart-summary-item--excess.down strong { color: var(--down-color); }
+.chart-summary-item.up::before,
+.chart-summary-item.down::before,
+.chart-tooltip .up::before,
+.chart-tooltip .down::before { content: none; }
+.chart-grid-line { stroke: var(--line); stroke-width: .7; vector-effect: non-scaling-stroke; }
+.chart-axis-label { fill: var(--text-tertiary); font-size: 10px; }
+.equity-line { vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.equity-line--strategy { stroke: var(--accent); stroke-width: 2.25; stroke-dasharray: 1; animation: equity-line-draw .7s cubic-bezier(.2,.8,.2,1) both; }
+.equity-line--benchmark { stroke: color-mix(in srgb, var(--text-tertiary) 78%, transparent); stroke-width: 1.35; stroke-dasharray: 5 5; }
+.chart-crosshair { stroke: color-mix(in srgb, var(--accent) 58%, transparent); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.equity-point { stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.equity-point--strategy { fill: var(--accent); stroke: var(--bg-elev); }
+.equity-point--benchmark { fill: var(--text-tertiary); stroke: var(--bg-elev); }
+@keyframes equity-line-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 6;
+  min-width: 204px;
+  padding: 11px 12px;
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, white 11%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+  box-shadow: 0 16px 40px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  pointer-events: none;
+  animation: chart-tooltip-in .14s ease-out both;
+}
+.chart-tooltip-date { margin-bottom: 8px; color: var(--text-tertiary); font: 10px/1.2 var(--font-mono); letter-spacing: .025em; }
+.chart-tooltip-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 10px; font-size: 11px; }
+.chart-tooltip-row + .chart-tooltip-row { margin-top: 5px; }
+.chart-tooltip-row span { color: var(--text-secondary); }
+.chart-tooltip-row strong { font-family: var(--font-mono); font-weight: 600; }
+.chart-tooltip-row em { min-width: 57px; font-family: var(--font-mono); font-style: normal; text-align: right; }
+@keyframes chart-tooltip-in { from { opacity: 0; transform: translateY(4px) scale(.985); } to { opacity: 1; transform: none; } }
+
+.candle-chart-shell { padding-top: 48px; touch-action: pan-y; }
+.candle-chart-meta {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+.candle-chart-meta strong { color: var(--text-secondary); font-family: var(--font-mono); font-weight: 550; }
+.candle-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--down-color); box-shadow: 0 0 8px color-mix(in srgb, var(--down-color) 55%, transparent); }
+.candle-chart-svg { user-select: none; -webkit-user-select: none; }
+.candle-ma-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 8px;
+  color: var(--text-tertiary);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  font: 10px/1 var(--font-mono);
+  cursor: pointer;
+  transition: color .18s, background .18s, transform .1s;
+}
+.candle-ma-btn i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.candle-ma-btn.is-active { color: var(--ma-color); background: color-mix(in srgb, var(--ma-color) 11%, transparent); }
+.candle-ma-btn:hover { color: var(--ma-color); }
+.candle-ma-btn:active { transform: scale(.94); }
+.candle-tooltip-grid { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 3px; font-size: 10px; }
+.candle-tooltip-grid > span:nth-child(odd) { color: var(--text-tertiary); }
+.candle-tooltip-grid > span:nth-child(even) { text-align: right; }
+.candle-tooltip-trades { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 10px; }
+.trade-marker { filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
 .candle-chart { overflow: hidden; background: color-mix(in srgb, var(--bg) 82%, transparent); border-radius: 12px; border: 1px solid var(--line); }
 .indicator-panel { background: transparent; padding: 14px 0 0; gap: 10px; }
 .indicator-card { border-radius: 12px; padding: 11px 12px; }

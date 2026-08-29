@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { postJson, money, percent, numberOrDash, formatPercentText } from "../api.js";
+import { postJson, money, percent, numberOrDash } from "../api.js";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const INDEX_OPTIONS = [
@@ -368,13 +368,13 @@ function BacktestResult({ result, onError, onStatus, cacheTs }) {
       </div>
 
       <div className="metric-grid">
-        <MetricCard label="总收益" value={formatPercentText(summary.total_return)} kind={pctKind(summary.total_return)} />
-        <MetricCard label="年化收益" value={formatPercentText(summary.annual_return)} kind={pctKind(summary.annual_return)} />
-        <MetricCard label="基准收益" value={formatPercentText(summary.benchmark_return)} kind={pctKind(summary.benchmark_return)} />
-        <MetricCard label="超额收益" value={formatPercentText(summary.excess_return)} kind={pctKind(summary.excess_return)} />
-        <MetricCard label="最大回撤" value={formatPercentText(summary.max_drawdown)} kind="down" />
+        <MetricCard label="总收益" value={percent(summary.total_return)} kind={pctKind(summary.total_return)} />
+        <MetricCard label="年化收益" value={percent(summary.annual_return)} kind={pctKind(summary.annual_return)} />
+        <MetricCard label="基准收益" value={percent(summary.benchmark_return)} kind={pctKind(summary.benchmark_return)} />
+        <MetricCard label="超额收益" value={percent(summary.excess_return)} kind={pctKind(summary.excess_return)} />
+        <MetricCard label="最大回撤" value={percent(summary.max_drawdown)} kind="down" />
         <MetricCard label="夏普" value={numberOrDash(summary.sharpe_ratio, 2)} />
-        <MetricCard label="胜率" value={formatPercentText(summary.win_rate)} />
+        <MetricCard label="胜率" value={percent(summary.win_rate)} />
         <MetricCard label="交易次数" value={String(summary.trade_count ?? 0)} />
         <MetricCard label="总交易成本" value={money(summary.total_cost)} />
         <MetricCard label="最终资金" value={money(summary.final_equity)} />
@@ -573,80 +573,142 @@ function pctKind(v) {
 function EquityChart({ equity, bars }) {
   const wrapRef = useRef(null);
   const [w, setW] = useState(900);
+  const [hoverIdx, setHoverIdx] = useState(null);
   useEffect(() => {
     if (!wrapRef.current) return;
     const ro = new ResizeObserver((entries) => {
-      for (const ent of entries) setW(Math.max(400, ent.contentRect.width));
+      for (const ent of entries) setW(Math.max(320, ent.contentRect.width));
     });
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
 
-  const h = 280;
-  const pad = { l: 50, r: 20, t: 20, b: 30 };
+  const h = 330;
+  const pad = { l: 62, r: 24, t: 34, b: 38 };
   const innerW = w - pad.l - pad.r;
   const innerH = h - pad.t - pad.b;
 
   const data = useMemo(() => {
     if (!equity.length || !bars.length) return null;
-    const dates = equity.map((p) => p.date);
-    const eq = equity.map((p) => p.equity);
-    const bench = bars.map((b) => b.close);
+    const count = Math.min(equity.length, bars.length);
+    const dates = equity.slice(0, count).map((p) => p.date);
+    const eq = equity.slice(0, count).map((p) => Number(p.equity));
+    const bench = bars.slice(0, count).map((b) => Number(b.close));
     // 把 benchmark 归一化到 initial_cash
     const init = eq[0] || 100000;
     const benchStart = bench[0] || 1;
     const benchEq = bench.map((c) => (c / benchStart) * init);
     const allVals = [...eq, ...benchEq];
-    const minV = Math.min(...allVals);
-    const maxV = Math.max(...allVals);
+    const rawMin = Math.min(...allVals);
+    const rawMax = Math.max(...allVals);
+    const breathingRoom = (rawMax - rawMin) * 0.1 || rawMax * 0.02 || 1;
+    const minV = rawMin - breathingRoom;
+    const maxV = rawMax + breathingRoom;
     const range = maxV - minV || 1;
     const n = dates.length;
     const x = (i) => pad.l + (i / Math.max(1, n - 1)) * innerW;
     const y = (v) => pad.t + (1 - (v - minV) / range) * innerH;
-    return { dates, eq, benchEq, x, y };
+    const strategyReturn = eq[eq.length - 1] / init - 1;
+    const benchmarkReturn = benchEq[benchEq.length - 1] / init - 1;
+    return { dates, eq, benchEq, x, y, minV, maxV, init, strategyReturn, benchmarkReturn };
   }, [equity, bars, innerW, innerH, pad.l, pad.t]);
 
   if (!data) return <div className="chart-empty">无数据</div>;
 
   const pathEq = data.eq.map((v, i) => `${i === 0 ? "M" : "L"}${data.x(i).toFixed(1)},${data.y(v).toFixed(1)}`).join(" ");
   const pathBench = data.benchEq.map((v, i) => `${i === 0 ? "M" : "L"}${data.x(i).toFixed(1)},${data.y(v).toFixed(1)}`).join(" ");
+  const areaEq = `${pathEq} L${data.x(data.eq.length - 1).toFixed(1)},${(h - pad.b).toFixed(1)} L${data.x(0).toFixed(1)},${(h - pad.b).toFixed(1)} Z`;
 
   // Y 轴 tick
   const yTicks = 4;
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => {
-    const v = (data.eq[0] === undefined ? 0 : 0) + i;
-    const yv = (() => {
-      const arr = data.eq.length ? data.eq : data.benchEq;
-      const lo = Math.min(...arr), hi = Math.max(...arr);
-      return lo + (hi - lo) * (1 - i / yTicks);
-    })();
+    const yv = data.maxV - (data.maxV - data.minV) * (i / yTicks);
     return { v: yv, y: pad.t + (i / yTicks) * innerH };
   });
 
+  const xTickCount = Math.min(5, data.dates.length);
+  const xTicks = Array.from({ length: xTickCount }, (_, i) => {
+    const idx = Math.round((i / Math.max(1, xTickCount - 1)) * (data.dates.length - 1));
+    return { idx, x: data.x(idx), label: String(data.dates[idx] || "").slice(2, 10) };
+  });
+  const formatSignedPercent = (value) => `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`;
+  const hover = hoverIdx == null ? null : {
+    date: data.dates[hoverIdx],
+    strategy: data.eq[hoverIdx],
+    benchmark: data.benchEq[hoverIdx],
+    strategyReturn: data.eq[hoverIdx] / data.init - 1,
+    benchmarkReturn: data.benchEq[hoverIdx] / data.init - 1,
+  };
+  const hoverX = hoverIdx == null ? 0 : data.x(hoverIdx);
+
+  const onPointerMove = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left - pad.l) / innerW));
+    setHoverIdx(Math.round(ratio * (data.dates.length - 1)));
+  };
+
   return (
-    <div ref={wrapRef} style={{ width: "100%" }}>
-      <svg className="financial-chart" width={w} height={h} style={{ display: "block" }}>
+    <div ref={wrapRef} className="equity-chart-shell">
+      <div className="equity-chart-summary" aria-label="回测收益概览">
+        <span className="chart-summary-item chart-summary-item--primary"><i />策略 <strong>{formatSignedPercent(data.strategyReturn)}</strong></span>
+        <span className="chart-summary-item"><i />基准 <strong>{formatSignedPercent(data.benchmarkReturn)}</strong></span>
+        <span className={`chart-summary-item chart-summary-item--excess ${pctKind(data.strategyReturn - data.benchmarkReturn)}`}>
+          超额 <strong>{formatSignedPercent(data.strategyReturn - data.benchmarkReturn)}</strong>
+        </span>
+      </div>
+      <svg
+        className="financial-chart equity-chart-svg"
+        width={w}
+        height={h}
+        style={{ display: "block" }}
+        onPointerMove={onPointerMove}
+        onPointerLeave={() => setHoverIdx(null)}
+        role="img"
+        aria-label="策略净值与基准收益对比曲线"
+      >
+        <defs>
+          <linearGradient id="equityAreaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+            <stop offset="72%" stopColor="var(--accent)" stopOpacity="0.05" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+          </linearGradient>
+          <filter id="equityGlow" x="-10%" y="-30%" width="120%" height="160%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
         {/* 网格 */}
         {ticks.map((t, i) => (
           <g key={i}>
-            <line x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} stroke="var(--line)" strokeWidth="0.5" />
-            <text x={pad.l - 6} y={t.y + 4} textAnchor="end" fontSize="10" fill="var(--text-tertiary)">
+            <line className="chart-grid-line" x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} />
+            <text x={pad.l - 10} y={t.y + 4} textAnchor="end" className="chart-axis-label mono">
               {Math.round(t.v).toLocaleString()}
             </text>
           </g>
         ))}
+        {xTicks.map((tick) => (
+          <text key={tick.idx} x={tick.x} y={h - 12} textAnchor="middle" className="chart-axis-label mono">{tick.label}</text>
+        ))}
+        <path d={areaEq} fill="url(#equityAreaGradient)" />
         {/* 基准 */}
-        <path d={pathBench} fill="none" stroke="var(--text-tertiary)" strokeWidth="1.2" strokeDasharray="3,3" />
+        <path className="equity-line equity-line--benchmark" d={pathBench} fill="none" />
         {/* 净值 */}
-        <path d={pathEq} fill="none" stroke="var(--accent)" strokeWidth="1.8" />
-        {/* 图例 */}
-        <g fontSize="11" fill="var(--text-secondary)">
-          <line x1={pad.l} y1={pad.t - 4} x2={pad.l + 18} y2={pad.t - 4} stroke="var(--accent)" strokeWidth="1.8" />
-          <text x={pad.l + 24} y={pad.t - 1}>策略净值</text>
-          <line x1={pad.l + 90} y1={pad.t - 4} x2={pad.l + 108} y2={pad.t - 4} stroke="var(--text-tertiary)" strokeWidth="1.2" strokeDasharray="3,3" />
-          <text x={pad.l + 114} y={pad.t - 1}>基准</text>
-        </g>
+        <path className="equity-line equity-line--strategy" d={pathEq} fill="none" filter="url(#equityGlow)" pathLength="1" />
+        {hover && (
+          <g pointerEvents="none">
+            <line className="chart-crosshair" x1={hoverX} x2={hoverX} y1={pad.t} y2={h - pad.b} />
+            <circle cx={hoverX} cy={data.y(hover.strategy)} r="5" className="equity-point equity-point--strategy" />
+            <circle cx={hoverX} cy={data.y(hover.benchmark)} r="4" className="equity-point equity-point--benchmark" />
+          </g>
+        )}
       </svg>
+      {hover && (
+        <div className="chart-tooltip equity-tooltip" style={{ left: Math.min(Math.max(hoverX + 14, 12), w - 218), top: 62 }}>
+          <div className="chart-tooltip-date">{hover.date}</div>
+          <div className="chart-tooltip-row"><span>策略净值</span><strong>{hover.strategy.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong><em className={pctKind(hover.strategyReturn)}>{formatSignedPercent(hover.strategyReturn)}</em></div>
+          <div className="chart-tooltip-row"><span>基准净值</span><strong>{hover.benchmark.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong><em className={pctKind(hover.benchmarkReturn)}>{formatSignedPercent(hover.benchmarkReturn)}</em></div>
+        </div>
+      )}
     </div>
   );
 }
@@ -667,7 +729,7 @@ function CandleChart({ bars, trades }) {
   useEffect(() => {
     if (!wrapRef.current) return;
     const ro = new ResizeObserver((entries) => {
-      for (const ent of entries) setW(Math.max(400, ent.contentRect.width));
+      for (const ent of entries) setW(Math.max(320, ent.contentRect.width));
     });
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
@@ -742,7 +804,7 @@ function CandleChart({ bars, trades }) {
 
   // === 视图参数：clamp + 计算可见区 ===
   const n = data.n;
-  const MIN_VIEW = 10;        // 最少显示 10 根
+  const MIN_VIEW = Math.min(10, n); // 最少显示 10 根（不足时显示全量）
   const MAX_VIEW = n;         // 最多全量
   const clampView = (s, e) => {
     let ns = Math.max(0, Math.min(s, n - MIN_VIEW));
@@ -764,10 +826,32 @@ function CandleChart({ bars, trades }) {
   // 当前缩放级别（相对全量，1 = 全量，>1 = 放大）
   const zoomLevel = n / Math.max(1, viewCount);
 
+  // 价格与成交量都按当前可见区动态定标；放大后蜡烛不会被全量极值压扁。
+  const visibleScale = (() => {
+    const visibleBars = bars.slice(firstBar, lastBar + 1);
+    const prices = visibleBars.flatMap((bar) => [
+      Number(bar.high ?? bar.close),
+      Number(bar.low ?? bar.close),
+    ]);
+    for (const [key, values] of Object.entries(ma)) {
+      if (!showMA[key]) continue;
+      prices.push(...values.slice(firstBar, lastBar + 1).filter((value) => value != null));
+    }
+    const rawMax = Math.max(...prices);
+    const rawMin = Math.min(...prices);
+    const margin = (rawMax - rawMin) * 0.08 || rawMax * 0.015 || 1;
+    const yMax = rawMax + margin;
+    const yMin = rawMin - margin;
+    const y = (price) => mainTop + (1 - (price - yMin) / (yMax - yMin || 1)) * innerH;
+    const maxVol = Math.max(...visibleBars.map((bar) => Number(bar.volume ?? 0)), 1);
+    const yVol = (volume) => volTop + volH - (volume / maxVol) * volH;
+    return { yMax, yMin, y, maxVol, yVol };
+  })();
+
   // Y 轴 ticks（5 段）
   const yTicks = 5;
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => ({
-    v: data.yMin + (data.yMax - data.yMin) * (1 - i / yTicks),
+    v: visibleScale.yMin + (visibleScale.yMax - visibleScale.yMin) * (1 - i / yTicks),
     y: mainTop + (i / yTicks) * innerH,
   }));
 
@@ -861,7 +945,7 @@ function CandleChart({ bars, trades }) {
   const hover = hoverIdx != null ? bars[hoverIdx] : null;
   const hoverTrades = hover ? (tradeMap.get(hover.date) || []) : [];
   const cx = hover ? xView(hoverIdx) : 0;
-  const cy = hover ? data.y(hover.close) : 0;
+  const cy = hover ? visibleScale.y(hover.close) : 0;
 
   // MA 折线路径（在视图范围内切片 + 用 xView）
   const maPath = (arr) => {
@@ -872,7 +956,7 @@ function CandleChart({ bars, trades }) {
     for (let i = lo; i <= hi; i++) {
       const v = arr[i];
       if (v == null) continue;
-      const s = `${started ? "L" : "M"}${xView(i).toFixed(1)},${data.y(v).toFixed(1)}`;
+      const s = `${started ? "L" : "M"}${xView(i).toFixed(1)},${visibleScale.y(v).toFixed(1)}`;
       started = true;
       out += s + " ";
     }
@@ -883,7 +967,13 @@ function CandleChart({ bars, trades }) {
   const ma20Path = showMA.ma20 ? maPath(ma.ma20) : "";
 
   return (
-    <div ref={wrapRef} style={{ width: "100%", overflowX: "auto", position: "relative" }}>
+    <div ref={wrapRef} className="candle-chart-shell">
+      <div className="candle-chart-meta">
+        <span className="candle-live-dot" />
+        <strong>{bars[firstBar]?.date || "--"}</strong>
+        <span>至</span>
+        <strong>{bars[Math.min(lastBar, bars.length - 1)]?.date || "--"}</strong>
+      </div>
       {/* MA 切换 + 缩放控件 */}
       <div className="candle-toolbar">
         <div className="candle-toolbar-group">
@@ -892,17 +982,11 @@ function CandleChart({ bars, trades }) {
               key={k}
               type="button"
               onClick={() => setShowMA({ ...showMA, [k]: !showMA[k] })}
-              style={{
-                padding: "2px 8px",
-                fontSize: 11,
-                border: `1px solid ${showMA[k] ? color : "var(--line)"}`,
-                background: showMA[k] ? `${color}22` : "transparent",
-                color: showMA[k] ? color : "var(--text-tertiary)",
-                borderRadius: 3,
-                cursor: "pointer",
-                fontFamily: "var(--font-mono)",
-              }}
+              className={`candle-ma-btn ${showMA[k] ? "is-active" : ""}`}
+              style={{ "--ma-color": color }}
+              aria-pressed={showMA[k]}
             >
+              <i />
               {label}
             </button>
           ))}
@@ -936,7 +1020,7 @@ function CandleChart({ bars, trades }) {
       </div>
 
       <svg
-        className="financial-chart"
+        className="financial-chart candle-chart-svg"
         width={w}
         height={h}
         style={{ display: "block", cursor: dragRef.current ? "grabbing" : "grab" }}
@@ -948,8 +1032,8 @@ function CandleChart({ bars, trades }) {
         {/* ===== 主图网格 + Y 轴 ===== */}
         {ticks.map((t, i) => (
           <g key={i}>
-            <line x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} stroke="var(--line)" strokeWidth="0.5" />
-            <text x={pad.l - 6} y={t.y + 4} textAnchor="end" fontSize="10" fill="var(--text-tertiary)" className="mono">
+            <line className="chart-grid-line" x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} />
+            <text x={pad.l - 8} y={t.y + 4} textAnchor="end" className="chart-axis-label mono">
               {t.v.toFixed(2)}
             </text>
           </g>
@@ -970,17 +1054,18 @@ function CandleChart({ bars, trades }) {
               <rect
                 key={i}
                 x={xView(i) - viewCandleW / 2}
-                y={data.yVol(v)}
+                y={visibleScale.yVol(v)}
                 width={viewCandleW}
-                height={Math.max(1, volTop + volH - data.yVol(v))}
+                height={Math.max(1, volTop + volH - visibleScale.yVol(v))}
                 fill={color}
-                opacity={0.55}
+                opacity={0.42}
+                rx={Math.min(2, viewCandleW / 3)}
               />
             );
           })}
           {/* Volume Y 刻度（最高值） */}
           <text x={w - pad.r + 4} y={volTop + 10} fontSize="9" fill="var(--text-tertiary)" className="mono">
-            {data.maxVol >= 1e8 ? (data.maxVol / 1e8).toFixed(1) + "亿" : data.maxVol >= 1e4 ? (data.maxVol / 1e4).toFixed(0) + "万" : data.maxVol}
+            {visibleScale.maxVol >= 1e8 ? (visibleScale.maxVol / 1e8).toFixed(1) + "亿" : visibleScale.maxVol >= 1e4 ? (visibleScale.maxVol / 1e4).toFixed(0) + "万" : visibleScale.maxVol}
           </text>
         </g>
 
@@ -989,10 +1074,10 @@ function CandleChart({ bars, trades }) {
           const i = firstBar + j;
           if (i < viewStart || i > viewEnd) return null;
           const cx0 = xView(i);
-          const yo = data.y(Number(b.open));
-          const yc = data.y(Number(b.close));
-          const yh = data.y(Number(b.high ?? Math.max(b.open, b.close)));
-          const yl = data.y(Number(b.low ?? Math.min(b.open, b.close)));
+          const yo = visibleScale.y(Number(b.open));
+          const yc = visibleScale.y(Number(b.close));
+          const yh = visibleScale.y(Number(b.high ?? Math.max(b.open, b.close)));
+          const yl = visibleScale.y(Number(b.low ?? Math.min(b.open, b.close)));
           const up = b.close >= b.open;
           const color = up ? "var(--up-color)" : "var(--down-color)";
           const bodyTop = Math.min(yo, yc);
@@ -1032,40 +1117,31 @@ function CandleChart({ bars, trades }) {
         {ma10Path && <path d={ma10Path} fill="none" stroke="#4ea8ff" strokeWidth="1.2" opacity="0.9" />}
         {ma20Path && <path d={ma20Path} fill="none" stroke="#c084fc" strokeWidth="1.2" opacity="0.9" />}
 
-        {/* ===== 买卖点三角 ===== */}
+        {/* ===== 买卖点标记 ===== */}
         {bars.slice(firstBar, lastBar + 1).map((b, j) => {
           const i = firstBar + j;
           if (i < viewStart || i > viewEnd) return null;
           if (!tradeMap.has(b.date)) return null;
           const cx0 = xView(i);
-          const yh = data.y(Number(b.high));
-          const yl = data.y(Number(b.low));
+          const yh = visibleScale.y(Number(b.high));
+          const yl = visibleScale.y(Number(b.low));
           return tradeMap.get(b.date).map((t, j) => {
             const isBuy = t.side === "buy";
-            // 买：在 wick 下沿外 12px 画上三角 ▲
-            // 卖：在 wick 上沿外 12px 画下三角 ▼
             const cx1 = cx0 + (j - 0.5) * 10;
-            const cy1 = isBuy ? yl + 14 : yh - 14;
-            const size = 5;
-            const color = isBuy ? "var(--down-color)" : "var(--up-color)";
-            // ▲ 上三角（买） / ▼ 下三角（卖）
-            const points = isBuy
-              ? `${cx1},${cy1 - size} ${cx1 - size},${cy1 + size} ${cx1 + size},${cy1 + size}`
-              : `${cx1},${cy1 + size} ${cx1 - size},${cy1 - size} ${cx1 + size},${cy1 - size}`;
+            const cy1 = isBuy ? Math.min(mainTop + mainH - 10, yl + 14) : Math.max(mainTop + 10, yh - 14);
+            const color = isBuy ? "#22c995" : "#ff6673";
+            const anchorY = isBuy ? yl + 2 : yh - 2;
             return (
-              <g key={`${i}-${j}`}>
-                <polygon
-                  points={points}
-                  fill={color}
-                  stroke="var(--bg)"
-                  strokeWidth="0.5"
-                />
+              <g key={`${i}-${j}`} className="trade-marker">
+                <line x1={cx1} x2={cx1} y1={anchorY} y2={cy1} stroke={color} strokeWidth="1" opacity="0.65" />
+                <circle cx={cx1} cy={cy1} r="8" fill={color} stroke="var(--bg)" strokeWidth="2" />
                 <text
                   x={cx1}
-                  y={isBuy ? cy1 + size + 11 : cy1 - size - 4}
+                  y={cy1 + 3.2}
                   textAnchor="middle"
-                  fontSize="9"
-                  fill={color}
+                  fontSize="8"
+                  fontWeight="800"
+                  fill="#07110e"
                   className="mono"
                 >
                   {isBuy ? "B" : "S"}
@@ -1084,7 +1160,7 @@ function CandleChart({ bars, trades }) {
 
         {/* ===== 右侧 Y 轴（百分比涨跌幅） ===== */}
         {ticks.map((t, i) => {
-          const pct = (t.v / bars[0].close - 1) * 100;
+          const pct = (t.v / Number(bars[firstBar]?.close || bars[0].close) - 1) * 100;
           return (
             <text
               key={`r-${i}`}
@@ -1142,46 +1218,32 @@ function CandleChart({ bars, trades }) {
       {/* ===== Hover tooltip（HTML 浮层） ===== */}
       {hover && (
         <div
-          style={{
-            position: "absolute",
-            left: Math.min(cx + 12, w - 220),
-            top: mainTop + 8,
-            background: "var(--bg-elev)",
-            border: "1px solid var(--line)",
-            borderRadius: 4,
-            padding: "8px 10px",
-            fontSize: 11,
-            color: "var(--text-primary)",
-            pointerEvents: "none",
-            zIndex: 5,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-            minWidth: 180,
-            fontFamily: "var(--font-mono)",
-          }}
+          className="chart-tooltip candle-tooltip mono"
+          style={{ left: Math.min(Math.max(cx + 14, 12), w - 218), top: mainTop + 38 }}
         >
-          <div style={{ color: "var(--text-tertiary)", marginBottom: 4, fontSize: 10 }}>{hover.date}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 10, rowGap: 2 }}>
-            <span style={{ color: "var(--text-secondary)" }}>开</span>
+          <div className="chart-tooltip-date">{hover.date}</div>
+          <div className="candle-tooltip-grid">
+            <span>开</span>
             <span>{Number(hover.open).toFixed(2)}</span>
-            <span style={{ color: "var(--text-secondary)" }}>收</span>
+            <span>收</span>
             <span style={{ color: hover.close >= hover.open ? "var(--up-color)" : "var(--down-color)", fontWeight: 600 }}>
               {Number(hover.close).toFixed(2)}
             </span>
-            <span style={{ color: "var(--text-secondary)" }}>高</span>
+            <span>高</span>
             <span style={{ color: "var(--up-color)" }}>{Number(hover.high).toFixed(2)}</span>
-            <span style={{ color: "var(--text-secondary)" }}>低</span>
+            <span>低</span>
             <span style={{ color: "var(--down-color)" }}>{Number(hover.low).toFixed(2)}</span>
-            <span style={{ color: "var(--text-secondary)" }}>量</span>
+            <span>量</span>
             <span>{Number(hover.volume).toLocaleString()}</span>
-            <span style={{ color: "var(--text-secondary)" }}>MA5</span>
+            <span>MA5</span>
             <span>{ma.ma5[hoverIdx] != null ? ma.ma5[hoverIdx].toFixed(2) : "--"}</span>
-            <span style={{ color: "var(--text-secondary)" }}>MA10</span>
+            <span>MA10</span>
             <span>{ma.ma10[hoverIdx] != null ? ma.ma10[hoverIdx].toFixed(2) : "--"}</span>
-            <span style={{ color: "var(--text-secondary)" }}>MA20</span>
+            <span>MA20</span>
             <span>{ma.ma20[hoverIdx] != null ? ma.ma20[hoverIdx].toFixed(2) : "--"}</span>
           </div>
           {hoverTrades.length > 0 && (
-            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--line)" }}>
+            <div className="candle-tooltip-trades">
               {hoverTrades.map((t, i) => (
                 <div key={i} style={{ color: t.side === "buy" ? "var(--down-color)" : "var(--up-color)" }}>
                   {t.side === "buy" ? "买" : "卖"} {t.shares}股 @ {Number(t.price).toFixed(2)}
