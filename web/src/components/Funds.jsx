@@ -1,7 +1,7 @@
 /**
  * Funds —— 热门板块资金流向（前 20）
  *
- * 数据：iwencai 自然语言 `热门板块前20 资金流向`
+ * 数据：iwencai 自然语言 `板块热度前20 指数代码 指数简称 资金净流入额`
  *   返回 20 条板块（指数），每条字段：
  *     - 指数简称（如 "AI智能体"）
  *     - 指数代码（如 "886099.TI"）
@@ -23,8 +23,12 @@ import { postJson, fuzzyFind } from "../api.js";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 import SymbolChartModal from "./SymbolChartModal.jsx";
 
-const CACHE_NS = "funds_hot_sectors";
-// 与 Dashboard 一致：不设 TTL（一直缓存），只有用户点"刷新"才重拉
+// v2：旧查询只会命中“热门板块”标签，部分交易日仅返回 5 条；切换 namespace
+// 可让已部署的客户端自动丢弃旧缓存，改用可稳定返回板块指数 Top 20 的查询。
+const CACHE_NS = "funds_hot_sectors_v2";
+const SECTOR_QUERY = "板块热度前20 指数代码 指数简称 资金净流入额";
+const FALLBACK_SECTOR_QUERY = "热门概念板块前20 资金流向";
+const TARGET_SECTOR_COUNT = 20;
 
 /** 把数字格式化成 "X.XX 亿" / "X.XX 万"。例：7751563000 → "77.52 亿" */
 function formatYi(n) {
@@ -44,6 +48,14 @@ function formatK(n) {
   if (abs >= 1e6) return `${(v / 1e6).toFixed(2)} M`;
   if (abs >= 1e3) return `${(v / 1e3).toFixed(1)} K`;
   return v.toFixed(0);
+}
+
+function sectorRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  // 防止问财语义漂移为“热门板块成分股”列表；只有板块指数才适合此卡片。
+  return rows
+    .filter((row) => fuzzyFind(row, ["指数代码", "板块代码"]))
+    .slice(0, TARGET_SECTOR_COUNT);
 }
 
 export default function Funds({ onError, onStatus }) {
@@ -84,15 +96,30 @@ export default function Funds({ onError, onStatus }) {
     setLoading(true);
     setLastError("");
     try {
-      const res = await postJson("/api/query", {
-        // 固定问句：热门板块前20 + 资金流向
-        query: "热门板块前20 资金流向",
-        limit: 20,
+      let res = await postJson("/api/query", {
+        query: SECTOR_QUERY,
+        limit: TARGET_SECTOR_COUNT,
       });
+      let rows = sectorRows(res?.datas);
+
+      // 当数据源偶尔无法补足 Top 20 时，使用同样返回板块指数的备用问句。
+      if (rows.length < TARGET_SECTOR_COUNT) {
+        const fallback = await postJson("/api/query", {
+          query: FALLBACK_SECTOR_QUERY,
+          limit: TARGET_SECTOR_COUNT,
+        });
+        const fallbackRows = sectorRows(fallback?.datas);
+        if (fallbackRows.length > rows.length) {
+          res = fallback;
+          rows = fallbackRows;
+        }
+      }
+
       if (res && Array.isArray(res.datas)) {
-        setData(res.datas);
-        cache.save(res);
-        onStatus?.(`资金已更新：${res.datas.length} 板块`);
+        const result = { ...res, datas: rows };
+        setData(rows);
+        cache.save(result);
+        onStatus?.(`资金已更新：${rows.length}/${TARGET_SECTOR_COUNT} 个板块`);
       } else {
         const msg = res?.error || "返回数据格式异常";
         setLastError(msg);
@@ -119,6 +146,7 @@ export default function Funds({ onError, onStatus }) {
       <div className="section-title">
         <h3>热门板块资金流向（前 20）</h3>
         <span className="title-right">
+          {data.length > 0 && <span className="count-label">{data.length}/{TARGET_SECTOR_COUNT} 板块</span>}
           {cache.ts > 0 && (
             <span
               className="update-time"
