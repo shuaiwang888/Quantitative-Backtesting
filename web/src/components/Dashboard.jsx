@@ -282,7 +282,7 @@ export default function Dashboard({ onError, onStatus }) {
                 <td colSpan={9} className="placeholder-row">
                   {watchResult.source === "iwencai"
                     ? "iwencai 上还没有自选股，请到 iwencai.com 添加后刷新"
-                    : "暂无自选股，请在左侧添加"}
+                    : "暂无自选股，请在上方添加"}
                 </td>
               </tr>
             ) : (
