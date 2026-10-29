@@ -35,6 +35,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
   const [strategies, setStrategies] = useState([]);
   const [strategy, setStrategy] = useState("moving_average");
   const [backtestMode, setBacktestMode] = useState("single");
+  const [universe, setUniverse] = useState("custom");
   const [symbol, setSymbol] = useState("000001.SZ");
   const [indexSymbol, setIndexSymbol] = useState("hs300");
   const [startDate, setStartDate] = useState(_initRange.start);
@@ -79,7 +80,9 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
   useEffect(() => {
     if (Array.isArray(pendingBatchNames) && pendingBatchNames.length > 0) {
       setSymbol(pendingBatchNames.join(","));
-      onStatus?.("已填入股票池，请在回测模式=单标的下逐个跑（批量请用「选股」tab）");
+      setUniverse("custom");
+      setBacktestMode("batch");
+      onStatus?.(`已载入 ${pendingBatchNames.length} 只股票，可开始批量回测`);
     }
   }, [pendingBatchNames, onStatus]);
 
@@ -102,10 +105,21 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
   const submit = async (e) => {
     e?.preventDefault?.();
     setLoading(true);
-    setResult(null);
     try {
-      const data = await postJson("/api/backtest", {
+      if (backtestMode === "batch" && universe === "custom" && !symbol.trim()) {
+        throw new Error("请先填写股票列表");
+      }
+      if (backtestMode === "single" && /[,，\n]/.test(symbol)) {
+        throw new Error("多个标的请选择「股票池批量」模式");
+      }
+      const data = await postJson(backtestMode === "batch" ? "/api/batch_backtest" : "/api/backtest", {
         strategy,
+        ...(backtestMode === "batch" ? {
+          symbols: universe === "custom" ? symbol : "",
+          universe: universe === "custom" ? null : universe,
+          max_symbols: 100,
+          max_workers: 3,
+        } : {}),
         backtest_mode: backtestMode,
         symbol: backtestMode === "single" ? symbol : "",
         index_symbol: backtestMode === "index" ? indexSymbol : "",
@@ -159,6 +173,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
             <select value={backtestMode} onChange={(e) => setBacktestMode(e.target.value)}>
               <option value="single">单标的</option>
               <option value="index">指数</option>
+              <option value="batch">股票池批量</option>
             </select>
             <span className="hint">指数模式不需要填代码，固定拉 000300/000905/000852</span>
           </div>
@@ -191,9 +206,19 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
       {/* ===== 标的 / 日期 / 资金 ===== */}
       <form onSubmit={submit}>
         <div className="form-grid">
-          {backtestMode === "single" ? (
+          {backtestMode === "batch" && <div className="form-field">
+            <label>股票池</label>
+            <select aria-label="股票池" value={universe} onChange={(e) => setUniverse(e.target.value)}>
+              <option value="custom">自定义股票列表</option>
+              <option value="hs300">沪深300成分股</option>
+              <option value="zz500">中证500成分股</option>
+              <option value="zz1000">中证1000成分股</option>
+            </select>
+            <span className="hint">每次最多回测前 100 只；资金独立计算</span>
+          </div>}
+          {(backtestMode === "single" || (backtestMode === "batch" && universe === "custom")) ? (
             <div className="form-field">
-              <label>股票代码 / 名称</label>
+              <label>{backtestMode === "batch" ? "股票列表（逗号或换行分隔）" : "股票代码 / 名称"}</label>
               <input
                 className="mono"
                 type="text"
@@ -202,9 +227,9 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
                 placeholder="例：000001.SZ 或 宁德时代"
                 required
               />
-              <span className="hint">A 股代码 / 名称；多个用半角逗号分隔（仍只跑第一只）</span>
+              <span className="hint">单标的填写一只证券；多个标的请选择股票池批量</span>
             </div>
-          ) : (
+          ) : backtestMode === "index" ? (
             <div className="form-field">
               <label>指数</label>
               <select value={indexSymbol} onChange={(e) => setIndexSymbol(e.target.value)}>
@@ -213,7 +238,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
           <div className="form-field">
             <label>开始日期</label>
             <input
@@ -303,7 +328,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
       </form>
 
       {/* ===== 结果 ===== */}
-      {result && (
+      {result?.mode === "batch" ? <BatchResult result={result} /> : result && (
         <BacktestResult
           result={result}
           onError={onError}
@@ -313,6 +338,33 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
       )}
     </section>
   );
+}
+
+function BatchResult({ result }) {
+  const summary = result.summary || {};
+  const rows = result.results || [];
+  const errors = result.errors || [];
+  return <div className="chart-panel" style={{ marginTop: 12 }}>
+    <h3>批量回测结果</h3>
+    <p className="hint">成功 {summary.tested_count || 0} 只 · 失败 {summary.error_count || 0} 只 · 每只独立使用初始资金，平均收益为等权统计</p>
+    <div className="metric-grid">
+      <MetricCard label="平均收益" value={percent(summary.avg_return)} />
+      <MetricCard label="收益中位数" value={percent(summary.median_return)} />
+      <MetricCard label="盈利标的比例" value={percent(summary.win_symbol_rate)} />
+      <MetricCard label="平均最大回撤" value={percent(summary.avg_max_drawdown)} />
+    </div>
+    {rows.length > 0 && <div className="table-wrap"><table>
+      <thead><tr><th>代码</th><th>名称</th><th>总收益</th><th>基准收益</th><th>最大回撤</th><th>交易次数</th><th>K线数</th></tr></thead>
+      <tbody>{rows.map((row) => <tr key={row.symbol}>
+        <td>{row.symbol}</td><td>{row.name || "--"}</td><td>{percent(row.total_return)}</td>
+        <td>{percent(row.benchmark_return)}</td><td>{percent(row.max_drawdown)}</td>
+        <td>{row.trade_count ?? 0}</td><td>{row.bar_count ?? 0}</td>
+      </tr>)}</tbody>
+    </table></div>}
+    {errors.length > 0 && <div className="error-box" role="alert"><p>以下标的未完成回测：</p>
+      {errors.map((row, index) => <p key={`${row.symbol}-${index}`}>{row.symbol} {row.name}：{row.error}</p>)}
+    </div>}
+  </div>;
 }
 
 // ---- 结果区 ----

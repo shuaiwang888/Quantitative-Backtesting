@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Type
 
 from quant.data.normalization import Bar
+from quant.errors import ValidationError
+from quant.payload_utils import _payload_float, _payload_int
 from quant.strategies.base import BaseStrategy, ExecutionConfig
 from quant.strategies.channel_reversal import ChannelReversalStrategy
 from quant.strategies.factor_strategy import FactorStrategy
@@ -195,7 +197,25 @@ def make_strategy(
     - ``params`` 只覆盖策略特定的 default_params（不会污染 fee_rate）。
     """
     spec = get_spec(name)
-    merged = {**spec.default_params, **params}
+    if not isinstance(params, dict) or any(key not in spec.default_params for key in params):
+        raise ValidationError("策略参数包含不支持的字段", details={"field": "strategy_params"})
+    merged = dict(spec.default_params)
+    for key, raw in params.items():
+        default = spec.default_params[key]
+        if isinstance(default, int):
+            value = _payload_int(raw, default, key)
+            if not 1 <= value <= 10000:
+                raise ValidationError(f"{key} 必须在 1-10000 之间", details={"field": key})
+        elif isinstance(default, float):
+            value = _payload_float(raw, default, key)
+        else:
+            if not isinstance(raw, str):
+                raise ValidationError(f"{key} 必须是字符串", details={"field": key})
+            value = raw
+        merged[key] = value
+    if name == "momentum_atr":
+        if merged["atr_multiplier"] <= 0 or not 0 < merged["risk_per_trade"] <= 1:
+            raise ValidationError("ATR 倍数必须大于 0，单笔风险必须在 (0, 1] 之间")
     merged["initial_cash"] = initial_cash
     merged["fee_rate"] = fee_rate
     strategy = spec.strategy_cls(**merged)
@@ -203,10 +223,10 @@ def make_strategy(
     return strategy
 
 
-def min_bars(name: str) -> int:
+def min_bars(name: str, params: Dict[str, Any] | None = None) -> int:
     """每个策略对最小 K 线数的要求（用于前置校验）。"""
     spec = get_spec(name)
-    defaults = spec.default_params
+    defaults = {**spec.default_params, **(params or {})}
     if name == "moving_average":
         return defaults["slow_window"] + 1
     if name == "momentum_atr":
@@ -238,13 +258,6 @@ def run_backtest(
     **params: Any,
 ) -> Dict[str, Any]:
     """便捷入口：构造 + run。"""
-    needed = min_bars(name)
-    if len(bars) < needed:
-        from quant.errors import ValidationError
-        raise ValidationError(
-            f"可用K线不足，至少需要 {needed} 条",
-            details={"got": len(bars), "required": needed, "strategy": name},
-        )
     execution = ExecutionConfig(
         slippage_rate=slippage_rate,
         min_commission=min_commission,
@@ -261,6 +274,12 @@ def run_backtest(
         execution=execution,
         **params,
     )
+    needed = min_bars(name, {key: getattr(strategy, key, value) for key, value in params.items()})
+    if len(bars) < needed:
+        raise ValidationError(
+            f"可用K线不足，至少需要 {needed} 条",
+            details={"got": len(bars), "required": needed, "strategy": name},
+        )
     return strategy.run(bars)
 
 

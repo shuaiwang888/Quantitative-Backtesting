@@ -49,15 +49,15 @@ export default function Selector({ onError, onStatus }) {
   }, []);
 
   // 拉结果
-  const search = async (e) => {
+  const search = async (e, requestedPage = page) => {
     e?.preventDefault?.();
     if (!query.trim()) return;
     setLoading(true);
-    setData(null);
     setSelected(new Set());
     try {
-      const res = await postJson("/api/query", { query: query.trim(), page, limit });
+      const res = await postJson("/api/query", { query: query.trim(), page: requestedPage, limit });
       if (res && Array.isArray(res.datas)) {
+        setPage(requestedPage);
         setData(res);
         cache.save(res);
         onStatus?.(`选股返回：${res.datas.length} 行 · 全量 ${res.code_count ?? "?"} 条`);
@@ -128,7 +128,7 @@ export default function Selector({ onError, onStatus }) {
   };
 
   const goBatchBacktest = () => {
-    const names = pool.map((s) => s.name);
+    const names = pool.map((s) => s.code || s.name);
     if (!names.length) return;
     window.dispatchEvent(new CustomEvent("quant:batch-watchlist", { detail: { names } }));
   };
@@ -143,7 +143,7 @@ export default function Selector({ onError, onStatus }) {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="自然语言描述选股条件"
             required
           />
@@ -170,7 +170,7 @@ export default function Selector({ onError, onStatus }) {
           </div>
           <div className="form-field">
             <label>每页条数</label>
-            <input className="mono" type="number" min="1" max="100" value={limit} onChange={(e) => setLimit(Number(e.target.value) || 30)} />
+            <input className="mono" type="number" min="1" max="100" value={limit} onChange={(e) => { setLimit(Number(e.target.value) || 30); setPage(1); }} />
           </div>
         </div>
 
@@ -281,11 +281,11 @@ export default function Selector({ onError, onStatus }) {
           )}
 
           <div className="pagination">
-            <button type="button" onClick={() => { setPage(1); setTimeout(search, 0); }} disabled={page === 1}>« 首页</button>
-            <button type="button" onClick={() => { setPage(Math.max(1, page - 1)); setTimeout(search, 0); }} disabled={page <= 1}>‹ 上一页</button>
+            <button type="button" onClick={() => { search(null, 1); }} disabled={loading || page === 1}>« 首页</button>
+            <button type="button" onClick={() => { search(null, Math.max(1, page - 1)); }} disabled={loading || page <= 1}>‹ 上一页</button>
             <span className="page-info">第 {page} / {totalPages} 页</span>
-            <button type="button" onClick={() => { setPage(page + 1); setTimeout(search, 0); }} disabled={page >= totalPages}>下一页 ›</button>
-            <button type="button" onClick={() => { setPage(totalPages); setTimeout(search, 0); }} disabled={page >= totalPages}>末页 »</button>
+            <button type="button" onClick={() => { search(null, page + 1); }} disabled={loading || page >= totalPages}>下一页 ›</button>
+            <button type="button" onClick={() => { search(null, totalPages); }} disabled={loading || page >= totalPages}>末页 »</button>
           </div>
         </div>
       )}

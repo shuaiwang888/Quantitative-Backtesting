@@ -19,8 +19,8 @@ const CREDENTIALS_STORAGE = "quant_session_credentials";
 // 优先用 localStorage 缓存；缓存空时 fallback 到这里。
 // 缓存 + URL 不匹配时会清空缓存（见 initApiBase）
 const DEPLOYED_API_BASE =
-  import.meta.env.VITE_API_BASE || "https://quant-backtest-wj92.onrender.com";
-const IS_LOCAL = ["localhost", "127.0.0.1", "::1"].includes(location.hostname)
+  import.meta.env?.VITE_API_BASE || "https://quant-backtest-wj92.onrender.com";
+const IS_LOCAL = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(location.hostname)
   || location.protocol === "file:";
 const DEFAULT_API_BASE = IS_LOCAL ? "" : DEPLOYED_API_BASE;
 
@@ -44,13 +44,13 @@ const IWENCAI_PATHS = new Set([
 
 function normalizeUrl(url) {
   if (!url) return "";
-  return url.replace(/\/+$/, "");
+  return String(url).trim().replace(/\/+$/, "");
 }
 
 function isValidHttpUrl(s) {
   try {
     const u = new URL(s);
-    return u.protocol === "http:" || u.protocol === "https:";
+    return ["http:", "https:"].includes(u.protocol) && !u.username && !u.password && !u.search && !u.hash;
   } catch {
     return false;
   }
@@ -127,7 +127,7 @@ export function setSessionCredentials(credentials) {
 // 后端是 Gradio SDK 吗？Gradio 用 SSE 协议 + 不同路径
 function isGradioBase() {
   const base = getApiBase();
-  return /\.hf\.space$/.test(base);
+  return isValidHttpUrl(base) && new URL(base).hostname.endsWith(".hf.space");
 }
 
 // ---- Gradio API 调用（SSE 流式） ----
@@ -357,10 +357,14 @@ export async function postJson(path, payload, options = {}) {
         throw new Error(res.ok ? "服务端返回了无效 JSON" : `HTTP ${res.status}`);
       }
       if (!res.ok) {
-        throw new Error(data?.error || `HTTP ${res.status}`);
+        const message = typeof data?.error === "string" ? data.error : `HTTP ${res.status}`;
+        throw new Error(res.status === 429 ? `${message}，请稍后重试` : message);
       }
     }
-    if (data && data.success === false) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("服务端返回了无效数据，请检查后端地址");
+    }
+    if (data.success === false) {
       throw new Error(data.error || "请求处理失败");
     }
     return data;
@@ -368,10 +372,42 @@ export async function postJson(path, payload, options = {}) {
     if (timedOut) {
       throw new Error(`请求超时（${Math.round(timeoutMs / 1000)} 秒），请稍后重试`);
     }
+    if (error instanceof TypeError && !controller.signal.aborted) {
+      throw new Error("无法连接后端，请检查网络、后端地址及跨域配置；休眠中的服务可能需要稍后重试");
+    }
     throw error;
   } finally {
     clearTimeout(timeoutId);
     externalSignal?.removeEventListener("abort", forwardAbort);
+  }
+}
+
+// 连接检测不发送密钥，也不调用收费的数据接口。
+export async function checkConnection(base = getApiBase(), { signal, timeoutMs = 60_000 } = {}) {
+  const normalized = normalizeUrl(base || DEFAULT_API_BASE);
+  if (normalized && !isValidHttpUrl(normalized)) throw new Error("后端地址必须是合法的 http(s) URL");
+  if (location.protocol === "https:" && normalized.startsWith("http:")) {
+    throw new Error("HTTPS 页面需要使用 HTTPS 后端地址");
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  try {
+    const response = await fetch(`${normalized}/api/health`, { signal: controller.signal, cache: "no-store" });
+    if (!response.ok) throw new Error(`后端健康检查失败（HTTP ${response.status}）`);
+    const data = await response.json();
+    if (data?.success !== true || data.status !== "ok") throw new Error("该地址未返回有效的平台健康状态");
+    return data;
+  } catch (error) {
+    if (timedOut) throw new Error("后端连接超时，服务可能正在启动，请稍后重新检测");
+    if (error instanceof TypeError) throw new Error("无法连接后端，请检查网络、后端地址及跨域配置");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
   }
 }
 

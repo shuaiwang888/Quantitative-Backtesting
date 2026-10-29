@@ -14,6 +14,7 @@ from quant.persistence import persist_bars
 from quant.strategies import SPECS, min_bars, run_backtest
 from quant.services.validation import (
     validate_date_range,
+    validate_strategy_params,
     validate_execution_inputs,
     validate_financial_inputs,
     validate_paging,
@@ -88,6 +89,8 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
             details={"field": "backtest_mode"},
         )
 
+    # 先验证策略参数，避免错误输入仍然消耗上游额度。
+    req.strategy_params = validate_strategy_params(req.strategy, req.initial_cash, req.fee_rate, req.strategy_params)
     symbol = validate_symbol(req.symbol)
     if req.backtest_mode == "index":
         symbol = INDEX_SYMBOLS.get(req.index_symbol)
@@ -118,9 +121,9 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
 
     bars = normalize_bars(response.get("datas", []))
     validate_single_series(bars)
-    if len(bars) < min_bars(req.strategy):
+    if len(bars) < min_bars(req.strategy, req.strategy_params):
         raise ValidationError(
-            f"可用K线不足，至少需要 {min_bars(req.strategy)} 条",
+            f"可用K线不足，至少需要 {min_bars(req.strategy, req.strategy_params)} 条",
             details={"got": len(bars), "strategy": req.strategy},
         )
 

@@ -20,10 +20,12 @@ from quant.services.backtest import UNIVERSE_QUERIES, _safe_persist_bars
 from quant.strategies import SPECS, min_bars, run_backtest
 from quant.services.validation import (
     validate_date_range,
+    validate_strategy_params,
     validate_execution_inputs,
     validate_financial_inputs,
     validate_paging,
     validate_symbol,
+    validate_single_series,
 )
 
 
@@ -99,6 +101,8 @@ def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
             f"未知策略: {req.strategy}",
             details={"field": "strategy", "available": list(SPECS)},
         )
+    # 先验证策略参数，避免错误输入仍然消耗上游额度。
+    req.strategy_params = validate_strategy_params(req.strategy, req.initial_cash, req.fee_rate, req.strategy_params)
     settings = get_settings()
     max_symbols = max(1, min(req.max_symbols, settings.batch_max_symbols))
     max_workers = max(1, min(req.max_workers, settings.batch_max_workers))
@@ -125,10 +129,11 @@ def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
                     max_pages=max(1, min(req.max_pages, 20)),
                 )
             bars = normalize_bars(response.get("datas", []))
-            if len(bars) < min_bars(req.strategy):
+            validate_single_series(bars)
+            if len(bars) < min_bars(req.strategy, req.strategy_params):
                 return (
                     None,
-                    {"symbol": code, "name": name, "error": f"K线不足（{len(bars)}<{min_bars(req.strategy)}）"},
+                    {"symbol": code, "name": name, "error": f"K线不足（{len(bars)}<{min_bars(req.strategy, req.strategy_params)}）"},
                 )
             persistence = _safe_persist_bars(bars, query_text, req.start_date, req.end_date, req.persist)
             result = run_backtest(
@@ -161,6 +166,8 @@ def run_batch_backtest(req: BatchRequest) -> Dict[str, Any]:
                 },
                 None,
             )
+        except ValidationError as exc:
+            return (None, {"symbol": code, "name": name, "error": exc.message})
         except IwencaiError as exc:
             return (None, {"symbol": code, "name": name, "error": f"问财错误: {exc.message}"})
         except Exception:  # noqa: BLE001

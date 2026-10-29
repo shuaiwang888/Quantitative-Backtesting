@@ -367,6 +367,12 @@ def _normalize_request_credentials(
     接受旧字段 ``api_key``。
     """
     normalized = dict(payload)
+    for field in ("iwencai_api_key", "api_key", "minimax_api_key"):
+        raw = normalized.get(field)
+        if raw is not None:
+            if not isinstance(raw, str):
+                raise ValidationError(f"{field} 必须是字符串", details={"field": field})
+            normalized[field] = raw.strip()
     explicit_upstream = normalized.get("iwencai_api_key")
     auth_enabled = bool(settings.api_key or settings.api_key_hash)
     has_separate_access_key = bool(
@@ -390,63 +396,15 @@ def _optional_payload_float(payload: Dict[str, Any], field_name: str) -> Optiona
 
 
 def _coerce_strategy_value(key: str, default: Any, raw: Any) -> Any:
-    """依据 default 类型把 raw 强制转换为 int / float / 其它。
-
-    - bool 必须先于 int 判断（Python 里 bool 是 int 的子类）。
-    - 转换失败抛 ValidationError，让客户端立刻知道哪个字段错。
-    """
-    from quant.errors import ValidationError
-
+    """按注册表类型转换，拒绝布尔值和非有限数字。"""
     if raw is None or raw == "":
-        return default  # 由调用方在外层跳过空值
-
+        return default
     if isinstance(default, bool):
-        if isinstance(raw, bool):
-            return raw
-        if isinstance(raw, (int, float)):
-            return bool(raw)
-        if isinstance(raw, str):
-            return raw.strip().lower() in ("1", "true", "yes", "on")
-        return bool(raw)
+        return _coerce_bool(raw)
     if isinstance(default, int):
-        if isinstance(raw, bool):
-            # True/False 不想被解释为 1/0
-            raise ValidationError(
-                f"参数 {key} 应当为整数", details={"got": raw, "type": type(raw).__name__}
-            )
-        if isinstance(raw, int):
-            return raw
-        if isinstance(raw, float):
-            if not raw.is_integer():
-                raise ValidationError(
-                    f"参数 {key} 应当为整数", details={"got": raw, "type": "float"}
-                )
-            return int(raw)
-        if isinstance(raw, str):
-            try:
-                return int(raw.strip())
-            except ValueError as exc:
-                raise ValidationError(
-                    f"参数 {key} 不是合法整数: {raw!r}", details={"got": raw}
-                ) from exc
-        raise ValidationError(
-            f"参数 {key} 类型不支持", details={"got": raw, "type": type(raw).__name__}
-        )
+        return _payload_int(raw, default, key)
     if isinstance(default, float):
-        if isinstance(raw, bool):
-            return float(int(raw))
-        if isinstance(raw, (int, float)):
-            return float(raw)
-        if isinstance(raw, str):
-            try:
-                return float(raw.strip())
-            except ValueError as exc:
-                raise ValidationError(
-                    f"参数 {key} 不是合法数字: {raw!r}", details={"got": raw}
-                ) from exc
-        raise ValidationError(
-            f"参数 {key} 类型不支持", details={"got": raw, "type": type(raw).__name__}
-        )
+        return _payload_float(raw, default, key)
     return raw
 
 

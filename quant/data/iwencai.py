@@ -56,9 +56,12 @@ def _trace_id() -> str:
 
 def _resolve_api_key(provided: Optional[str]) -> str:
     key = provided or os.environ.get("IWENCAI_API_KEY", "")
+    if not isinstance(key, str):
+        raise IwencaiError("API 密钥必须是字符串")
+    key = key.strip()
     if not key:
         raise IwencaiError(
-            "API 密钥未设置。请通过 --api-key 参数或环境变量 IWENCAI_API_KEY 指定。"
+            "API 密钥未设置。请在页面「连接设置」填写问财 Key，或设置环境变量 IWENCAI_API_KEY。"
         )
     return key
 
@@ -117,6 +120,10 @@ def query(
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 body = response.read().decode("utf-8")
                 data = json.loads(body)
+                if not isinstance(data, dict):
+                    raise IwencaiError("问财响应格式无效（预期 JSON 对象）")
+                if data.get("success") is False or data.get("success") == "false":
+                    raise IwencaiError("问财未成功处理查询，请检查密钥权限、额度及查询条件")
                 data["_trace_id"] = trace_id  # 附带回包 trace_id 便于排查
                 return data
         except urllib.error.HTTPError as exc:
@@ -146,7 +153,7 @@ def query(
                 time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
                 continue
             raise IwencaiError(f"网络错误: {exc.reason}") from exc
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             last_error = exc
             if attempt < MAX_RETRIES - 1:
                 time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
@@ -196,7 +203,7 @@ def fetch_all(
 
         all_rows.extend(row for row in rows if isinstance(row, dict))
         code_count_raw = result.get("code_count")
-        if isinstance(code_count_raw, int) and not isinstance(code_count_raw, bool):
+        if isinstance(code_count_raw, int) and not isinstance(code_count_raw, bool) and code_count_raw > 0:
             total = code_count_raw
         # else: 保持 None，让循环继续直到下一页空
         if result.get("_trace_id"):

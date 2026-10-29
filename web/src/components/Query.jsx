@@ -41,23 +41,23 @@ export default function Query({ onError, onStatus }) {
     return Array.from(prefixes);
   }, [data]);
 
-  const submit = async (e) => {
+  const submit = async (e, requestedPage = page) => {
     e?.preventDefault?.();
     if (!query.trim()) return;
     setLoading(true);
-    setData(null);
     try {
       const res = await postJson("/api/query", {
         query: query.trim(),
-        page,
+        page: requestedPage,
         limit,
       });
       if (res && Array.isArray(res.datas)) {
         // 缓存时记录一下请求参数（恢复用）
         const toCache = { ...res, __query: query.trim(), __limit: limit };
+        setPage(requestedPage);
         setData(res);
         cache.save(toCache);
-        setLastParams({ query: query.trim(), page, limit });
+        setLastParams({ query: query.trim(), page: requestedPage, limit });
         onStatus?.(`查询完成：${res.datas.length} 行 · 共 ${res.code_count ?? "?"} 条`);
       } else {
         throw new Error(res?.error || "查询失败");
@@ -171,11 +171,11 @@ export default function Query({ onError, onStatus }) {
           )}
 
           <div className="pagination">
-            <button type="button" onClick={() => { setPage(1); setTimeout(submit, 0); }} disabled={page === 1}>« 首页</button>
-            <button type="button" onClick={() => { setPage(Math.max(1, page - 1)); setTimeout(submit, 0); }} disabled={page <= 1}>‹ 上一页</button>
+            <button type="button" onClick={() => { submit(null, 1); }} disabled={loading || page === 1}>« 首页</button>
+            <button type="button" onClick={() => { submit(null, Math.max(1, page - 1)); }} disabled={loading || page <= 1}>‹ 上一页</button>
             <span className="page-info">第 {page} / {totalPages} 页</span>
-            <button type="button" onClick={() => { setPage(page + 1); setTimeout(submit, 0); }} disabled={page >= totalPages}>下一页 ›</button>
-            <button type="button" onClick={() => { setPage(totalPages); setTimeout(submit, 0); }} disabled={page >= totalPages}>末页 »</button>
+            <button type="button" onClick={() => { submit(null, page + 1); }} disabled={loading || page >= totalPages}>下一页 ›</button>
+            <button type="button" onClick={() => { submit(null, totalPages); }} disabled={loading || page >= totalPages}>末页 »</button>
           </div>
         </div>
       )}

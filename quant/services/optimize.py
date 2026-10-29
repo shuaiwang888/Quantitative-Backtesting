@@ -25,7 +25,7 @@ from quant.data.normalization import Bar, build_history_query, normalize_bars
 from quant.errors import RateLimitError, ValidationError
 from quant.logging_setup import get_logger
 from quant.payload_utils import _payload_float, _payload_int, _payload_str
-from quant.strategies import SPECS, get_spec, min_bars
+from quant.strategies import SPECS, get_spec, make_strategy, min_bars
 from quant.strategies.base import ExecutionConfig
 from quant.services.validation import (
     validate_date_range,
@@ -152,15 +152,13 @@ def _worker_run_combo(
     execution: ExecutionConfig,
 ) -> Dict[str, Any]:
     """跑单组参数。返回 params + 关键指标；异常包成 ``_error``。"""
-    spec = get_spec(strategy_name)
     params = dict(zip(keys, combo))
-    full = {**spec.default_params, **params, "fee_rate": fee_rate}
     try:
-        instance = spec.strategy_cls(
-            initial_cash=initial_cash,
-            fee_rate=fee_rate,
-            **{k: v for k, v in full.items() if k != "fee_rate"},
+        instance = make_strategy(
+            strategy_name, initial_cash=initial_cash, fee_rate=fee_rate, **params,
         )
+        if len(bars) < min_bars(strategy_name, {k: getattr(instance, k, v) for k, v in params.items()}):
+            raise ValidationError("当前参数所需的 K 线数量不足")
         instance.configure_execution(execution)
         result = instance.run(bars)
         summary = result.get("summary", {})

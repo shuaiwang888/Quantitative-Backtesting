@@ -1887,3 +1887,7 @@ details[open] { padding-bottom: 15px; }
   .sidebar, .mobile-tabs, .market-card, .metric-card, .chart-panel, .table-wrap, .form-view > form { border-width: 2px; }
   .text-tertiary, .hint { color: var(--text-secondary); }
 }
+
+.connection-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-elev); color: var(--text-secondary); font-size: 13px; }
+.connection-notice span { flex: 1; min-width: 180px; }
+.status-toast > button { margin-left: auto; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 4px 8px; font-size: 20px; }

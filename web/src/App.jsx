@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useRef, useState } from "react";
 import Dashboard from "./components/Dashboard.jsx";
 import Funds from "./components/Funds.jsx";
 import Backtest from "./components/Backtest.jsx";
@@ -6,6 +6,7 @@ import Optimize from "./components/Optimize.jsx";
 import Query from "./components/Query.jsx";
 import Selector from "./components/Selector.jsx";
 import {
+  checkConnection,
   getApiBase,
   getSessionCredentials,
   setApiBase,
@@ -35,15 +36,18 @@ export default function App() {
   const [pendingBatchNames, setPendingBatchNames] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
+  const [connectionVersion, setConnectionVersion] = useState(0);
+  const [health, setHealth] = useState({ state: "checking", message: "正在连接后端，首次启动可能需要约一分钟…" });
+  const healthRef = useRef(null);
   const [connection, setConnection] = useState(() => ({ apiBase: getApiBase(), ...getSessionCredentials() }));
   const statusTimerRef = useRef(null);
   const currentTab = TABS.find((tab) => tab.id === activeTab) || TABS[0];
 
-  const showStatus = (msg) => {
+  const showStatus = useCallback((msg) => {
     setStatusMsg(msg);
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-    statusTimerRef.current = setTimeout(() => setStatusMsg(""), 3200);
-  };
+    if (!msg.startsWith("请求失败")) statusTimerRef.current = setTimeout(() => setStatusMsg(""), 3200);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -86,7 +90,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [settingsOpen]);
 
-  const onError = (error) => showStatus(`请求失败 · ${error.message || "请稍后重试"}`);
+  const onError = useCallback((error) => showStatus(`请求失败 · ${error?.message || "请稍后重试"}`), [showStatus]);
   const hasSessionKey = Boolean(connection.iwencaiApiKey || connection.minimaxApiKey || connection.accessKey);
 
   const saveConnection = (next) => {
@@ -94,12 +98,32 @@ export default function App() {
       setApiBase(next.apiBase);
       const credentials = setSessionCredentials(next);
       setConnection({ apiBase: getApiBase(), ...credentials });
+      setConnectionVersion((version) => version + 1);
       setSettingsOpen(false);
       showStatus("连接设置已安全更新");
     } catch (error) {
       onError(error);
     }
   };
+
+  const reconnect = useCallback(async (refresh = false) => {
+    healthRef.current?.abort();
+    const controller = new AbortController();
+    healthRef.current = controller;
+    setHealth({ state: "checking", message: "正在连接后端，首次启动可能需要约一分钟…" });
+    try {
+      await checkConnection(getApiBase(), { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setHealth({ state: "ready", message: "" });
+      if (refresh) setConnectionVersion((version) => version + 1);
+    } catch (error) {
+      if (!controller.signal.aborted) setHealth({ state: "error", message: error.message });
+    }
+  }, []);
+  useEffect(() => {
+    reconnect();
+    return () => healthRef.current?.abort();
+  }, [connection.apiBase, reconnect]);
 
   const switchTab = (id) => {
     setActiveTab(id);
@@ -166,14 +190,23 @@ export default function App() {
           </div>
         </header>
 
+        {health.state !== "ready" && <div className="connection-notice" role="status" aria-live="polite">
+          <span>{health.message}</span>
+          {health.state === "error" && <>
+            <button type="button" onClick={() => reconnect(true)}>重新连接并刷新</button>
+            <button type="button" onClick={() => setSettingsOpen(true)}>检查连接设置</button>
+          </>}
+        </div>}
         <main id="workspace-panel" className="page-canvas" role="tabpanel" aria-label={currentTab.label}>
-          <div className="page-transition" key={activeTab}>
+          <div className="page-transition" key={`${activeTab}:${connectionVersion}`}>
+            <WorkspaceBoundary key={`${activeTab}:${connectionVersion}`} namespace={activeTab}>
             {activeTab === "dashboard" && <Dashboard onError={onError} onStatus={showStatus} />}
             {activeTab === "funds" && <Funds onError={onError} onStatus={showStatus} />}
             {activeTab === "backtest" && <Backtest onError={onError} onStatus={showStatus} pendingBatchNames={pendingBatchNames} />}
             {activeTab === "optimize" && <Optimize onError={onError} onStatus={showStatus} />}
             {activeTab === "query" && <Query onError={onError} onStatus={showStatus} />}
             {activeTab === "selector" && <Selector onError={onError} onStatus={showStatus} />}
+            </WorkspaceBoundary>
           </div>
         </main>
       </div>
@@ -188,7 +221,7 @@ export default function App() {
 
       {statusMsg && (
         <div className={`status-toast ${statusMsg.startsWith("请求失败") ? "is-error" : ""}`} role="status" aria-live="polite">
-          <span className="toast-icon"><AppIcon name={statusMsg.startsWith("请求失败") ? "warning" : "check"} /></span>{statusMsg}
+          <span className="toast-icon"><AppIcon name={statusMsg.startsWith("请求失败") ? "warning" : "check"} /></span>{statusMsg}<button type="button" onClick={() => setStatusMsg("")} aria-label="关闭提示">×</button>
         </div>
       )}
       {settingsOpen && <ConnectionModal value={connection} onSave={saveConnection} onClose={() => setSettingsOpen(false)} />}
@@ -196,8 +229,44 @@ export default function App() {
   );
 }
 
+class WorkspaceBoundary extends Component {
+  state = { failed: false, version: 0 };
+  static getDerivedStateFromError() { return { failed: true }; }
+  retry = () => {
+    // 缓存可以重新取数，连接密钥、股票池及自选股保留。
+    try {
+      const prefix = `quant_cached_${this.props.namespace}`;
+      Object.keys(localStorage).filter((key) => key === prefix || key.startsWith(`${prefix}_`))
+        .forEach((key) => localStorage.removeItem(key));
+    } catch {}
+    this.setState((old) => ({ failed: false, version: old.version + 1 }));
+  };
+  render() {
+    if (this.state.failed) return <div className="error-box" role="alert">
+      <p>当前页面加载失败，缓存可能已失效。</p>
+      <button type="button" onClick={this.retry}>重置当前页面缓存并重试</button>
+    </div>;
+    return <div key={this.state.version}>{this.props.children}</div>;
+  }
+}
+
 function ConnectionModal({ value, onSave, onClose }) {
   const [draft, setDraft] = useState(value);
+  const [probe, setProbe] = useState({ loading: false, message: "", ok: false });
+  const probeRef = useRef(null);
+  useEffect(() => () => probeRef.current?.abort(), []);
+  const testConnection = async () => {
+    probeRef.current?.abort();
+    const controller = new AbortController();
+    probeRef.current = controller;
+    setProbe({ loading: true, message: "正在连接；休眠中的服务首次启动可能需要约一分钟…", ok: false });
+    try {
+      await checkConnection(draft.apiBase, { signal: controller.signal });
+      if (!controller.signal.aborted) setProbe({ loading: false, message: "后端连接正常，可保存设置后重试查询。", ok: true });
+    } catch (error) {
+      if (!controller.signal.aborted) setProbe({ loading: false, message: error.message, ok: false });
+    }
+  };
   const panelRef = useRef(null);
   const firstInputRef = useRef(null);
 
@@ -239,6 +308,7 @@ function ConnectionModal({ value, onSave, onClose }) {
           <div className="modal-hint"><AppIcon name="shield" /><span>密钥仅保存在当前浏览器会话，不写入项目或长期存储。后端已配置密钥时可全部留空。</span></div>
           <label className="modal-label" htmlFor="api-base">后端地址 <span className="modal-optional">留空使用默认地址</span>
             <input id="api-base" ref={firstInputRef} type="url" value={draft.apiBase} onChange={update("apiBase")} placeholder="https://example.com" />
+            <button type="button" onClick={() => { setDraft((old) => ({ ...old, apiBase: "" })); setProbe({ loading: false, message: "保存后将恢复默认后端地址", ok: false }); }}>恢复默认后端</button>
           </label>
           <label className="modal-label" htmlFor="iwencai-key">问财 API Key <span className="modal-optional">可选</span>
             <input id="iwencai-key" type="password" autoComplete="off" value={draft.iwencaiApiKey} onChange={update("iwencaiApiKey")} placeholder="仅在当前会话使用" />
@@ -249,8 +319,12 @@ function ConnectionModal({ value, onSave, onClose }) {
           <label className="modal-label" htmlFor="access-key">站点访问密钥 <span className="modal-optional">API_KEY 启用时填写</span>
             <input id="access-key" type="password" autoComplete="off" value={draft.accessKey} onChange={update("accessKey")} />
           </label>
+          <div role="status" aria-live="polite" style={{ marginTop: 12 }}>
+            <button type="button" onClick={testConnection} disabled={probe.loading}>{probe.loading ? "检测中…" : "检测后端连接"}</button>
+            {probe.message && <p className="hint">{probe.message}</p>}
+          </div>
           <div className="modal-actions">
-            <button type="button" className="btn-clear" onClick={() => setDraft({ apiBase: "", iwencaiApiKey: "", minimaxApiKey: "", accessKey: "" })}>清空密钥</button>
+            <button type="button" className="btn-clear" onClick={() => setDraft({ ...draft, iwencaiApiKey: "", minimaxApiKey: "", accessKey: "" })}>清空密钥</button>
             <span className="modal-action-spacer" /><button type="button" onClick={onClose}>取消</button><button className="primary" type="submit">保存并连接</button>
           </div>
         </div>

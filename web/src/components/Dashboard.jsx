@@ -99,7 +99,7 @@ export default function Dashboard({ onError, onStatus }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [market, watch] = await Promise.all([
+      const [marketResult, watchResult] = await Promise.allSettled([
         postJson("/api/query", {
           // iwencai 自然语言：必须显式列字段名才能拿到价格/涨跌幅
           query: "上证指数 深证成指 创业板指 最新价 涨跌幅 指数代码 指数简称",
@@ -107,12 +107,18 @@ export default function Dashboard({ onError, onStatus }) {
         }),
         fetchWatchlist(),
       ]);
+      const market = marketResult.status === "fulfilled" ? marketResult.value : null;
+      const watch = watchResult.status === "fulfilled" ? watchResult.value : null;
       if (market && Array.isArray(market.datas)) {
         setMarketData(market.datas);
         marketCache.save(market);
       }
-      setWatchResult(watch);
-      watchlistCache.save(watch);
+      if (watch) {
+        setWatchResult(watch);
+        watchlistCache.save(watch);
+      }
+      if (marketResult.status === "rejected") throw marketResult.reason;
+      if (watchResult.status === "rejected") throw watchResult.reason;
       onStatus?.(
         `首页已更新：${market?.datas?.length || 0} 指数 · ${watch?.items?.length || 0} 自选股`
       );
@@ -125,8 +131,8 @@ export default function Dashboard({ onError, onStatus }) {
 
   // 首次挂载：只有当所有缓存都为空时才自动拉一次
   useEffect(() => {
-    const hasAnyCache = marketCache.data || watchlistCache.data;
-    if (!hasAnyCache) {
+    const hasMarketCache = marketCache.data;
+    if (!hasMarketCache) {
       refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

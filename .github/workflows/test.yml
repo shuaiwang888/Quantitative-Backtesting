@@ -52,5 +52,6 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm test
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org

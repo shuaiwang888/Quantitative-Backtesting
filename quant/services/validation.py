@@ -149,4 +149,17 @@ __all__ = [
     "validate_query_text",
     "validate_single_series",
     "validate_symbol",
+    "validate_strategy_params",
 ]
+
+
+def validate_strategy_params(strategy: str, initial_cash: float, fee_rate: float,
+                             params: Optional[dict]) -> dict:
+    """保留策略工厂的异常约定，在服务边界转换为请求校验错误。"""
+    from quant.strategies import make_strategy
+    try:
+        instance = make_strategy(strategy, initial_cash=initial_cash, fee_rate=fee_rate, **(params or {}))
+        return {key: getattr(instance, key) for key in (params or {})}
+    except (ValueError, TypeError, KeyError) as exc:
+        raise ValidationError("策略参数无效，请检查窗口大小、阈值及参数关系",
+                              details={"field": "strategy_params"}) from exc
