@@ -88,3 +88,20 @@ test("从股票池进入回测会调用批量接口并展示成功和失败标�
   assert.equal(errors.length, 0);
   act(() => renderer.unmount());
 });
+
+test("上证研究预设载入真实指数、半仓参数和后段验证区间", async () => {
+  const Component = loadComponent("Backtest");
+  globalThis.fetch = async () => Response.json({ success: true, strategies: [{ name: "sse_monthly_trend", display_name: "月度趋势", default_params: { trend_window: 250, momentum_window: 252, buffer_pct: .01, trailing_stop_pct: .12, position_fraction: .5 } }] });
+  let renderer;
+  await act(async () => { renderer = TestRenderer.create(React.createElement(Component)); });
+  const button = renderer.root.findAllByType("button").find((node) => text(node).includes("载入上证指数半仓研究候选"));
+  assert.equal(button.props.disabled, false);
+  await act(async () => { button.props.onClick(); });
+  const values = renderer.root.findAllByType("select").map((node) => node.props.value);
+  assert.ok(values.includes("sse_monthly_trend"));
+  assert.ok(values.includes("index"));
+  assert.ok(values.includes("sse"));
+  assert.ok(renderer.root.findAllByType("input").some((node) => node.props.value === "2021-01-01"));
+  assert.ok(renderer.root.findAllByType("input").some((node) => node.props.value === "0.5"));
+  act(() => renderer.unmount());
+});

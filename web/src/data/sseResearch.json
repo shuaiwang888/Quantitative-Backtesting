@@ -1,0 +1,91 @@
+{
+  "asOf": "2026-10-28",
+  "symbol": "000001.SH",
+  "strategy": "sse_monthly_trend",
+  "params": {
+    "trend_window": 250,
+    "momentum_window": 252,
+    "buffer_pct": 0.01,
+    "trailing_stop_pct": 0.12,
+    "position_fraction": 0.5
+  },
+  "status": "研究候选，尚未证明稳定超额收益",
+  "full": {
+    "half": {
+      "start": "2005-01-04",
+      "end": "2026-10-28",
+      "bars": 5297,
+      "total_return": 1.5009106,
+      "annual_return": 0.044582480244634626,
+      "max_drawdown": 0.25806962163678127,
+      "sharpe": 0.599693983086667,
+      "trades": 40,
+      "exposure": 0.4287332452331508,
+      "benchmark_return": 1.9622997423505804
+    },
+    "selected": {
+      "start": "2005-01-04",
+      "end": "2026-10-28",
+      "bars": 5297,
+      "total_return": 3.5657835700000007,
+      "annual_return": 0.07493392956405853,
+      "max_drawdown": 0.4300669297498717,
+      "sharpe": 0.5865451494275685,
+      "trades": 40,
+      "exposure": 0.4287332452331508,
+      "benchmark_return": 1.9622997423505804
+    }
+  },
+  "recent": {
+    "half": {
+      "start": "2021-01-04",
+      "end": "2026-10-28",
+      "bars": 1408,
+      "total_return": 0.011622079999999979,
+      "annual_return": 0.0020717064366253535,
+      "max_drawdown": 0.11402700833015944,
+      "sharpe": 0.06507582930365748,
+      "trades": 8,
+      "exposure": 0.5589488636363636,
+      "benchmark_return": 0.05095998285335046
+    },
+    "selected": {
+      "start": "2021-01-04",
+      "end": "2026-10-28",
+      "bars": 1408,
+      "total_return": 0.019943009999999983,
+      "annual_return": 0.003542993529977112,
+      "max_drawdown": 0.21720786320071483,
+      "sharpe": 0.08742553414881543,
+      "trades": 8,
+      "exposure": 0.5589488636363636,
+      "benchmark_return": 0.05095998285335046
+    }
+  },
+  "buyHold": {
+    "full": {
+      "start": "2005-01-04",
+      "end": "2026-10-28",
+      "bars": 5297,
+      "total_return": 1.96078004,
+      "annual_return": 0.05300626968537214,
+      "max_drawdown": 0.7197186831225786,
+      "sharpe": 0.33930456632129546,
+      "trades": 1,
+      "exposure": 0.9998112138946573,
+      "benchmark_return": 1.9622997423505804
+    },
+    "recent": {
+      "start": "2021-01-04",
+      "end": "2026-10-28",
+      "bars": 1408,
+      "total_return": 0.05313787000000003,
+      "annual_return": 0.009316110341164752,
+      "max_drawdown": 0.2716958046746487,
+      "sharpe": 0.1375226105957218,
+      "trades": 1,
+      "exposure": 0.9992897727272727,
+      "benchmark_return": 0.05095998285335046
+    }
+  }
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, timedelta
 from typing import Any, Dict, Optional
 
 from quant.config import get_settings
@@ -27,6 +28,7 @@ from quant.services.validation import (
 _LOG = get_logger("backtest_service")
 
 INDEX_SYMBOLS: Dict[str, str] = {
+    "sse": "000001.SH",
     "hs300": "000300.SH",
     "zz500": "000905.SH",
     "zz1000": "000852.SH",
@@ -109,18 +111,30 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
             )
         query_text = build_history_query(symbol, req.start_date, req.end_date)
 
+    evaluation_start = None
+    warmup_start = None
     try:
-        response = fetch_all(
-            query_text,
-            api_key=req.api_key,
-            limit=min(req.limit, 100),
-            max_pages=max(1, min(req.max_pages, 20)),
-        )
+        if req.strategy == "sse_monthly_trend" and not req.query and req.start_date and req.end_date:
+            begin, end = date.fromisoformat(req.start_date), date.fromisoformat(req.end_date)
+            if begin.year < 1991 or end.year - begin.year > 25:
+                raise ValidationError("指数研究开始日期不得早于 1991 年，区间最多 25 年")
+            warmup_start = (begin - timedelta(days=420)).isoformat()
+            response = _fetch_history_by_year(symbol, warmup_start, req.end_date, req.api_key)
+            evaluation_start = req.start_date
+        else:
+            response = fetch_all(
+                query_text, api_key=req.api_key, limit=min(req.limit, 100),
+                max_pages=max(1, min(req.max_pages, 20)),
+            )
     except IwencaiError as exc:
         raise UpstreamError(exc.message, details={"status_code": exc.status_code}) from exc
 
     bars = normalize_bars(response.get("datas", []))
+    if warmup_start:
+        bars = [bar for bar in bars if warmup_start <= bar.date <= req.end_date]
     validate_single_series(bars)
+    if evaluation_start and not any(bar.date >= evaluation_start for bar in bars):
+        raise ValidationError("评估区间没有可用 K 线，请检查日期及上游数据")
     if len(bars) < min_bars(req.strategy, req.strategy_params):
         raise ValidationError(
             f"可用K线不足，至少需要 {min_bars(req.strategy, req.strategy_params)} 条",
@@ -138,17 +152,35 @@ def run_single_backtest(req: BacktestRequest) -> Dict[str, Any]:
         min_commission=req.min_commission,
         stamp_duty_rate=req.stamp_duty_rate,
         transfer_fee_rate=req.transfer_fee_rate,
-        lot_size=req.lot_size,
+        lot_size=1 if req.backtest_mode == "index" else req.lot_size,
         max_pending_bars=req.max_pending_bars,
         price_limit_pct=req.price_limit_pct,
+        evaluation_start=evaluation_start,
         **params,
     )
+    if req.backtest_mode == "index":
+        result["summary"]["instrument_type"] = "synthetic_index"
+        result["summary"]["research_note"] = "指数单位模拟，最小单位为 1；指数本身不能直接交易，结果不代表 ETF 实盘收益。"
+    result["warmup_start"] = warmup_start
+    result["evaluation_start"] = evaluation_start
     result["success"] = True
     result["query"] = query_text
     result["symbol"] = symbol or ""
     result["trace_ids"] = response.get("trace_ids", [])
     result["persistence"] = persistence
     return result
+
+
+def _fetch_history_by_year(symbol: str, start: str, end: str, api_key: Optional[str]) -> Dict[str, Any]:
+    """按年取数避免长区间静默截断；只缓存到本次请求，不持有访客密钥。"""
+    rows = []
+    traces = []
+    for year in range(int(start[:4]), int(end[:4]) + 1):
+        first, last = max(start, f"{year}-01-01"), min(end, f"{year}-12-31")
+        response = fetch_all(build_history_query(symbol, first, last), api_key=api_key, limit=100, max_pages=4)
+        rows.extend(response.get("datas", []))
+        traces.extend(response.get("trace_ids", []))
+    return {"datas": rows, "trace_ids": traces}
 
 
 def _safe_persist_bars(

@@ -20,6 +20,7 @@ from quant.strategies.factor_strategy import FactorStrategy
 from quant.strategies.ma_rsi import MARSIStrategy
 from quant.strategies.momentum_atr import MomentumATRStrategy
 from quant.strategies.moving_average import MovingAverageStrategy
+from quant.strategies.sse_monthly import SSEMonthlyStrategy
 from quant.strategies.volume_shadow_break import VolumeShadowBreakStrategy
 
 
@@ -52,6 +53,12 @@ def _spec(
 
 # 单一来源：所有策略信息在此集中
 SPECS: Dict[str, StrategySpec] = {
+    "sse_monthly_trend": _spec(
+        "sse_monthly_trend", "上证指数月度趋势 + 动量风控", SSEMonthlyStrategy,
+        defaults={"trend_window": 250, "momentum_window": 252, "buffer_pct": 0.01,
+                  "trailing_stop_pct": 0.12, "position_fraction": 0.5},
+        grid={"trend_window": [120, 200, 250], "trailing_stop_pct": [0.08, 0.12, 0.18]},
+    ),
     "momentum_atr": _spec(
         "momentum_atr",
         "动量突破 + ATR风控",
@@ -227,6 +234,8 @@ def min_bars(name: str, params: Dict[str, Any] | None = None) -> int:
     """每个策略对最小 K 线数的要求（用于前置校验）。"""
     spec = get_spec(name)
     defaults = {**spec.default_params, **(params or {})}
+    if name == "sse_monthly_trend":
+        return max(defaults["trend_window"], defaults["momentum_window"] + 1)
     if name == "moving_average":
         return defaults["slow_window"] + 1
     if name == "momentum_atr":
@@ -255,6 +264,7 @@ def run_backtest(
     lot_size: int = 100,
     max_pending_bars: int = 5,
     price_limit_pct: float | None = None,
+    evaluation_start: str | None = None,
     **params: Any,
 ) -> Dict[str, Any]:
     """便捷入口：构造 + run。"""
@@ -280,7 +290,7 @@ def run_backtest(
             f"可用K线不足，至少需要 {needed} 条",
             details={"got": len(bars), "required": needed, "strategy": name},
         )
-    return strategy.run(bars)
+    return strategy.run(bars, start_date=evaluation_start)
 
 
 __all__ = [

@@ -310,7 +310,7 @@ class BaseStrategy(ABC):
 
     # --- 主入口 ---
 
-    def run(self, bars: List[Bar]) -> Dict[str, Any]:
+    def run(self, bars: List[Bar], *, start_date: Optional[str] = None) -> Dict[str, Any]:
         if not bars:
             raise ValueError("没有获取到可用于回测的K线数据")
         self._prepare_series(bars)
@@ -323,7 +323,12 @@ class BaseStrategy(ABC):
         self.order_events = []
         self.reset_strategy_state()
 
+        evaluation_bars = [bar for bar in bars if not start_date or bar.date >= start_date]
+        if not evaluation_bars:
+            raise ValueError("评估区间没有可用 K 线")
         for i, bar in enumerate(bars):
+            if start_date and bar.date < start_date:
+                continue  # 仅预计算指标，不在预热区间下单或累计收益。
             self.current_signal = "hold"
             self._try_execute_pending(bar, bars[i - 1].close if i > 0 else None)
             self.on_bar(bar, i)
@@ -345,7 +350,7 @@ class BaseStrategy(ABC):
             )
             self.on_order_cancelled(self.pending_order)
             self.pending_order = None
-        return self.build_result(bars)
+        return self.build_result(evaluation_bars)
 
     # --- 结果汇总 ---
 

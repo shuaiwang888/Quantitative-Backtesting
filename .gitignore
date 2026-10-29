@@ -63,3 +63,6 @@ cyber_ppt_output/
 node_modules/
 web/dist/
 # Vite 构建产物与 static/index.html 一起入库，保证清洁 clone 可直接启动。
+
+# Local research market-data cache
+.local/

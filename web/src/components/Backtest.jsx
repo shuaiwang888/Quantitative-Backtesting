@@ -11,9 +11,11 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { postJson, money, percent, numberOrDash } from "../api.js";
+import sseResearch from "../data/sseResearch.json";
 import useCachedResult, { formatCacheTime } from "../hooks/useCachedResult.js";
 
 const INDEX_OPTIONS = [
+  { value: "sse", label: "上证指数 (000001.SH)" },
   { value: "hs300", label: "沪深300 (000300.SH)" },
   { value: "zz500", label: "中证500 (000905.SH)" },
   { value: "zz1000", label: "中证1000 (000852.SH)" },
@@ -149,9 +151,33 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
   };
 
   const spec = strategies.find((s) => s.name === strategy);
+  const loadSSEResearch = () => {
+    setStrategy("sse_monthly_trend");
+    setBacktestMode("index");
+    setIndexSymbol("sse");
+    setInitialCash(1000000);
+    setStartDate("2021-01-01");
+    setEndDate(sseResearch.asOf);
+    setParamValues({ ...sseResearch.params });
+    onStatus?.("已载入上证指数半仓研究候选；请检查参数并开始回测");
+  };
 
   return (
     <section className="form-view">
+      <div className="chart-panel">
+        <h3>上证指数择时研究</h3>
+        <p className="hint">截至 {sseResearch.asOf} · {sseResearch.status}。月初检查 250 日均线与 252 日动量，收盘回撤 12% 时发出退出信号，次日开盘执行。</p>
+        <div className="table-wrap"><table>
+          <thead><tr><th>2021 年以来</th><th>累计收益</th><th>最大回撤</th></tr></thead>
+          <tbody>
+            <tr><td>月度趋势 · 半仓</td><td>{percent(sseResearch.recent.half.total_return)}</td><td>{percent(sseResearch.recent.half.max_drawdown)}</td></tr>
+            <tr><td>月度趋势 · 满仓</td><td>{percent(sseResearch.recent.selected.total_return)}</td><td>{percent(sseResearch.recent.selected.max_drawdown)}</td></tr>
+            <tr><td>买入持有指数模拟</td><td>{percent(sseResearch.buyHold.recent.total_return)}</td><td>{percent(sseResearch.buyHold.recent.max_drawdown)}</td></tr>
+          </tbody>
+        </table></div>
+        <p className="hint">历史模拟已计佣金和滑点；指数本身不能直接交易。半仓指每次入场使用当时可用资金的 50%，持仓期间不每日再平衡。近期低频方案降低了回撤，也牺牲了收益；后续测试属于探索性研究。</p>
+        <button type="button" className="btn" onClick={loadSSEResearch} disabled={!strategies.some((item) => item.name === "sse_monthly_trend")}>载入上证指数半仓研究候选</button>
+      </div>
       {/* ===== 策略选择 + 参数 ===== */}
       <div>
         <div className="optimize-header">
@@ -175,7 +201,7 @@ export default function Backtest({ onError, onStatus, pendingBatchNames }) {
               <option value="index">指数</option>
               <option value="batch">股票池批量</option>
             </select>
-            <span className="hint">指数模式不需要填代码，固定拉 000300/000905/000852</span>
+            <span className="hint">指数模式支持上证、沪深300、中证500和中证1000；使用最小 1 指数单位模拟</span>
           </div>
         </div>
 
@@ -432,6 +458,7 @@ function BacktestResult({ result, onError, onStatus, cacheTs }) {
         <MetricCard label="最终资金" value={money(summary.final_equity)} />
       </div>
 
+      {summary.research_note && <p className="hint">{summary.research_note}</p>}
       <div className="hint" style={{ lineHeight: 1.7 }}>
         成交模型：收盘产生信号，下一根可交易 K 线开盘成交。
         佣金 {money(summary.commission)} · 印花税 {money(summary.stamp_duty)} ·

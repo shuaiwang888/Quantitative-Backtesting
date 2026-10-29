@@ -346,6 +346,12 @@ https://shuaiwang888.github.io/Quantitative-Backtesting/?api=https://appQQQ-quan
 - 选股区会单独展示 `code_count`、当前页/总页数和 `chunks_info`。
 - 前端使用 `setText`、`setHtml`、`setClass` 做安全写入，避免 `Cannot set properties of null (setting 'textContent')` 这类错误中断流程。
 
+## 上证指数择时研究
+
+策略回测页提供“载入上证指数半仓研究候选”，对应 `sse_monthly_trend` 与 `000001.SH`。采用月初趋势/动量检查、日收盘回撤退出、次日开盘执行；自动取入指标预热数据，预热期不下单、不计收益。
+
+这是探索性研究候选。2021 年至 2026-10-28 的半仓模拟累计收益仅 1.16%、最大回撤 11.40%，未证明稳定超额收益。完整方法、失败候选和长期对照见 [上证指数择时研究](research/上证指数择时研究.md)。指数使用最小 1 模拟单位，不能把指数模拟视作可直接交易的 ETF 收益。
+
 ## 内置策略
 
 ### 动量突破 + ATR 风控

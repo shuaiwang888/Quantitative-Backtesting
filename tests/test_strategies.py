@@ -38,6 +38,7 @@ class TestStrategyRegistry:
     def test_all_strategies_listed(self):
         names = [s.name for s in list_strategies()]
         assert set(names) == {
+            "sse_monthly_trend",
             "momentum_atr",
             "moving_average",
             "ma_rsi",
@@ -74,7 +75,7 @@ class TestRunBacktest:
 
     def test_all_strategies_produce_result(self, sample_bars):
         for name in SPECS:
-            result = run_backtest(name, sample_bars)
+            result = run_backtest(name, sample_bars, **({"trend_window": 20, "momentum_window": 20} if name == "sse_monthly_trend" else {}))
             assert "summary" in result
             assert "equity_curve" in result
             assert "trades" in result

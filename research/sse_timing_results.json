@@ -1,0 +1,2154 @@
+{
+  "data": {
+    "symbol": "000001.SH",
+    "source": "Iwencai OpenAPI",
+    "first": "2004-01-02",
+    "last": "2026-10-28",
+    "count": 5540,
+    "missing_volume_count": 5517,
+    "sha256": "7bc3809c719e24fbb12f60752a19ad609b12c5a35917c053f41fc1b6572ab05e",
+    "sources": [
+      {
+        "file": "2004.json",
+        "query": "000001.SH 2004-01-01到2004-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "0c675a7b03350cd236e96f7aefb359f6d358f64441baaaabd0d8fc6ea38dc00b"
+        ]
+      },
+      {
+        "file": "2005.json",
+        "query": "000001.SH 2005-01-01到2005-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "6545edd69d38bf3518cf4da3bb16b7d31b9854b4330eea1459b731f4d4b53554"
+        ]
+      },
+      {
+        "file": "2006.json",
+        "query": "000001.SH 2006-01-01到2006-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "daebea14b6ff8147fb912fd6c16b3e5e645199b6eaac70ee7f5478ec164b405e"
+        ]
+      },
+      {
+        "file": "2007.json",
+        "query": "000001.SH 2007-01-01到2007-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "b4fae867cab453bc2e875943a8fa69b56d86faf70dd5a791e77141022bdbd045"
+        ]
+      },
+      {
+        "file": "2008.json",
+        "query": "000001.SH 2008-01-01到2008-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "0a9c01095c496fe7cfc799677fae5dd8ef27cb365af81a88dedbcd1a7a96c57e"
+        ]
+      },
+      {
+        "file": "2009.json",
+        "query": "000001.SH 2009-01-01到2009-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "7d325d3c588937488d0a279a837ba8ceb951ab85fbe0d1f7d7c155a0ff4517e0"
+        ]
+      },
+      {
+        "file": "2010.json",
+        "query": "000001.SH 2010-01-01到2010-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "d30436192ab32a45e3d2327388d0fcb2864bc1e1a308170977e60fbb11dae60c"
+        ]
+      },
+      {
+        "file": "2011.json",
+        "query": "000001.SH 2011-01-01到2011-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "0fac931e6fbf27eb90e6189bed0fed9e90c9aa72d536ca6d1fbc05707ef4409c"
+        ]
+      },
+      {
+        "file": "2012.json",
+        "query": "000001.SH 2012-01-01到2012-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "545c9e76ca38fdfb18d53fe35e9f9b421dc224092b42e69b28b6fb99a9522124"
+        ]
+      },
+      {
+        "file": "2013.json",
+        "query": "000001.SH 2013-01-01到2013-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "88ff3ff21cab3b46e82ceb92cc7d54654f75bb6cd70401b22de60f7028049c47"
+        ]
+      },
+      {
+        "file": "2014.json",
+        "query": "000001.SH 2014-01-01到2014-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "3e7bf807955ba6dcdbfd0baf1d69f9e85b4dd76c3ba0c2b2ef4de537a1d05c93"
+        ]
+      },
+      {
+        "file": "2015.json",
+        "query": "000001.SH 2015-01-01到2015-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "dfb1400394b6b0bf7395c395740dfdd61759775e558552ceacee9cc6f996a911"
+        ]
+      },
+      {
+        "file": "2016.json",
+        "query": "000001.SH 2016-01-01到2016-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "f3378fd29e8800b0fa5640b1888d78f52601d758e27e36cc636253ac409d9356"
+        ]
+      },
+      {
+        "file": "2017.json",
+        "query": "000001.SH 2017-01-01到2017-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "8ed80c111438c32006611a85a46f414f2b594b45b934ebab4ece377e7d3bf05e"
+        ]
+      },
+      {
+        "file": "2018.json",
+        "query": "000001.SH 2018-01-01到2018-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "469b7c57841a0d2a7af6f5600bce25d30886bb538b6e79da1d2c8974141ff775"
+        ]
+      },
+      {
+        "file": "2019.json",
+        "query": "000001.SH 2019-01-01到2019-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "bc587ed540185db699a4898fbde3289d37048e7838322acba71738bac167c6e5"
+        ]
+      },
+      {
+        "file": "2020.json",
+        "query": "000001.SH 2020-01-01到2020-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "33b90d4b5ab1b4b2bc20fa5062c05969759448838789470bbb22fd5e2f19f5a2"
+        ]
+      },
+      {
+        "file": "2021.json",
+        "query": "000001.SH 2021-01-01到2021-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "b86ec3932f5c31eaf44d4ce00ede7a9a26eee0a753e07949a5f930606b8f12b8"
+        ]
+      },
+      {
+        "file": "2022.json",
+        "query": "000001.SH 2022-01-01到2022-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "1bad9b7a41f1be13bbef4a1e87f763c27646e105b4c4e50a4228b1137647094e"
+        ]
+      },
+      {
+        "file": "2023.json",
+        "query": "000001.SH 2023-01-01到2023-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "0ca55a795fcaebe1f82b3e3bc345622e5f701451cd16eb4d9155cefefe22a474"
+        ]
+      },
+      {
+        "file": "2024.json",
+        "query": "000001.SH 2024-01-01到2024-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "9b7091c5be98835a23d3bdbb2c9301acf849fcf3921ff44584d0ef60b514adbc"
+        ]
+      },
+      {
+        "file": "2025.json",
+        "query": "000001.SH 2025-01-01到2025-12-31 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "81fc2c46fd4ea2c0e3c19d72eac3dfab415cada385bfb5688d148f7058f3b06e"
+        ]
+      },
+      {
+        "file": "2026.json",
+        "query": "000001.SH 2026-01-01到2026-10-28 每日行情 股票代码 股票简称 交易日期 开盘价 最高价 最低价 收盘价 成交量 成交额",
+        "trace_ids": [
+          "e5ec75a59229fdcaa065d63ac9d8d9f79f71aeb99c5f0a9823279b4de5a36fcb"
+        ]
+      }
+    ]
+  },
+  "assumptions": {
+    "initial_cash": 1000000.0,
+    "lot_size": 1,
+    "commission_rate": 0.0003,
+    "slippage_rate": 0.0005,
+    "min_commission": 5,
+    "stamp_duty_rate": 0.0005,
+    "transfer_fee_rate": 1e-05,
+    "warmup_bars": 252,
+    "cash_yield": 0,
+    "dividends": false,
+    "execution": "next_bar_open",
+    "note": "Index-unit simulation, not ETF returns; no leverage/shorts; each evaluation period starts in cash."
+  },
+  "selection": {
+    "method": "Top 24 on train CAGR - 0.5*DD, then maximize min(train CAGR, validation CAGR) - 0.5*max(train DD, validation DD)",
+    "candidate_count": 102,
+    "finalists": [
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.8859623700000006,
+          "annual_return": 0.18158889408069867,
+          "max_drawdown": 0.3130308851474106,
+          "sharpe": 1.0270749569169784,
+          "trades": 84,
+          "exposure": 0.48713550600343053,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.02507345150699336,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.06812507000000001,
+          "annual_return": 0.017215385234020886,
+          "max_drawdown": 0.311943886679525,
+          "sharpe": 0.20178433721373046,
+          "trades": 29,
+          "exposure": 0.4188911704312115,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.13930005733968442
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.40676954,
+          "annual_return": 0.17424142289382116,
+          "max_drawdown": 0.3160681740271093,
+          "sharpe": 0.9981608923138342,
+          "trades": 92,
+          "exposure": 0.4854202401372213,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.016207335880266516,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.06812507000000001,
+          "annual_return": 0.017215385234020886,
+          "max_drawdown": 0.311943886679525,
+          "sharpe": 0.20178433721373046,
+          "trades": 29,
+          "exposure": 0.4188911704312115,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.14081870177953376
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.08,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.73880589,
+          "annual_return": 0.16311371843226996,
+          "max_drawdown": 0.32187333351314784,
+          "sharpe": 0.9431053832163083,
+          "trades": 106,
+          "exposure": 0.4830188679245283,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.00217705167569604,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.06812507000000001,
+          "annual_return": 0.017215385234020886,
+          "max_drawdown": 0.311943886679525,
+          "sharpe": 0.20178433721373046,
+          "trades": 29,
+          "exposure": 0.4188911704312115,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.14372128152255303
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.7470789,
+          "annual_return": 0.16325862543972014,
+          "max_drawdown": 0.3166191784947934,
+          "sharpe": 0.9610211238300985,
+          "trades": 84,
+          "exposure": 0.44768439108061747,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.004949036192323453,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.027686990000000078,
+          "annual_return": 0.007098332881099623,
+          "max_drawdown": 0.2755259223324177,
+          "sharpe": 0.11944528466284628,
+          "trades": 25,
+          "exposure": 0.3788501026694045,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.15121125636629706
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.7413353,
+          "annual_return": 0.16315804289203184,
+          "max_drawdown": 0.32974821394173204,
+          "sharpe": 0.9590489406653039,
+          "trades": 60,
+          "exposure": 0.4548885077186964,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.0017160640788341786,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.002287750000000033,
+          "annual_return": 0.0005920092333449034,
+          "max_drawdown": 0.24243638570187243,
+          "sharpe": 0.06252388032965243,
+          "trades": 15,
+          "exposure": 0.3757700205338809,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.16428209773752112
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.1637878,
+          "annual_return": 0.1703217869122553,
+          "max_drawdown": 0.3515028075119654,
+          "sharpe": 0.9901037712184526,
+          "trades": 76,
+          "exposure": 0.44939965694682676,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.005429616843727392,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.027686990000000078,
+          "annual_return": 0.007098332881099623,
+          "max_drawdown": 0.2755259223324177,
+          "sharpe": 0.11944528466284628,
+          "trades": 25,
+          "exposure": 0.3788501026694045,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.16865307087488307
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.1076367099999995,
+          "annual_return": 0.1693959368124145,
+          "max_drawdown": 0.3241132120735464,
+          "sharpe": 0.9768623221380467,
+          "trades": 64,
+          "exposure": 0.4885077186963979,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.007339330775641306,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.025313249999999954,
+          "annual_return": -0.006618354808919036,
+          "max_drawdown": 0.31254122322004174,
+          "sharpe": 0.0035784562171042237,
+          "trades": 21,
+          "exposure": 0.4106776180698152,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.16867496084569222
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.08,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.147812490000001,
+          "annual_return": 0.15223342247008032,
+          "max_drawdown": 0.3603850282969785,
+          "sharpe": 0.9048932546870722,
+          "trades": 98,
+          "exposure": 0.44528301886792454,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.02795909167840893,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.027686990000000078,
+          "annual_return": 0.007098332881099623,
+          "max_drawdown": 0.2755259223324177,
+          "sharpe": 0.11944528466284628,
+          "trades": 25,
+          "exposure": 0.3788501026694045,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.17309418126738962
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.16084855,
+          "annual_return": 0.1702735144175722,
+          "max_drawdown": 0.363901477301236,
+          "sharpe": 0.9883009466423375,
+          "trades": 52,
+          "exposure": 0.45660377358490567,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.011677224233045791,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.002287750000000033,
+          "annual_return": 0.0005920092333449034,
+          "max_drawdown": 0.24243638570187243,
+          "sharpe": 0.06252388032965243,
+          "trades": 15,
+          "exposure": 0.3757700205338809,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.1813587294172731
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.56737831,
+          "annual_return": 0.17675838118831755,
+          "max_drawdown": 0.3591657935426772,
+          "sharpe": 1.0061716980072062,
+          "trades": 56,
+          "exposure": 0.4902229845626072,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.0028245155830210478,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.025313249999999954,
+          "annual_return": -0.006618354808919036,
+          "max_drawdown": 0.31254122322004174,
+          "sharpe": 0.0035784562171042237,
+          "trades": 21,
+          "exposure": 0.4106776180698152,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.18620125158025763
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.08,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.10152288,
+          "annual_return": 0.15133371232890602,
+          "max_drawdown": 0.37789756292023335,
+          "sharpe": 0.8990327546568545,
+          "trades": 74,
+          "exposure": 0.4521440823327616,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.037615069131210654,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.002287750000000033,
+          "annual_return": 0.0005920092333449034,
+          "max_drawdown": 0.24243638570187243,
+          "sharpe": 0.06252388032965243,
+          "trades": 15,
+          "exposure": 0.3757700205338809,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.18835677222677177
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.08,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.42813676,
+          "annual_return": 0.15752908911667607,
+          "max_drawdown": 0.3726687520078914,
+          "sharpe": 0.9178930906417255,
+          "trades": 78,
+          "exposure": 0.48576329331046314,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.028805286887269632,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.025313249999999954,
+          "annual_return": -0.006618354808919036,
+          "max_drawdown": 0.31254122322004174,
+          "sharpe": 0.0035784562171042237,
+          "trades": 21,
+          "exposure": 0.4106776180698152,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.19295273081286474
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 20,
+          "slow_window": 60,
+          "entry_buffer": 0.02,
+          "exit_buffer": 0.02,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.1816517,
+          "annual_return": 0.15288647554123158,
+          "max_drawdown": 0.3800447693929724,
+          "sharpe": 0.9025175398062103,
+          "trades": 53,
+          "exposure": 0.46963979416809604,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.03713590915525461,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.03520339000000006,
+          "annual_return": -0.00923883283301108,
+          "max_drawdown": 0.25585964319557386,
+          "sharpe": -0.022116583304702803,
+          "trades": 15,
+          "exposure": 0.3993839835728953,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.19926121752949727
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 10,
+          "slow_window": 60,
+          "entry_buffer": 0.02,
+          "exit_buffer": 0.02,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.244508049999999,
+          "annual_return": 0.15408924951992775,
+          "max_drawdown": 0.37489771700687746,
+          "sharpe": 0.89646036320592,
+          "trades": 57,
+          "exposure": 0.49777015437392796,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.03335960898351098,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.08439907999999996,
+          "annual_return": -0.022577827628125657,
+          "max_drawdown": 0.3065364570758421,
+          "sharpe": -0.13001192823972124,
+          "trades": 17,
+          "exposure": 0.4219712525667351,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.2100266861315644
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.27878621,
+          "annual_return": 0.17219413858226607,
+          "max_drawdown": 0.3440983269307265,
+          "sharpe": 1.013523481209827,
+          "trades": 86,
+          "exposure": 0.43979416809605487,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.0001449751169028124,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.1400539300000001,
+          "annual_return": -0.038324578707002344,
+          "max_drawdown": 0.286585453574554,
+          "sharpe": -0.29271173364094827,
+          "trades": 29,
+          "exposure": 0.337782340862423,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.2103737421723656
+      },
+      {
+        "strategy": "moving_average",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.39239795,
+          "annual_return": 0.17401339945340122,
+          "max_drawdown": 0.42302971335440165,
+          "sharpe": 0.9225850149927456,
+          "trades": 51,
+          "exposure": 0.5303602058319039,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.037501457223799606,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.015353100000000008,
+          "annual_return": -0.003999165066661203,
+          "max_drawdown": 0.24206326699188307,
+          "sharpe": 0.03064957011839329,
+          "trades": 17,
+          "exposure": 0.4620123203285421,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.21551402174386203
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.73620506,
+          "annual_return": 0.17934421706649317,
+          "max_drawdown": 0.3775059840429087,
+          "sharpe": 1.042576113543059,
+          "trades": 78,
+          "exposure": 0.44150943396226416,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.009408774954961174,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.1400539300000001,
+          "annual_return": -0.038324578707002344,
+          "max_drawdown": 0.286585453574554,
+          "sharpe": -0.29271173364094827,
+          "trades": 29,
+          "exposure": 0.337782340862423,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.2270775707284567
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.0,
+          "exit_buffer": 0.0,
+          "trailing_stop_pct": 0.08,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.62515608,
+          "annual_return": 0.1611035103107603,
+          "max_drawdown": 0.38613427185190463,
+          "sharpe": 0.9567951591920906,
+          "trades": 100,
+          "exposure": 0.43739279588336194,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.031963625615192004,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.1400539300000001,
+          "annual_return": -0.038324578707002344,
+          "max_drawdown": 0.286585453574554,
+          "sharpe": -0.29271173364094827,
+          "trades": 29,
+          "exposure": 0.337782340862423,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.23139171463295466
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.83771953,
+          "annual_return": 0.1808707040335742,
+          "max_drawdown": 0.3550477373896319,
+          "sharpe": 1.0569617267318219,
+          "trades": 54,
+          "exposure": 0.43979416809605487,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.003346835338758236,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.21044465,
+          "annual_return": -0.059361334633829754,
+          "max_drawdown": 0.31174549555742426,
+          "sharpe": -0.5061944463449123,
+          "trades": 21,
+          "exposure": 0.3326488706365503,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.2368852033286457
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 6.33339078,
+          "annual_return": 0.18803915399012316,
+          "max_drawdown": 0.36203021404145574,
+          "sharpe": 1.0856910830049242,
+          "trades": 46,
+          "exposure": 0.44150943396226416,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": 0.007024046969395292,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.21044465,
+          "annual_return": -0.059361334633829754,
+          "max_drawdown": 0.31174549555742426,
+          "sharpe": -0.5061944463449123,
+          "trades": 21,
+          "exposure": 0.3326488706365503,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.24037644165455763
+      },
+      {
+        "strategy": "moving_average",
+        "params": {
+          "fast_window": 5,
+          "slow_window": 60
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.09528217,
+          "annual_return": 0.16919118509653064,
+          "max_drawdown": 0.4097985968329301,
+          "sharpe": 0.9486124791875936,
+          "trades": 76,
+          "exposure": 0.5289879931389365,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.0357081133199344,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.14977796999999993,
+          "annual_return": -0.04115283928752078,
+          "max_drawdown": 0.32403372322970503,
+          "sharpe": -0.2623977711344837,
+          "trades": 33,
+          "exposure": 0.4794661190965092,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.24605213770398582
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.01,
+          "exit_buffer": 0.01,
+          "trailing_stop_pct": 0.08,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.07347231,
+          "annual_return": 0.16882880325829497,
+          "max_drawdown": 0.3760922060217059,
+          "sharpe": 0.9959447747168011,
+          "trades": 68,
+          "exposure": 0.4370497427101201,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.01921729975255798,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.21044465,
+          "annual_return": -0.059361334633829754,
+          "max_drawdown": 0.31174549555742426,
+          "sharpe": -0.5061944463449123,
+          "trades": 21,
+          "exposure": 0.3326488706365503,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.2474074376446827
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.02,
+          "exit_buffer": 0.02,
+          "trailing_stop_pct": 0.12,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.83008685,
+          "annual_return": 0.16470210775638439,
+          "max_drawdown": 0.37201639331652314,
+          "sharpe": 0.9740839781974203,
+          "trades": 47,
+          "exposure": 0.44150943396226416,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.021306088901877185,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.25218318000000006,
+          "annual_return": -0.07250009822234837,
+          "max_drawdown": 0.3590906276971706,
+          "sharpe": -0.6087933183688294,
+          "trades": 19,
+          "exposure": 0.351129363449692,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.25850829488060995
+      },
+      {
+        "strategy": "index_trend",
+        "params": {
+          "fast_window": 40,
+          "slow_window": 60,
+          "entry_buffer": 0.02,
+          "exit_buffer": 0.02,
+          "trailing_stop_pct": 0.16,
+          "position_fraction": 1.0
+        },
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.15387608,
+          "annual_return": 0.17015891851315224,
+          "max_drawdown": 0.4045746564709387,
+          "sharpe": 0.9940678691339155,
+          "trades": 39,
+          "exposure": 0.44356775300171525,
+          "benchmark_return": 1.4973462592555045
+        },
+        "train_score": -0.03212840972231712,
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.25218318000000006,
+          "annual_return": -0.07250009822234837,
+          "max_drawdown": 0.3590906276971706,
+          "sharpe": -0.6087933183688294,
+          "trades": 19,
+          "exposure": 0.351129363449692,
+          "benchmark_return": 0.10751173259785562
+        },
+        "selection_score": -0.27478742645781773
+      }
+    ],
+    "selected": {
+      "strategy": "index_trend",
+      "params": {
+        "fast_window": 10,
+        "slow_window": 60,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.16,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 5.8859623700000006,
+        "annual_return": 0.18158889408069867,
+        "max_drawdown": 0.3130308851474106,
+        "sharpe": 1.0270749569169784,
+        "trades": 84,
+        "exposure": 0.48713550600343053,
+        "benchmark_return": 1.4973462592555045
+      },
+      "train_score": 0.02507345150699336,
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": 0.06812507000000001,
+        "annual_return": 0.017215385234020886,
+        "max_drawdown": 0.311943886679525,
+        "sharpe": 0.20178433721373046,
+        "trades": 29,
+        "exposure": 0.4188911704312115,
+        "benchmark_return": 0.10751173259785562
+      },
+      "selection_score": -0.13930005733968442
+    }
+  },
+  "evaluations": {
+    "selected": {
+      "strategy": "index_trend",
+      "params": {
+        "fast_window": 10,
+        "slow_window": 60,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.16,
+        "position_fraction": 1.0
+      },
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 5.8859623700000006,
+          "annual_return": 0.18158889408069867,
+          "max_drawdown": 0.3130308851474106,
+          "sharpe": 1.0270749569169784,
+          "trades": 84,
+          "exposure": 0.48713550600343053,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.06812507000000001,
+          "annual_return": 0.017215385234020886,
+          "max_drawdown": 0.311943886679525,
+          "sharpe": 0.20178433721373046,
+          "trades": 29,
+          "exposure": 0.4188911704312115,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": -0.26741127,
+          "annual_return": -0.05420750680041331,
+          "max_drawdown": 0.3741387267625591,
+          "sharpe": -0.4881513525523621,
+          "trades": 62,
+          "exposure": 0.4637784090909091,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 4.42002502,
+          "annual_return": 0.08374234614133025,
+          "max_drawdown": 0.49031197327372056,
+          "sharpe": 0.6064059014493501,
+          "trades": 174,
+          "exposure": 0.4685671134604493,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    },
+    "buy_hold": {
+      "strategy": "buy_hold",
+      "params": {},
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 1.4962030299999998,
+          "annual_return": 0.08232177357752235,
+          "max_drawdown": 0.7197186831225786,
+          "sharpe": 0.4259409648978866,
+          "trades": 1,
+          "exposure": 0.9996569468267581,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.10708441999999985,
+          "annual_return": 0.026697474066022187,
+          "max_drawdown": 0.30694104952301915,
+          "sharpe": 0.23857769857535785,
+          "trades": 1,
+          "exposure": 0.9989733059548255,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": 0.05313787000000003,
+          "annual_return": 0.009316110341164752,
+          "max_drawdown": 0.2716958046746487,
+          "sharpe": 0.1375226105957218,
+          "trades": 1,
+          "exposure": 0.9992897727272727,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 1.96078004,
+          "annual_return": 0.05300626968537214,
+          "max_drawdown": 0.7197186831225786,
+          "sharpe": 0.33930456632129546,
+          "trades": 1,
+          "exposure": 0.9998112138946573,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    },
+    "ma_20_120": {
+      "strategy": "moving_average",
+      "params": {
+        "fast_window": 20,
+        "slow_window": 120
+      },
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.19130057,
+          "annual_return": 0.15307197244740167,
+          "max_drawdown": 0.41134926990493714,
+          "sharpe": 0.831961146322812,
+          "trades": 29,
+          "exposure": 0.5197255574614065,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.05529170999999988,
+          "annual_return": 0.014035866327260171,
+          "max_drawdown": 0.22194611202844716,
+          "sharpe": 0.17266878219810095,
+          "trades": 13,
+          "exposure": 0.4650924024640657,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": -0.08794856000000006,
+          "annual_return": -0.01635297317988782,
+          "max_drawdown": 0.2479753747239386,
+          "sharpe": -0.11860172443946651,
+          "trades": 18,
+          "exposure": 0.5106534090909091,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 3.92364406,
+          "annual_return": 0.07880048271472484,
+          "max_drawdown": 0.47749878528954903,
+          "sharpe": 0.545312851778511,
+          "trades": 62,
+          "exposure": 0.5335095336983198,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    },
+    "selected_half": {
+      "strategy": "index_trend",
+      "params": {
+        "fast_window": 10,
+        "slow_window": 60,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.16,
+        "position_fraction": 0.5
+      },
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 2.17999635,
+          "annual_return": 0.10522165407431805,
+          "max_drawdown": 0.1893533747504491,
+          "sharpe": 1.007789997211523,
+          "trades": 84,
+          "exposure": 0.48713550600343053,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.04034165000000001,
+          "annual_return": 0.010295588783967746,
+          "max_drawdown": 0.17326832704984974,
+          "sharpe": 0.1937969240919402,
+          "trades": 29,
+          "exposure": 0.4188911704312115,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": -0.14453269999999996,
+          "annual_return": -0.027572285733506563,
+          "max_drawdown": 0.2112926076980256,
+          "sharpe": -0.5015540491474544,
+          "trades": 62,
+          "exposure": 0.4637784090909091,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 1.8376615699999999,
+          "annual_return": 0.05088032508374418,
+          "max_drawdown": 0.3084153317202768,
+          "sharpe": 0.6152641562611729,
+          "trades": 174,
+          "exposure": 0.4685671134604493,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    }
+  },
+  "holdout_cost_stress": {
+    "start": "2021-01-04",
+    "end": "2026-10-28",
+    "bars": 1408,
+    "total_return": -0.31185683,
+    "annual_return": -0.06475036594371264,
+    "max_drawdown": 0.4034976966796562,
+    "sharpe": -0.594980234714315,
+    "trades": 62,
+    "exposure": 0.4637784090909091,
+    "benchmark_return": 0.05095998285335046
+  },
+  "holdout_sensitivity": [
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 50,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.128,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.30349803,
+        "annual_return": -0.06272574201283532,
+        "max_drawdown": 0.39759521524021146,
+        "sharpe": -0.5880452100316518,
+        "trades": 72,
+        "exposure": 0.45667613636363635,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 50,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.16,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.29092877000000006,
+        "annual_return": -0.05971851141665063,
+        "max_drawdown": 0.3865242983566505,
+        "sharpe": -0.5582499469163862,
+        "trades": 70,
+        "exposure": 0.45738636363636365,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 50,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.192,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.29092877000000006,
+        "annual_return": -0.05971851141665063,
+        "max_drawdown": 0.3865242983566505,
+        "sharpe": -0.5582499469163862,
+        "trades": 70,
+        "exposure": 0.45738636363636365,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 60,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.128,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.28047522999999996,
+        "annual_return": -0.057250624018953644,
+        "max_drawdown": 0.3856574142725525,
+        "sharpe": -0.5174124661369597,
+        "trades": 64,
+        "exposure": 0.4630681818181818,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 60,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.16,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.26741127,
+        "annual_return": -0.05420750680041331,
+        "max_drawdown": 0.3741387267625591,
+        "sharpe": -0.4881513525523621,
+        "trades": 62,
+        "exposure": 0.4637784090909091,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 60,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.192,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.26741127,
+        "annual_return": -0.05420750680041331,
+        "max_drawdown": 0.3741387267625591,
+        "sharpe": -0.4881513525523621,
+        "trades": 62,
+        "exposure": 0.4637784090909091,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 80,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.128,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.2535536500000001,
+        "annual_return": -0.05102782108152526,
+        "max_drawdown": 0.3645973555240325,
+        "sharpe": -0.47868234308766205,
+        "trades": 60,
+        "exposure": 0.4822443181818182,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 80,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.16,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.2535536500000001,
+        "annual_return": -0.05102782108152526,
+        "max_drawdown": 0.3645973555240325,
+        "sharpe": -0.47868234308766205,
+        "trades": 60,
+        "exposure": 0.4822443181818182,
+        "benchmark_return": 0.05095998285335046
+      }
+    },
+    {
+      "params": {
+        "fast_window": 10,
+        "slow_window": 80,
+        "entry_buffer": 0.0,
+        "exit_buffer": 0.0,
+        "trailing_stop_pct": 0.192,
+        "position_fraction": 1.0
+      },
+      "holdout": {
+        "start": "2021-01-04",
+        "end": "2026-10-28",
+        "bars": 1408,
+        "total_return": -0.2535536500000001,
+        "annual_return": -0.05102782108152526,
+        "max_drawdown": 0.3645973555240325,
+        "sharpe": -0.47868234308766205,
+        "trades": 60,
+        "exposure": 0.4822443181818182,
+        "benchmark_return": 0.05095998285335046
+      }
+    }
+  ],
+  "yearly_independent_runs": [
+    {
+      "year": 2005,
+      "strategy": {
+        "start": "2005-01-04",
+        "end": "2005-12-30",
+        "bars": 242,
+        "total_return": -0.008886420000000061,
+        "annual_return": -0.009290134439733144,
+        "max_drawdown": 0.09283049079436678,
+        "sharpe": -0.04269833946266347,
+        "trades": 7,
+        "exposure": 0.2727272727272727,
+        "benchmark_return": -0.06575370904122546
+      },
+      "buy_hold": {
+        "start": "2005-01-04",
+        "end": "2005-12-30",
+        "bars": 242,
+        "total_return": -0.06563129000000001,
+        "annual_return": -0.06852190129157265,
+        "max_drawdown": 0.23251503718383415,
+        "sharpe": -0.2178238184815825,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": -0.06575370904122546
+      }
+    },
+    {
+      "year": 2006,
+      "strategy": {
+        "start": "2006-01-04",
+        "end": "2006-12-29",
+        "bars": 241,
+        "total_return": 1.1994937499999998,
+        "annual_return": 1.2879096434991228,
+        "max_drawdown": 0.09096695092912366,
+        "sharpe": 4.108305124426847,
+        "trades": 3,
+        "exposure": 0.8921161825726142,
+        "benchmark_return": 1.2655019674621477
+      },
+      "buy_hold": {
+        "start": "2006-01-04",
+        "end": "2006-12-29",
+        "bars": 241,
+        "total_return": 1.2585815299999998,
+        "annual_return": 1.3524887807108361,
+        "max_drawdown": 0.11358948362225962,
+        "sharpe": 4.105560278819026,
+        "trades": 1,
+        "exposure": 0.995850622406639,
+        "benchmark_return": 1.2655019674621477
+      }
+    },
+    {
+      "year": 2007,
+      "strategy": {
+        "start": "2007-01-04",
+        "end": "2007-12-28",
+        "bars": 242,
+        "total_return": 0.64802022,
+        "annual_return": 0.6860303584196208,
+        "max_drawdown": 0.16533096533174552,
+        "sharpe": 1.8350263034531136,
+        "trades": 6,
+        "exposure": 0.7768595041322314,
+        "benchmark_return": 0.9374475046939688
+      },
+      "buy_hold": {
+        "start": "2007-01-04",
+        "end": "2007-12-28",
+        "bars": 242,
+        "total_return": 0.9534232499999999,
+        "annual_return": 1.0140452096954018,
+        "max_drawdown": 0.2099240969538173,
+        "sharpe": 2.195161500275685,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": 0.9374475046939688
+      }
+    },
+    {
+      "year": 2008,
+      "strategy": {
+        "start": "2008-01-02",
+        "end": "2008-12-31",
+        "bars": 246,
+        "total_return": -0.14302161999999996,
+        "annual_return": -0.1467923929125302,
+        "max_drawdown": 0.14645185926797388,
+        "sharpe": -1.9030218324770822,
+        "trades": 6,
+        "exposure": 0.052845528455284556,
+        "benchmark_return": -0.6546805937019587
+      },
+      "buy_hold": {
+        "start": "2008-01-02",
+        "end": "2008-12-31",
+        "bars": 246,
+        "total_return": -0.6526671500000001,
+        "annual_return": -0.6630043359690454,
+        "max_drawdown": 0.6874543577253311,
+        "sharpe": -2.180432439709171,
+        "trades": 1,
+        "exposure": 0.9959349593495935,
+        "benchmark_return": -0.6546805937019587
+      }
+    },
+    {
+      "year": 2009,
+      "strategy": {
+        "start": "2009-01-05",
+        "end": "2009-12-31",
+        "bars": 244,
+        "total_return": 0.5091425700000001,
+        "annual_return": 0.5323215504667689,
+        "max_drawdown": 0.21449783380568843,
+        "sharpe": 1.8055822543300677,
+        "trades": 7,
+        "exposure": 0.7663934426229508,
+        "benchmark_return": 0.7424954113220712
+      },
+      "buy_hold": {
+        "start": "2009-01-05",
+        "end": "2009-12-31",
+        "bars": 244,
+        "total_return": 0.7416954199999999,
+        "annual_return": 0.7778581480191824,
+        "max_drawdown": 0.2313241790963616,
+        "sharpe": 2.067440744867438,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": 0.7424954113220712
+      }
+    },
+    {
+      "year": 2010,
+      "strategy": {
+        "start": "2010-01-04",
+        "end": "2010-12-31",
+        "bars": 242,
+        "total_return": -0.04214854000000001,
+        "annual_return": -0.0440293588543712,
+        "max_drawdown": 0.12776592959419186,
+        "sharpe": -0.2182306292502428,
+        "trades": 8,
+        "exposure": 0.41735537190082644,
+        "benchmark_return": -0.1343141909389104
+      },
+      "buy_hold": {
+        "start": "2010-01-04",
+        "end": "2010-12-31",
+        "bars": 242,
+        "total_return": -0.13785148000000003,
+        "annual_return": -0.14366863692804088,
+        "max_drawdown": 0.27974379978569563,
+        "sharpe": -0.5741465032742262,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": -0.1343141909389104
+      }
+    },
+    {
+      "year": 2011,
+      "strategy": {
+        "start": "2011-01-04",
+        "end": "2011-12-30",
+        "bars": 244,
+        "total_return": -0.03898822000000002,
+        "annual_return": -0.04040266342583665,
+        "max_drawdown": 0.0784879052157127,
+        "sharpe": -0.5081334636504752,
+        "trades": 6,
+        "exposure": 0.23770491803278687,
+        "benchmark_return": -0.22899109879662694
+      },
+      "buy_hold": {
+        "start": "2011-01-04",
+        "end": "2011-12-30",
+        "bars": 244,
+        "total_return": -0.22259834,
+        "annual_return": -0.22981457522900983,
+        "max_drawdown": 0.28941433936517513,
+        "sharpe": -1.3470425578246195,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": -0.22899109879662694
+      }
+    },
+    {
+      "year": 2012,
+      "strategy": {
+        "start": "2012-01-04",
+        "end": "2012-12-31",
+        "bars": 243,
+        "total_return": -0.04282269999999999,
+        "annual_return": -0.04455222782622659,
+        "max_drawdown": 0.1345379557545735,
+        "sharpe": -0.5388446934295437,
+        "trades": 9,
+        "exposure": 0.2757201646090535,
+        "benchmark_return": 0.045975135867686534
+      },
+      "buy_hold": {
+        "start": "2012-01-04",
+        "end": "2012-12-31",
+        "bars": 243,
+        "total_return": 0.04898050000000009,
+        "annual_return": 0.05105531475559144,
+        "max_drawdown": 0.20264346050709325,
+        "sharpe": 0.3736748146378314,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.045975135867686534
+      }
+    },
+    {
+      "year": 2013,
+      "strategy": {
+        "start": "2013-01-04",
+        "end": "2013-12-31",
+        "bars": 238,
+        "total_return": -0.042361420000000094,
+        "annual_return": -0.0449813252645459,
+        "max_drawdown": 0.10556857241036222,
+        "sharpe": -0.33012229732238824,
+        "trades": 12,
+        "exposure": 0.4579831932773109,
+        "benchmark_return": -0.07071346759233244
+      },
+      "buy_hold": {
+        "start": "2013-01-04",
+        "end": "2013-12-31",
+        "bars": 238,
+        "total_return": -0.06915365000000007,
+        "annual_return": -0.07336595293830295,
+        "max_drawdown": 0.19864217217557778,
+        "sharpe": -0.32217220491549947,
+        "trades": 1,
+        "exposure": 0.9957983193277311,
+        "benchmark_return": -0.07071346759233244
+      }
+    },
+    {
+      "year": 2014,
+      "strategy": {
+        "start": "2014-01-02",
+        "end": "2014-12-31",
+        "bars": 245,
+        "total_return": 0.5042332,
+        "annual_return": 0.5245047501459774,
+        "max_drawdown": 0.07037674680471284,
+        "sharpe": 2.9373906101644356,
+        "trades": 9,
+        "exposure": 0.5428571428571428,
+        "benchmark_return": 0.5334677799758887
+      },
+      "buy_hold": {
+        "start": "2014-01-02",
+        "end": "2014-12-31",
+        "bars": 245,
+        "total_return": 0.53536899,
+        "annual_return": 0.5571057248225963,
+        "max_drawdown": 0.06921165018498676,
+        "sharpe": 2.6678136071445606,
+        "trades": 1,
+        "exposure": 0.9959183673469387,
+        "benchmark_return": 0.5334677799758887
+      }
+    },
+    {
+      "year": 2015,
+      "strategy": {
+        "start": "2015-01-05",
+        "end": "2015-12-31",
+        "bars": 244,
+        "total_return": 0.28981160000000017,
+        "annual_return": 0.3020265625783429,
+        "max_drawdown": 0.19043792714590335,
+        "sharpe": 1.1559623766913185,
+        "trades": 5,
+        "exposure": 0.6516393442622951,
+        "benchmark_return": 0.0563085898035498
+      },
+      "buy_hold": {
+        "start": "2015-01-05",
+        "end": "2015-12-31",
+        "bars": 244,
+        "total_return": 0.06129399000000002,
+        "annual_return": 0.06363490945532857,
+        "max_drawdown": 0.4315384617076119,
+        "sharpe": 0.3546923671673523,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": 0.0563085898035498
+      }
+    },
+    {
+      "year": 2016,
+      "strategy": {
+        "start": "2016-01-04",
+        "end": "2016-12-30",
+        "bars": 244,
+        "total_return": -0.04589264000000004,
+        "annual_return": -0.04755131076266905,
+        "max_drawdown": 0.0763351442335265,
+        "sharpe": -0.4791066937977957,
+        "trades": 10,
+        "exposure": 0.48360655737704916,
+        "benchmark_return": -0.058436263180855263
+      },
+      "buy_hold": {
+        "start": "2016-01-04",
+        "end": "2016-12-30",
+        "bars": 244,
+        "total_return": -0.028967949999999965,
+        "annual_return": -0.030024569812323598,
+        "max_drawdown": 0.2039256221740049,
+        "sharpe": -0.03341452710323719,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": -0.058436263180855263
+      }
+    },
+    {
+      "year": 2017,
+      "strategy": {
+        "start": "2017-01-03",
+        "end": "2017-12-29",
+        "bars": 244,
+        "total_return": 0.03763205000000003,
+        "annual_return": 0.03905270374727654,
+        "max_drawdown": 0.03323391306463086,
+        "sharpe": 0.6031817980046414,
+        "trades": 4,
+        "exposure": 0.5901639344262295,
+        "benchmark_return": 0.05460947517491688
+      },
+      "buy_hold": {
+        "start": "2017-01-03",
+        "end": "2017-12-29",
+        "bars": 244,
+        "total_return": 0.05432907000000009,
+        "annual_return": 0.056396979388724455,
+        "max_drawdown": 0.07162873214217369,
+        "sharpe": 0.6796365487394148,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": 0.05460947517491688
+      }
+    },
+    {
+      "year": 2018,
+      "strategy": {
+        "start": "2018-01-02",
+        "end": "2018-12-28",
+        "bars": 243,
+        "total_return": -0.002942620000000007,
+        "annual_return": -0.0030640293943382524,
+        "max_drawdown": 0.05295152505757861,
+        "sharpe": -0.04386367797956645,
+        "trades": 2,
+        "exposure": 0.07818930041152264,
+        "benchmark_return": -0.25518118606133333
+      },
+      "buy_hold": {
+        "start": "2018-01-02",
+        "end": "2018-12-28",
+        "bars": 243,
+        "total_return": -0.25525458,
+        "annual_return": -0.26426924819234476,
+        "max_drawdown": 0.30195366041720706,
+        "sharpe": -1.463784176831076,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": -0.25518118606133333
+      }
+    },
+    {
+      "year": 2019,
+      "strategy": {
+        "start": "2019-01-02",
+        "end": "2019-12-31",
+        "bars": 244,
+        "total_return": 0.05120338999999996,
+        "annual_return": 0.053149354324803166,
+        "max_drawdown": 0.18538806396167262,
+        "sharpe": 0.4275975803513855,
+        "trades": 11,
+        "exposure": 0.45081967213114754,
+        "benchmark_return": 0.23722676146548194
+      },
+      "buy_hold": {
+        "start": "2019-01-02",
+        "end": "2019-12-31",
+        "bars": 244,
+        "total_return": 0.23747039999999986,
+        "annual_return": 0.24727447581326545,
+        "max_drawdown": 0.1532643245705867,
+        "sharpe": 1.3145300136022386,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": 0.23722676146548194
+      }
+    },
+    {
+      "year": 2020,
+      "strategy": {
+        "start": "2020-01-02",
+        "end": "2020-12-31",
+        "bars": 243,
+        "total_return": -0.030903339999999946,
+        "annual_return": -0.03215958437531641,
+        "max_drawdown": 0.19680532358218605,
+        "sharpe": -0.09507828332172143,
+        "trades": 13,
+        "exposure": 0.551440329218107,
+        "benchmark_return": 0.12572021318828974
+      },
+      "buy_hold": {
+        "start": "2020-01-02",
+        "end": "2020-12-31",
+        "bars": 243,
+        "total_return": 0.12323894000000002,
+        "annual_return": 0.12864607879721102,
+        "max_drawdown": 0.1459612957580434,
+        "sharpe": 0.6872928365977748,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.12572021318828974
+      }
+    },
+    {
+      "year": 2021,
+      "strategy": {
+        "start": "2021-01-04",
+        "end": "2021-12-31",
+        "bars": 243,
+        "total_return": -0.07275836000000002,
+        "annual_return": -0.07564826180308193,
+        "max_drawdown": 0.13515649547454134,
+        "sharpe": -0.6890085965251004,
+        "trades": 11,
+        "exposure": 0.5596707818930041,
+        "benchmark_return": 0.03905755774890163
+      },
+      "buy_hold": {
+        "start": "2021-01-04",
+        "end": "2021-12-31",
+        "bars": 243,
+        "total_return": 0.04125517000000012,
+        "annual_return": 0.04299607402178762,
+        "max_drawdown": 0.0912232209397913,
+        "sharpe": 0.371343454058777,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.03905755774890163
+      }
+    },
+    {
+      "year": 2022,
+      "strategy": {
+        "start": "2022-01-04",
+        "end": "2022-12-30",
+        "bars": 242,
+        "total_return": -0.07109162999999996,
+        "annual_return": -0.07421304449171284,
+        "max_drawdown": 0.08095345065928727,
+        "sharpe": -1.0503997237615172,
+        "trades": 14,
+        "exposure": 0.2603305785123967,
+        "benchmark_return": -0.14951041465435577
+      },
+      "buy_hold": {
+        "start": "2022-01-04",
+        "end": "2022-12-30",
+        "bars": 242,
+        "total_return": -0.14853581999999999,
+        "annual_return": -0.1547621124427001,
+        "max_drawdown": 0.20431468000000008,
+        "sharpe": -0.850696364176042,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": -0.14951041465435577
+      }
+    },
+    {
+      "year": 2023,
+      "strategy": {
+        "start": "2023-01-03",
+        "end": "2023-12-29",
+        "bars": 242,
+        "total_return": -0.056975569999999975,
+        "annual_return": -0.05949720500458022,
+        "max_drawdown": 0.11504828722314753,
+        "sharpe": -0.7887666030454166,
+        "trades": 14,
+        "exposure": 0.359504132231405,
+        "benchmark_return": -0.0454280633422256
+      },
+      "buy_hold": {
+        "start": "2023-01-03",
+        "end": "2023-12-29",
+        "bars": 242,
+        "total_return": -0.04645184999999996,
+        "annual_return": -0.04851978880629437,
+        "max_drawdown": 0.14592309088768485,
+        "sharpe": -0.37318580437673576,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": -0.0454280633422256
+      }
+    },
+    {
+      "year": 2024,
+      "strategy": {
+        "start": "2024-01-02",
+        "end": "2024-12-31",
+        "bars": 242,
+        "total_return": -0.08021706000000006,
+        "annual_return": -0.08372078530026872,
+        "max_drawdown": 0.17197084807477747,
+        "sharpe": -0.5461219867607126,
+        "trades": 5,
+        "exposure": 0.5206611570247934,
+        "benchmark_return": 0.13148227028931347
+      },
+      "buy_hold": {
+        "start": "2024-01-02",
+        "end": "2024-12-31",
+        "bars": 242,
+        "total_return": 0.1321901299999999,
+        "annual_return": 0.13862421163927263,
+        "max_drawdown": 0.1469191472703022,
+        "sharpe": 0.7475541904149795,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": 0.13148227028931347
+      }
+    },
+    {
+      "year": 2025,
+      "strategy": {
+        "start": "2025-01-02",
+        "end": "2025-12-31",
+        "bars": 243,
+        "total_return": 0.04853980000000013,
+        "annual_return": 0.050595500308239005,
+        "max_drawdown": 0.1149740172660515,
+        "sharpe": 0.4793515318072313,
+        "trades": 7,
+        "exposure": 0.6666666666666666,
+        "benchmark_return": 0.21648007958901716
+      },
+      "buy_hold": {
+        "start": "2025-01-02",
+        "end": "2025-12-31",
+        "bars": 243,
+        "total_return": 0.21323058000000006,
+        "annual_return": 0.22295951900534172,
+        "max_drawdown": 0.09689148551406224,
+        "sharpe": 1.584614150113699,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.21648007958901716
+      }
+    },
+    {
+      "year": 2026,
+      "strategy": {
+        "start": "2026-01-05",
+        "end": "2026-10-28",
+        "bars": 196,
+        "total_return": -0.05092920999999995,
+        "annual_return": -0.06532028954776647,
+        "max_drawdown": 0.0918848143818487,
+        "sharpe": -0.7735118920305843,
+        "trades": 12,
+        "exposure": 0.3877551020408163,
+        "benchmark_return": -0.08498935742847624
+      },
+      "buy_hold": {
+        "start": "2026-01-05",
+        "end": "2026-10-28",
+        "bars": 196,
+        "total_return": -0.08625647999999997,
+        "annual_return": -0.11003494413215442,
+        "max_drawdown": 0.13997494949743616,
+        "sharpe": -0.6918500788391171,
+        "trades": 1,
+        "exposure": 0.9948979591836735,
+        "benchmark_return": -0.08498935742847624
+      }
+    }
+  ]
+}

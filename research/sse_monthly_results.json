@@ -1,0 +1,2509 @@
+{
+  "yearly_independent_checks": [
+    {
+      "year": 2017,
+      "half": {
+        "start": "2017-01-03",
+        "end": "2017-12-29",
+        "bars": 244,
+        "total_return": 0.025683679999999987,
+        "annual_return": 0.026647492468382827,
+        "max_drawdown": 0.03671606027257257,
+        "sharpe": 0.6359257886881428,
+        "trades": 1,
+        "exposure": 0.9221311475409836,
+        "benchmark_return": 0.05460947517491688
+      },
+      "full": {
+        "start": "2017-01-03",
+        "end": "2017-12-29",
+        "bars": 244,
+        "total_return": 0.05120584000000017,
+        "annual_return": 0.053151899769016575,
+        "max_drawdown": 0.07161555109529427,
+        "sharpe": 0.6589646538663301,
+        "trades": 1,
+        "exposure": 0.9221311475409836,
+        "benchmark_return": 0.05460947517491688
+      },
+      "buy_hold": {
+        "start": "2017-01-03",
+        "end": "2017-12-29",
+        "bars": 244,
+        "total_return": 0.05432907000000009,
+        "annual_return": 0.056396979388724455,
+        "max_drawdown": 0.07162873214217369,
+        "sharpe": 0.6796365487394148,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": 0.05460947517491688
+      }
+    },
+    {
+      "year": 2018,
+      "half": {
+        "start": "2018-01-02",
+        "end": "2018-12-28",
+        "bars": 243,
+        "total_return": -0.03370097999999999,
+        "annual_return": -0.03506887918370616,
+        "max_drawdown": 0.06288504500144432,
+        "sharpe": -1.0654504225073143,
+        "trades": 2,
+        "exposure": 0.11522633744855967,
+        "benchmark_return": -0.25518118606133333
+      },
+      "full": {
+        "start": "2018-01-02",
+        "end": "2018-12-28",
+        "bars": 243,
+        "total_return": -0.06740195999999998,
+        "annual_return": -0.07008724447946535,
+        "max_drawdown": 0.12208295303674266,
+        "sharpe": -1.072246049033235,
+        "trades": 2,
+        "exposure": 0.11522633744855967,
+        "benchmark_return": -0.25518118606133333
+      },
+      "buy_hold": {
+        "start": "2018-01-02",
+        "end": "2018-12-28",
+        "bars": 243,
+        "total_return": -0.25525458,
+        "annual_return": -0.26426924819234476,
+        "max_drawdown": 0.30195366041720706,
+        "sharpe": -1.463784176831076,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": -0.25518118606133333
+      }
+    },
+    {
+      "year": 2019,
+      "half": {
+        "start": "2019-01-02",
+        "end": "2019-12-31",
+        "bars": 244,
+        "total_return": 0.0008329599999998827,
+        "annual_return": 0.0008638236912441588,
+        "max_drawdown": 0.04532393999999995,
+        "sharpe": 0.041507699398676275,
+        "trades": 1,
+        "exposure": 0.5122950819672131,
+        "benchmark_return": 0.23722676146548194
+      },
+      "full": {
+        "start": "2019-01-02",
+        "end": "2019-12-31",
+        "bars": 244,
+        "total_return": 0.0016659199999999874,
+        "annual_return": 0.0017276740100033994,
+        "max_drawdown": 0.09064786999999996,
+        "sharpe": 0.06335217735894892,
+        "trades": 1,
+        "exposure": 0.5122950819672131,
+        "benchmark_return": 0.23722676146548194
+      },
+      "buy_hold": {
+        "start": "2019-01-02",
+        "end": "2019-12-31",
+        "bars": 244,
+        "total_return": 0.23747039999999986,
+        "annual_return": 0.24727447581326545,
+        "max_drawdown": 0.1532643245705867,
+        "sharpe": 1.3145300136022386,
+        "trades": 1,
+        "exposure": 0.9959016393442623,
+        "benchmark_return": 0.23722676146548194
+      }
+    },
+    {
+      "year": 2020,
+      "half": {
+        "start": "2020-01-02",
+        "end": "2020-12-31",
+        "bars": 243,
+        "total_return": 0.00265698999999997,
+        "annual_return": 0.002766934733079651,
+        "max_drawdown": 0.06978916097912957,
+        "sharpe": 0.07524313395511262,
+        "trades": 3,
+        "exposure": 0.5802469135802469,
+        "benchmark_return": 0.12572021318828974
+      },
+      "full": {
+        "start": "2020-01-02",
+        "end": "2020-12-31",
+        "bars": 243,
+        "total_return": -0.004109400000000041,
+        "annual_return": -0.004278846113133117,
+        "max_drawdown": 0.13861299661725224,
+        "sharpe": 0.059790948738518576,
+        "trades": 3,
+        "exposure": 0.5802469135802469,
+        "benchmark_return": 0.12572021318828974
+      },
+      "buy_hold": {
+        "start": "2020-01-02",
+        "end": "2020-12-31",
+        "bars": 243,
+        "total_return": 0.12323894000000002,
+        "annual_return": 0.12864607879721102,
+        "max_drawdown": 0.1459612957580434,
+        "sharpe": 0.6872928365977748,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.12572021318828974
+      }
+    },
+    {
+      "year": 2021,
+      "half": {
+        "start": "2021-01-04",
+        "end": "2021-12-31",
+        "bars": 243,
+        "total_return": 0.020555209999999935,
+        "annual_return": 0.021413630139139883,
+        "max_drawdown": 0.04672264301642748,
+        "sharpe": 0.33830851348957947,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.03905755774890163
+      },
+      "full": {
+        "start": "2021-01-04",
+        "end": "2021-12-31",
+        "bars": 243,
+        "total_return": 0.04125517000000012,
+        "annual_return": 0.04299607402178762,
+        "max_drawdown": 0.0912232209397913,
+        "sharpe": 0.371343454058777,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.03905755774890163
+      },
+      "buy_hold": {
+        "start": "2021-01-04",
+        "end": "2021-12-31",
+        "bars": 243,
+        "total_return": 0.04125517000000012,
+        "annual_return": 0.04299607402178762,
+        "max_drawdown": 0.0912232209397913,
+        "sharpe": 0.371343454058777,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.03905755774890163
+      }
+    },
+    {
+      "year": 2022,
+      "half": {
+        "start": "2022-01-04",
+        "end": "2022-12-30",
+        "bars": 242,
+        "total_return": -0.028131000000000017,
+        "annual_return": -0.02939593195571444,
+        "max_drawdown": 0.03670893999999991,
+        "sharpe": -1.267873268451002,
+        "trades": 2,
+        "exposure": 0.07851239669421488,
+        "benchmark_return": -0.14951041465435577
+      },
+      "full": {
+        "start": "2022-01-04",
+        "end": "2022-12-30",
+        "bars": 242,
+        "total_return": -0.05646733999999998,
+        "annual_return": -0.05896719229647884,
+        "max_drawdown": 0.07368582999999995,
+        "sharpe": -1.249200829135211,
+        "trades": 2,
+        "exposure": 0.07851239669421488,
+        "benchmark_return": -0.14951041465435577
+      },
+      "buy_hold": {
+        "start": "2022-01-04",
+        "end": "2022-12-30",
+        "bars": 242,
+        "total_return": -0.14853581999999999,
+        "annual_return": -0.1547621124427001,
+        "max_drawdown": 0.20431468000000008,
+        "sharpe": -0.850696364176042,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": -0.14951041465435577
+      }
+    },
+    {
+      "year": 2023,
+      "half": {
+        "start": "2023-01-03",
+        "end": "2023-12-29",
+        "bars": 242,
+        "total_return": -0.03089715999999998,
+        "annual_return": -0.032284395805578514,
+        "max_drawdown": 0.0561207227104219,
+        "sharpe": -0.8826949135959548,
+        "trades": 4,
+        "exposure": 0.33884297520661155,
+        "benchmark_return": -0.0454280633422256
+      },
+      "full": {
+        "start": "2023-01-03",
+        "end": "2023-12-29",
+        "bars": 242,
+        "total_return": -0.061429109999999953,
+        "annual_return": -0.06414106504443207,
+        "max_drawdown": 0.1101744324666345,
+        "sharpe": -0.8648760258304924,
+        "trades": 4,
+        "exposure": 0.33884297520661155,
+        "benchmark_return": -0.0454280633422256
+      },
+      "buy_hold": {
+        "start": "2023-01-03",
+        "end": "2023-12-29",
+        "bars": 242,
+        "total_return": -0.04645184999999996,
+        "annual_return": -0.04851978880629437,
+        "max_drawdown": 0.14592309088768485,
+        "sharpe": -0.37318580437673576,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": -0.0454280633422256
+      }
+    },
+    {
+      "year": 2024,
+      "half": {
+        "start": "2024-01-02",
+        "end": "2024-12-31",
+        "bars": 242,
+        "total_return": -0.01118739000000002,
+        "annual_return": -0.01169502040524173,
+        "max_drawdown": 0.03726753999999999,
+        "sharpe": -0.20523058495081686,
+        "trades": 1,
+        "exposure": 0.24793388429752067,
+        "benchmark_return": 0.13148227028931347
+      },
+      "full": {
+        "start": "2024-01-02",
+        "end": "2024-12-31",
+        "bars": 242,
+        "total_return": -0.02237478000000004,
+        "annual_return": -0.02338400287693143,
+        "max_drawdown": 0.07453507999999998,
+        "sharpe": -0.17744449617380578,
+        "trades": 1,
+        "exposure": 0.24793388429752067,
+        "benchmark_return": 0.13148227028931347
+      },
+      "buy_hold": {
+        "start": "2024-01-02",
+        "end": "2024-12-31",
+        "bars": 242,
+        "total_return": 0.1321901299999999,
+        "annual_return": 0.13862421163927263,
+        "max_drawdown": 0.1469191472703022,
+        "sharpe": 0.7475541904149795,
+        "trades": 1,
+        "exposure": 0.9958677685950413,
+        "benchmark_return": 0.13148227028931347
+      }
+    },
+    {
+      "year": 2025,
+      "half": {
+        "start": "2025-01-02",
+        "end": "2025-12-31",
+        "bars": 243,
+        "total_return": 0.10696485,
+        "annual_return": 0.11162304809619661,
+        "max_drawdown": 0.049758654951765124,
+        "sharpe": 1.5718177435978926,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.21648007958901716
+      },
+      "full": {
+        "start": "2025-01-02",
+        "end": "2025-12-31",
+        "bars": 243,
+        "total_return": 0.21323058000000006,
+        "annual_return": 0.22295951900534172,
+        "max_drawdown": 0.09689148551406224,
+        "sharpe": 1.584614150113699,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.21648007958901716
+      },
+      "buy_hold": {
+        "start": "2025-01-02",
+        "end": "2025-12-31",
+        "bars": 243,
+        "total_return": 0.21323058000000006,
+        "annual_return": 0.22295951900534172,
+        "max_drawdown": 0.09689148551406224,
+        "sharpe": 1.584614150113699,
+        "trades": 1,
+        "exposure": 0.9958847736625515,
+        "benchmark_return": 0.21648007958901716
+      }
+    },
+    {
+      "year": 2026,
+      "half": {
+        "start": "2026-01-05",
+        "end": "2026-10-28",
+        "bars": 196,
+        "total_return": -0.027020280000000008,
+        "annual_return": -0.034779729108988744,
+        "max_drawdown": 0.05779515372090949,
+        "sharpe": -0.4896239952117586,
+        "trades": 2,
+        "exposure": 0.7091836734693877,
+        "benchmark_return": -0.08498935742847624
+      },
+      "full": {
+        "start": "2026-01-05",
+        "end": "2026-10-28",
+        "bars": 196,
+        "total_return": -0.054040560000000015,
+        "annual_return": -0.0692782432324286,
+        "max_drawdown": 0.1126866972671896,
+        "sharpe": -0.461603216021616,
+        "trades": 2,
+        "exposure": 0.7091836734693877,
+        "benchmark_return": -0.08498935742847624
+      },
+      "buy_hold": {
+        "start": "2026-01-05",
+        "end": "2026-10-28",
+        "bars": 196,
+        "total_return": -0.08625647999999997,
+        "annual_return": -0.11003494413215442,
+        "max_drawdown": 0.13997494949743616,
+        "sharpe": -0.6918500788391171,
+        "trades": 1,
+        "exposure": 0.9948979591836735,
+        "benchmark_return": -0.08498935742847624
+      }
+    }
+  ],
+  "note": "Exploratory second family. 2021+ aggregate results had already been seen in the failed daily-trend study; this is not a pristine holdout.",
+  "count": 54,
+  "selected": {
+    "params": {
+      "trend_window": 250,
+      "momentum_window": 252,
+      "buffer_pct": 0.01,
+      "trailing_stop_pct": 0.12,
+      "position_fraction": 1.0
+    },
+    "train": {
+      "start": "2005-01-04",
+      "end": "2016-12-30",
+      "bars": 2915,
+      "total_return": 3.4296423000000003,
+      "annual_return": 0.13735844903721794,
+      "max_drawdown": 0.3255560225873805,
+      "sharpe": 0.8824009464819448,
+      "trades": 28,
+      "exposure": 0.3300171526586621,
+      "benchmark_return": 1.4973462592555045
+    },
+    "validation": {
+      "start": "2017-01-03",
+      "end": "2020-12-31",
+      "bars": 974,
+      "total_return": 0.00438556999999995,
+      "annual_return": 0.001133990185018252,
+      "max_drawdown": 0.22626889137769002,
+      "sharpe": 0.06537857599720327,
+      "trades": 5,
+      "exposure": 0.5349075975359343,
+      "benchmark_return": 0.10751173259785562
+    },
+    "score": -0.161644021108672
+  },
+  "candidates": [
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.4296423000000003,
+        "annual_return": 0.13735844903721794,
+        "max_drawdown": 0.3255560225873805,
+        "sharpe": 0.8824009464819448,
+        "trades": 28,
+        "exposure": 0.3300171526586621,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": 0.00438556999999995,
+        "annual_return": 0.001133990185018252,
+        "max_drawdown": 0.22626889137769002,
+        "sharpe": 0.06537857599720327,
+        "trades": 5,
+        "exposure": 0.5349075975359343,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.161644021108672
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.8969367200000002,
+        "annual_return": 0.1248256318341594,
+        "max_drawdown": 0.3229351334739514,
+        "sharpe": 0.8525635552552576,
+        "trades": 42,
+        "exposure": 0.29708404802744426,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.030698380000000025,
+        "annual_return": -0.008042734984772593,
+        "max_drawdown": 0.253333431401781,
+        "sharpe": -0.022133780853033514,
+        "trades": 7,
+        "exposure": 0.5143737166324436,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.1695103017217483
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.1466521299999997,
+        "annual_return": 0.1308836159934279,
+        "max_drawdown": 0.39849808506663353,
+        "sharpe": 0.7731741428204195,
+        "trades": 20,
+        "exposure": 0.35986277873070327,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": 0.004905399999999949,
+        "annual_return": 0.0012681608337778982,
+        "max_drawdown": 0.22580933697431305,
+        "sharpe": 0.06810856918486528,
+        "trades": 5,
+        "exposure": 0.5667351129363449,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.19798088169953887
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.5242797,
+        "annual_return": 0.13943958784080945,
+        "max_drawdown": 0.3565688436057102,
+        "sharpe": 0.9237794416124064,
+        "trades": 43,
+        "exposure": 0.3300171526586621,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.09469454,
+        "annual_return": -0.02543625285884621,
+        "max_drawdown": 0.28123430682779305,
+        "sharpe": -0.15918991998079587,
+        "trades": 11,
+        "exposure": 0.48973305954825463,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2037206746617013
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.5363699100000003,
+        "annual_return": 0.13970258870510288,
+        "max_drawdown": 0.39836942387353336,
+        "sharpe": 0.8042046370767175,
+        "trades": 23,
+        "exposure": 0.4013722126929674,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.035148610000000025,
+        "annual_return": -0.009224263696930746,
+        "max_drawdown": 0.23391666319099702,
+        "sharpe": -0.011324109996334132,
+        "trades": 9,
+        "exposure": 0.5400410677618069,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.20840897563369742
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.18712963,
+        "annual_return": 0.15299182593875993,
+        "max_drawdown": 0.32231952984476464,
+        "sharpe": 0.976785522831028,
+        "trades": 43,
+        "exposure": 0.36843910806174957,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.15996180000000004,
+        "annual_return": -0.04414064522625283,
+        "max_drawdown": 0.33375294890341156,
+        "sharpe": -0.3100723016521788,
+        "trades": 13,
+        "exposure": 0.5,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2110171196779586
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.931774269999999,
+        "annual_return": 0.1664450484285127,
+        "max_drawdown": 0.3376140262132552,
+        "sharpe": 0.9984805950274125,
+        "trades": 27,
+        "exposure": 0.41269296740994854,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1632751,
+        "annual_return": -0.045118510598936346,
+        "max_drawdown": 0.340744423494888,
+        "sharpe": -0.3065530561911733,
+        "trades": 13,
+        "exposure": 0.526694045174538,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.21549072234638034
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.9826282300000004,
+        "annual_return": 0.1489881739301966,
+        "max_drawdown": 0.39435918802542635,
+        "sharpe": 0.9254376191378318,
+        "trades": 29,
+        "exposure": 0.37461406518010293,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.07532638000000003,
+        "annual_return": -0.020078564466115667,
+        "max_drawdown": 0.2660350933908867,
+        "sharpe": -0.10683059788075443,
+        "trades": 11,
+        "exposure": 0.5133470225872689,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.21725815847882884
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.4296423000000003,
+        "annual_return": 0.13735844903721794,
+        "max_drawdown": 0.3255560225873805,
+        "sharpe": 0.8824009464819448,
+        "trades": 28,
+        "exposure": 0.3300171526586621,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.15719814,
+        "annual_return": -0.04332718076229891,
+        "max_drawdown": 0.3556147852046395,
+        "sharpe": -0.33767221645217027,
+        "trades": 9,
+        "exposure": 0.5256673511293635,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.22113457336461867
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.8969367200000002,
+        "annual_return": 0.1248256318341594,
+        "max_drawdown": 0.3229351334739514,
+        "sharpe": 0.8525635552552576,
+        "trades": 42,
+        "exposure": 0.29708404802744426,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.16585218999999995,
+        "annual_return": -0.04588108155942339,
+        "max_drawdown": 0.358179834996065,
+        "sharpe": -0.3749731723424241,
+        "trades": 11,
+        "exposure": 0.502053388090349,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.22497099905745588
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.4467764800000005,
+        "annual_return": 0.13773823326715107,
+        "max_drawdown": 0.32306637404424565,
+        "sharpe": 0.8844652959131598,
+        "trades": 28,
+        "exposure": 0.32967409948542026,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.18438049999999995,
+        "annual_return": -0.05141571547291501,
+        "max_drawdown": 0.3554693926444178,
+        "sharpe": -0.41652495437346926,
+        "trades": 11,
+        "exposure": 0.5030800821355236,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2291504117951239
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.7438294400000007,
+        "annual_return": 0.14411850648042623,
+        "max_drawdown": 0.32190529911796206,
+        "sharpe": 0.9242097680700073,
+        "trades": 24,
+        "exposure": 0.31595197255574614,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.18438049999999995,
+        "annual_return": -0.05141571547291501,
+        "max_drawdown": 0.3554693926444178,
+        "sharpe": -0.41652495437346926,
+        "trades": 11,
+        "exposure": 0.5030800821355236,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2291504117951239
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.187796769999999,
+        "annual_return": 0.15300464929151003,
+        "max_drawdown": 0.3900384544568424,
+        "sharpe": 0.8526588454522063,
+        "trades": 19,
+        "exposure": 0.43979416809605487,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1285779399999999,
+        "annual_return": -0.03501708457578312,
+        "max_drawdown": 0.32264750806509446,
+        "sharpe": -0.20543409835521081,
+        "trades": 11,
+        "exposure": 0.5626283367556468,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2300363118042043
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.72857921,
+        "annual_return": 0.12053786693192348,
+        "max_drawdown": 0.3522606989134751,
+        "sharpe": 0.8295222159679653,
+        "trades": 42,
+        "exposure": 0.2919382504288165,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.19299955000000002,
+        "annual_return": -0.054022126824069816,
+        "max_drawdown": 0.3582357773032212,
+        "sharpe": -0.456844436770133,
+        "trades": 13,
+        "exposure": 0.4794661190965092,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.23314001547568042
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.9774433399999998,
+        "annual_return": 0.12681649127383654,
+        "max_drawdown": 0.30188599146605366,
+        "sharpe": 0.8717716534642685,
+        "trades": 38,
+        "exposure": 0.2782161234991424,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.19299955000000002,
+        "annual_return": -0.054022126824069816,
+        "max_drawdown": 0.3582357773032212,
+        "sharpe": -0.456844436770133,
+        "trades": 13,
+        "exposure": 0.4794661190965092,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.23314001547568042
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.1466521299999997,
+        "annual_return": 0.1308836159934279,
+        "max_drawdown": 0.39849808506663353,
+        "sharpe": 0.7731741428204195,
+        "trades": 20,
+        "exposure": 0.35986277873070327,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.12667227000000003,
+        "annual_return": -0.03447098115772229,
+        "max_drawdown": 0.3413056026881316,
+        "sharpe": -0.242828576466057,
+        "trades": 9,
+        "exposure": 0.5441478439425051,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.23372002369103906
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.8290153899999995,
+        "annual_return": 0.14588082611146413,
+        "max_drawdown": 0.40421876612657637,
+        "sharpe": 0.818377290060758,
+        "trades": 23,
+        "exposure": 0.4483704974271012,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1285779399999999,
+        "annual_return": -0.03501708457578312,
+        "max_drawdown": 0.32264750806509446,
+        "sharpe": -0.20543409835521081,
+        "trades": 11,
+        "exposure": 0.5626283367556468,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2371264676390713
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.31107509,
+        "annual_return": 0.13469298323890522,
+        "max_drawdown": 0.3868819764176673,
+        "sharpe": 0.889543922520137,
+        "trades": 47,
+        "exposure": 0.34305317324185247,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.15996180000000004,
+        "annual_return": -0.04414064522625283,
+        "max_drawdown": 0.33375294890341156,
+        "sharpe": -0.3100723016521788,
+        "trades": 13,
+        "exposure": 0.5,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.23758163343508648
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.4410786,
+        "annual_return": 0.1376120866357271,
+        "max_drawdown": 0.4111306226028857,
+        "sharpe": 0.7914348297855234,
+        "trades": 25,
+        "exposure": 0.40823327615780447,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1285779399999999,
+        "annual_return": -0.03501708457578312,
+        "max_drawdown": 0.32264750806509446,
+        "sharpe": -0.20543409835521081,
+        "trades": 11,
+        "exposure": 0.5626283367556468,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.24058239587722596
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.4473667999999997,
+        "annual_return": 0.11296476881186135,
+        "max_drawdown": 0.4043527150221846,
+        "sharpe": 0.8103362149552394,
+        "trades": 36,
+        "exposure": 0.28130360205831906,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.14072839000000004,
+        "annual_return": -0.038519980002543086,
+        "max_drawdown": 0.3556297665205912,
+        "sharpe": -0.3172893751290878,
+        "trades": 13,
+        "exposure": 0.43737166324435317,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2406963375136354
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.0238025000000004,
+        "annual_return": 0.12794627317945428,
+        "max_drawdown": 0.43873121846171925,
+        "sharpe": 0.8612598773067528,
+        "trades": 45,
+        "exposure": 0.3653516295025729,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.09326202000000006,
+        "annual_return": -0.025037090985747135,
+        "max_drawdown": 0.32224589422090555,
+        "sharpe": -0.1474297615498385,
+        "trades": 13,
+        "exposure": 0.49691991786447637,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.24440270021660676
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.22192438,
+        "annual_return": 0.13264434203699094,
+        "max_drawdown": 0.38747135909421526,
+        "sharpe": 0.7862346842000257,
+        "trades": 18,
+        "exposure": 0.3409948542024014,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1856626899999999,
+        "annual_return": -0.051802154982273585,
+        "max_drawdown": 0.3652957278428859,
+        "sharpe": -0.39086797657471867,
+        "trades": 11,
+        "exposure": 0.5441478439425051,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.24553783452938122
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.8759311799999994,
+        "annual_return": 0.14683932427263757,
+        "max_drawdown": 0.40715549303210585,
+        "sharpe": 0.9099365506599016,
+        "trades": 31,
+        "exposure": 0.38147512864494,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1632751,
+        "annual_return": -0.045118510598936346,
+        "max_drawdown": 0.340744423494888,
+        "sharpe": -0.3065530561911733,
+        "trades": 13,
+        "exposure": 0.526694045174538,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.24869625711498927
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.48177647,
+        "annual_return": 0.13850988199085568,
+        "max_drawdown": 0.41336183729567777,
+        "sharpe": 0.8919904083834599,
+        "trades": 49,
+        "exposure": 0.3804459691252144,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.15996180000000004,
+        "annual_return": -0.04414064522625283,
+        "max_drawdown": 0.33375294890341156,
+        "sharpe": -0.3100723016521788,
+        "trades": 13,
+        "exposure": 0.5,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2508215638740917
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.1465553799999997,
+        "annual_return": 0.13088133414441439,
+        "max_drawdown": 0.4133618261791526,
+        "sharpe": 0.8782025492262147,
+        "trades": 24,
+        "exposure": 0.3176672384219554,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.17400404000000003,
+        "annual_return": -0.048304798937755855,
+        "max_drawdown": 0.38035487715551686,
+        "sharpe": -0.4065132552143178,
+        "trades": 13,
+        "exposure": 0.4414784394250513,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.25498571202733217
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.95783029,
+        "annual_return": 0.1263348923903005,
+        "max_drawdown": 0.42575968948463905,
+        "sharpe": 0.7521326984238739,
+        "trades": 22,
+        "exposure": 0.35471698113207545,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.15488529000000006,
+        "annual_return": -0.04264792704077758,
+        "max_drawdown": 0.34137832405955093,
+        "sharpe": -0.3180085789788939,
+        "trades": 11,
+        "exposure": 0.5215605749486653,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2555277717830971
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.73876904,
+        "annual_return": 0.12080236321917304,
+        "max_drawdown": 0.4678712100536,
+        "sharpe": 0.8278067411471008,
+        "trades": 45,
+        "exposure": 0.35197255574614067,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.08560942000000005,
+        "annual_return": -0.022912626410090953,
+        "max_drawdown": 0.26258902888744406,
+        "sharpe": -0.14126901665795802,
+        "trades": 11,
+        "exposure": 0.44455852156057496,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.25684823143689095
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.10962459,
+        "annual_return": 0.15149171857160604,
+        "max_drawdown": 0.42837273277362653,
+        "sharpe": 0.9169928661655692,
+        "trades": 31,
+        "exposure": 0.4202401372212693,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.1632751,
+        "annual_return": -0.045118510598936346,
+        "max_drawdown": 0.340744423494888,
+        "sharpe": -0.3065530561911733,
+        "trades": 13,
+        "exposure": 0.526694045174538,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2593048769857496
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.20225308,
+        "annual_return": 0.10588847727129824,
+        "max_drawdown": 0.44661117656918825,
+        "sharpe": 0.7747061116445393,
+        "trades": 36,
+        "exposure": 0.2679245283018868,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.16221297999999995,
+        "annual_return": -0.04480473156737619,
+        "max_drawdown": 0.29922229625188757,
+        "sharpe": -0.41187859000316035,
+        "trades": 11,
+        "exposure": 0.3665297741273101,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2681103198519703
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.4930558499999993,
+        "annual_return": 0.13875738706639718,
+        "max_drawdown": 0.47856105862929954,
+        "sharpe": 0.8875577284054028,
+        "trades": 29,
+        "exposure": 0.3955403087478559,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.10996035999999998,
+        "annual_return": -0.02971931651930415,
+        "max_drawdown": 0.28222846974763593,
+        "sharpe": -0.19737798554163416,
+        "trades": 11,
+        "exposure": 0.4486652977412731,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2689998458339539
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.6164302699999995,
+        "annual_return": 0.14142817119567241,
+        "max_drawdown": 0.46421448575819424,
+        "sharpe": 0.8967203681267512,
+        "trades": 31,
+        "exposure": 0.4037735849056604,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.13926802000000005,
+        "annual_return": -0.038097031864134046,
+        "max_drawdown": 0.3562370871212256,
+        "sharpe": -0.2530548242080495,
+        "trades": 13,
+        "exposure": 0.5041067761806981,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.27020427474323117
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.7572773699999997,
+        "annual_return": 0.14439862813897286,
+        "max_drawdown": 0.5044475612995069,
+        "sharpe": 0.8467211753166245,
+        "trades": 23,
+        "exposure": 0.423327615780446,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.07095118999999994,
+        "annual_return": -0.01887981762378721,
+        "max_drawdown": 0.2506785363274544,
+        "sharpe": -0.09531887660855592,
+        "trades": 9,
+        "exposure": 0.4753593429158111,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.27110359827354064
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 126,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.8863028699999997,
+        "annual_return": 0.14705008221178395,
+        "max_drawdown": 0.4909444550921169,
+        "sharpe": 0.8557314434103785,
+        "trades": 25,
+        "exposure": 0.4315608919382504,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.10342361,
+        "annual_return": -0.02787871715912016,
+        "max_drawdown": 0.3374775862994892,
+        "sharpe": -0.15238122813202404,
+        "trades": 11,
+        "exposure": 0.5400410677618069,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2733509447051786
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.85272581,
+        "annual_return": 0.12371629528252637,
+        "max_drawdown": 0.4549543240896927,
+        "sharpe": 0.8449445763262549,
+        "trades": 24,
+        "exposure": 0.30428816466552316,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.17418476000000005,
+        "annual_return": -0.04835873125527956,
+        "max_drawdown": 0.3089976643652861,
+        "sharpe": -0.44431317629432404,
+        "trades": 11,
+        "exposure": 0.3675564681724846,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2758358933001259
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.6038099100000003,
+        "annual_return": 0.11724455631388597,
+        "max_drawdown": 0.4309378371998992,
+        "sharpe": 0.8452869575994354,
+        "trades": 39,
+        "exposure": 0.2950257289879931,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.23354777999999998,
+        "annual_return": -0.06656846615790524,
+        "max_drawdown": 0.33131029873711815,
+        "sharpe": -0.5598720444493039,
+        "trades": 19,
+        "exposure": 0.42813141683778233,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.28203738475785484
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 252,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.1334970699999998,
+        "annual_return": 0.13057290668126642,
+        "max_drawdown": 0.5024872885597257,
+        "sharpe": 0.8032698435200488,
+        "trades": 20,
+        "exposure": 0.3423670668953688,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.14404836,
+        "annual_return": -0.03948348575324567,
+        "max_drawdown": 0.3654298354673663,
+        "sharpe": -0.30421003916547995,
+        "trades": 13,
+        "exposure": 0.459958932238193,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2907271300331085
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.98741529,
+        "annual_return": 0.1270605214049243,
+        "max_drawdown": 0.4155971300290432,
+        "sharpe": 0.8922855879749899,
+        "trades": 39,
+        "exposure": 0.307032590051458,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.28868137000000005,
+        "annual_return": -0.08444236682341999,
+        "max_drawdown": 0.380078931323536,
+        "sharpe": -0.7046548730831144,
+        "trades": 21,
+        "exposure": 0.4383983572895277,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.2922409318379416
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.09997786,
+        "annual_return": 0.151303554049117,
+        "max_drawdown": 0.4830582076710642,
+        "sharpe": 0.9509607989518223,
+        "trades": 35,
+        "exposure": 0.4288164665523156,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.22178927999999998,
+        "annual_return": -0.06288053099130297,
+        "max_drawdown": 0.3190557510385612,
+        "sharpe": -0.5256397044785771,
+        "trades": 17,
+        "exposure": 0.37782340862423,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3044096348268351
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.36732637,
+        "annual_return": 0.13596578737244758,
+        "max_drawdown": 0.46531190147209933,
+        "sharpe": 0.9189825750217336,
+        "trades": 29,
+        "exposure": 0.33962264150943394,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.25343485,
+        "annual_return": -0.07290241272362574,
+        "max_drawdown": 0.3486609064483147,
+        "sharpe": -0.6117973268284322,
+        "trades": 19,
+        "exposure": 0.4322381930184805,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3055583634596754
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.1027568299999997,
+        "annual_return": 0.12984331657143966,
+        "max_drawdown": 0.47757578685367086,
+        "sharpe": 0.8657114094338361,
+        "trades": 47,
+        "exposure": 0.38662092624356775,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.24096547999999995,
+        "annual_return": -0.06891657159651754,
+        "max_drawdown": 0.336021510375617,
+        "sharpe": -0.5946952659988408,
+        "trades": 17,
+        "exposure": 0.3655030800821355,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.30770446502335297
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.83977949,
+        "annual_return": 0.12338924584669164,
+        "max_drawdown": 0.5378067027816873,
+        "sharpe": 0.7717035696083996,
+        "trades": 20,
+        "exposure": 0.3289879931389365,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.14195552,
+        "annual_return": -0.03887578987790141,
+        "max_drawdown": 0.2823517553552626,
+        "sharpe": -0.33820397274977493,
+        "trades": 11,
+        "exposure": 0.37679671457905545,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.30777914126874506
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.46257112,
+        "annual_return": 0.15816227177460163,
+        "max_drawdown": 0.4978854578411934,
+        "sharpe": 0.9169059941755491,
+        "trades": 29,
+        "exposure": 0.453516295025729,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.21926970999999995,
+        "annual_return": -0.06209567209736466,
+        "max_drawdown": 0.3168981786734094,
+        "sharpe": -0.5007717278502382,
+        "trades": 17,
+        "exposure": 0.3952772073921971,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3110384010179614
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.5001343499999997,
+        "annual_return": 0.13891242190638975,
+        "max_drawdown": 0.5001044850474257,
+        "sharpe": 0.8610940826470351,
+        "trades": 25,
+        "exposure": 0.36295025728987995,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.22214570999999994,
+        "annual_return": -0.06299171271779791,
+        "max_drawdown": 0.32124779710956575,
+        "sharpe": -0.49467924956283466,
+        "trades": 19,
+        "exposure": 0.4589322381930185,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.31304395524151074
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.43317411,
+        "annual_return": 0.1125677713878066,
+        "max_drawdown": 0.45778794475425055,
+        "sharpe": 0.8085613810024695,
+        "trades": 43,
+        "exposure": 0.30806174957118354,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.28868137000000005,
+        "annual_return": -0.08444236682341999,
+        "max_drawdown": 0.380078931323536,
+        "sharpe": -0.7046548730831144,
+        "trades": 21,
+        "exposure": 0.4383983572895277,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.31333633920054527
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.1027568299999997,
+        "annual_return": 0.12984331657143966,
+        "max_drawdown": 0.47757578685367086,
+        "sharpe": 0.8657114094338361,
+        "trades": 47,
+        "exposure": 0.38662092624356775,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.27067903000000004,
+        "annual_return": -0.07849662590348383,
+        "max_drawdown": 0.3734009969083971,
+        "sharpe": -0.6616168071909082,
+        "trades": 19,
+        "exposure": 0.3973305954825462,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.31728451933031926
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.0757888499999995,
+        "annual_return": 0.1508303010998009,
+        "max_drawdown": 0.47662322797678003,
+        "sharpe": 0.9113934089445962,
+        "trades": 21,
+        "exposure": 0.376672384219554,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.29752979,
+        "annual_return": -0.08740574069077311,
+        "max_drawdown": 0.3999507734937585,
+        "sharpe": -0.6738182663877291,
+        "trades": 21,
+        "exposure": 0.4815195071868583,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.32571735467916313
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 63,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.7471973,
+        "annual_return": 0.14418872734588928,
+        "max_drawdown": 0.46055261903382394,
+        "sharpe": 0.9520435697019838,
+        "trades": 27,
+        "exposure": 0.35197255574614067,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.3243243,
+        "annual_return": -0.09655140950673058,
+        "max_drawdown": 0.4149835563229962,
+        "sharpe": -0.8051215740707627,
+        "trades": 21,
+        "exposure": 0.4455852156057495,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.32682771902364255
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.46257112,
+        "annual_return": 0.15816227177460163,
+        "max_drawdown": 0.4978854578411934,
+        "sharpe": 0.9169059941755491,
+        "trades": 29,
+        "exposure": 0.453516295025729,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.27991264000000005,
+        "annual_return": -0.08153250801096656,
+        "max_drawdown": 0.39360731121175696,
+        "sharpe": -0.6324082353671264,
+        "trades": 19,
+        "exposure": 0.4404517453798768,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3304752369315633
+    },
+    {
+      "params": {
+        "trend_window": 120,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 4.09997786,
+        "annual_return": 0.151303554049117,
+        "max_drawdown": 0.4830582076710642,
+        "sharpe": 0.9509607989518223,
+        "trades": 35,
+        "exposure": 0.4288164665523156,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.30770023999999996,
+        "annual_return": -0.0908462344135672,
+        "max_drawdown": 0.4089703262238269,
+        "sharpe": -0.7654669661022886,
+        "trades": 19,
+        "exposure": 0.40451745379876797,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3323753382490993
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.27470371,
+        "annual_return": 0.13386190301701428,
+        "max_drawdown": 0.4766162676684951,
+        "sharpe": 0.9017784318534592,
+        "trades": 31,
+        "exposure": 0.346483704974271,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.3243243,
+        "annual_return": -0.09655140950673058,
+        "max_drawdown": 0.4149835563229962,
+        "sharpe": -0.8051215740707627,
+        "trades": 21,
+        "exposure": 0.4455852156057495,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3348595433409781
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.08,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 2.41449459,
+        "annual_return": 0.11204297714075118,
+        "max_drawdown": 0.5036544657815704,
+        "sharpe": 0.7885803693956044,
+        "trades": 45,
+        "exposure": 0.3403087478559177,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.28868137000000005,
+        "annual_return": -0.08444236682341999,
+        "max_drawdown": 0.380078931323536,
+        "sharpe": -0.7046548730831144,
+        "trades": 21,
+        "exposure": 0.4383983572895277,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.33626959971420517
+    },
+    {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.40494818,
+        "annual_return": 0.13680872891486318,
+        "max_drawdown": 0.5106697034173756,
+        "sharpe": 0.8463232016117903,
+        "trades": 27,
+        "exposure": 0.36981132075471695,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.29752979,
+        "annual_return": -0.08740574069077311,
+        "max_drawdown": 0.3999507734937585,
+        "sharpe": -0.6738182663877291,
+        "trades": 21,
+        "exposure": 0.4815195071868583,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.3427405923994609
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.18,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.57067958,
+        "annual_return": 0.1404454623033231,
+        "max_drawdown": 0.5326553281494975,
+        "sharpe": 0.8513595578151764,
+        "trades": 27,
+        "exposure": 0.40480274442538594,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.29752979,
+        "annual_return": -0.08740574069077311,
+        "max_drawdown": 0.3999507734937585,
+        "sharpe": -0.6738182663877291,
+        "trades": 21,
+        "exposure": 0.4815195071868583,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.35373340476552184
+    },
+    {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 63,
+        "buffer_pct": 0.0,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "train": {
+        "start": "2005-01-04",
+        "end": "2016-12-30",
+        "bars": 2915,
+        "total_return": 3.2751575599999994,
+        "annual_return": 0.133872313153379,
+        "max_drawdown": 0.5182730561418085,
+        "sharpe": 0.8844107426806564,
+        "trades": 33,
+        "exposure": 0.38010291595197254,
+        "benchmark_return": 1.4973462592555045
+      },
+      "validation": {
+        "start": "2017-01-03",
+        "end": "2020-12-31",
+        "bars": 974,
+        "total_return": -0.3243243,
+        "annual_return": -0.09655140950673058,
+        "max_drawdown": 0.4149835563229962,
+        "sharpe": -0.8051215740707627,
+        "trades": 21,
+        "exposure": 0.4455852156057495,
+        "benchmark_return": 0.10751173259785562
+      },
+      "score": -0.35568793757763484
+    }
+  ],
+  "models": {
+    "selected": {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 3.4296423000000003,
+          "annual_return": 0.13735844903721794,
+          "max_drawdown": 0.3255560225873805,
+          "sharpe": 0.8824009464819448,
+          "trades": 28,
+          "exposure": 0.3300171526586621,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.00438556999999995,
+          "annual_return": 0.001133990185018252,
+          "max_drawdown": 0.22626889137769002,
+          "sharpe": 0.06537857599720327,
+          "trades": 5,
+          "exposure": 0.5349075975359343,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": 0.019943009999999983,
+          "annual_return": 0.003542993529977112,
+          "max_drawdown": 0.21720786320071483,
+          "sharpe": 0.08742553414881543,
+          "trades": 8,
+          "exposure": 0.5589488636363636,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 3.5657835700000007,
+          "annual_return": 0.07493392956405853,
+          "max_drawdown": 0.4300669297498717,
+          "sharpe": 0.5865451494275685,
+          "trades": 40,
+          "exposure": 0.4287332452331508,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    },
+    "half": {
+      "params": {
+        "trend_window": 250,
+        "momentum_window": 252,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 0.5
+      },
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 1.44975313,
+          "annual_return": 0.08056509626825492,
+          "max_drawdown": 0.19527564550505094,
+          "sharpe": 0.8922694913494494,
+          "trades": 28,
+          "exposure": 0.3300171526586621,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": 0.006427659999999946,
+          "annual_return": 0.0016607679441411616,
+          "max_drawdown": 0.12027915939476996,
+          "sharpe": 0.05771943297686211,
+          "trades": 5,
+          "exposure": 0.5349075975359343,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": 0.011622079999999979,
+          "annual_return": 0.0020717064366253535,
+          "max_drawdown": 0.11402700833015944,
+          "sharpe": 0.06507582930365748,
+          "trades": 8,
+          "exposure": 0.5589488636363636,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 1.5009106,
+          "annual_return": 0.044582480244634626,
+          "max_drawdown": 0.25806962163678127,
+          "sharpe": 0.599693983086667,
+          "trades": 40,
+          "exposure": 0.4287332452331508,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    },
+    "prior_fixed": {
+      "params": {
+        "trend_window": 200,
+        "momentum_window": 126,
+        "buffer_pct": 0.01,
+        "trailing_stop_pct": 0.12,
+        "position_fraction": 1.0
+      },
+      "periods": {
+        "train": {
+          "start": "2005-01-04",
+          "end": "2016-12-30",
+          "bars": 2915,
+          "total_return": 4.931774269999999,
+          "annual_return": 0.1664450484285127,
+          "max_drawdown": 0.3376140262132552,
+          "sharpe": 0.9984805950274125,
+          "trades": 27,
+          "exposure": 0.41269296740994854,
+          "benchmark_return": 1.4973462592555045
+        },
+        "validation": {
+          "start": "2017-01-03",
+          "end": "2020-12-31",
+          "bars": 974,
+          "total_return": -0.1632751,
+          "annual_return": -0.045118510598936346,
+          "max_drawdown": 0.340744423494888,
+          "sharpe": -0.3065530561911733,
+          "trades": 13,
+          "exposure": 0.526694045174538,
+          "benchmark_return": 0.10751173259785562
+        },
+        "holdout": {
+          "start": "2021-01-04",
+          "end": "2026-10-28",
+          "bars": 1408,
+          "total_return": -0.11283141000000008,
+          "annual_return": -0.02121417771831491,
+          "max_drawdown": 0.29651408902747656,
+          "sharpe": -0.13332283648942278,
+          "trades": 14,
+          "exposure": 0.6022727272727273,
+          "benchmark_return": 0.05095998285335046
+        },
+        "full": {
+          "start": "2005-01-04",
+          "end": "2026-10-28",
+          "bars": 5297,
+          "total_return": 3.47769189,
+          "annual_return": 0.07393789064426604,
+          "max_drawdown": 0.564089553993245,
+          "sharpe": 0.5561439543024602,
+          "trades": 52,
+          "exposure": 0.4844251463092316,
+          "benchmark_return": 1.9622997423505804
+        }
+      }
+    }
+  },
+  "buy_hold": {
+    "train": {
+      "start": "2005-01-04",
+      "end": "2016-12-30",
+      "bars": 2915,
+      "total_return": 1.4962030299999998,
+      "annual_return": 0.08232177357752235,
+      "max_drawdown": 0.7197186831225786,
+      "sharpe": 0.4259409648978866,
+      "trades": 1,
+      "exposure": 0.9996569468267581,
+      "benchmark_return": 1.4973462592555045
+    },
+    "validation": {
+      "start": "2017-01-03",
+      "end": "2020-12-31",
+      "bars": 974,
+      "total_return": 0.10708441999999985,
+      "annual_return": 0.026697474066022187,
+      "max_drawdown": 0.30694104952301915,
+      "sharpe": 0.23857769857535785,
+      "trades": 1,
+      "exposure": 0.9989733059548255,
+      "benchmark_return": 0.10751173259785562
+    },
+    "holdout": {
+      "start": "2021-01-04",
+      "end": "2026-10-28",
+      "bars": 1408,
+      "total_return": 0.05313787000000003,
+      "annual_return": 0.009316110341164752,
+      "max_drawdown": 0.2716958046746487,
+      "sharpe": 0.1375226105957218,
+      "trades": 1,
+      "exposure": 0.9992897727272727,
+      "benchmark_return": 0.05095998285335046
+    },
+    "full": {
+      "start": "2005-01-04",
+      "end": "2026-10-28",
+      "bars": 5297,
+      "total_return": 1.96078004,
+      "annual_return": 0.05300626968537214,
+      "max_drawdown": 0.7197186831225786,
+      "sharpe": 0.33930456632129546,
+      "trades": 1,
+      "exposure": 0.9998112138946573,
+      "benchmark_return": 1.9622997423505804
+    }
+  },
+  "cost_stress": {
+    "start": "2021-01-04",
+    "end": "2026-10-28",
+    "bars": 1408,
+    "total_return": 0.011365250000000104,
+    "annual_return": 0.0020261365492546535,
+    "max_drawdown": 0.22211663883300992,
+    "sharpe": 0.07366220218766979,
+    "trades": 8,
+    "exposure": 0.5589488636363636,
+    "benchmark_return": 0.05095998285335046
+  }
+}
