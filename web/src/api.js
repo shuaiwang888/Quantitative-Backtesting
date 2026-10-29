@@ -16,13 +16,17 @@
 const API_BASE_STORAGE = "quant_api_base";
 const CREDENTIALS_STORAGE = "quant_session_credentials";
 // 默认后端 URL（Render 实际部署的 service）
-// 优先用 localStorage 缓存；缓存空时 fallback 到这里。
-// 缓存 + URL 不匹配时会清空缓存（见 initApiBase）
+// 自定义地址优先；已退役的历史默认地址自动迁移到当前部署。
 const DEPLOYED_API_BASE =
   import.meta.env?.VITE_API_BASE || "https://quant-backtest-wj92.onrender.com";
 const IS_LOCAL = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(location.hostname)
   || location.protocol === "file:";
 const DEFAULT_API_BASE = IS_LOCAL ? "" : DEPLOYED_API_BASE;
+// 历史默认 Render 服务已删除；旧浏览器缓存和旧书签仍可能引用它。
+const RETIRED_API_BASES = new Set([
+  "https://quant-backtest.onrender.com",
+  "http://quant-backtest.onrender.com",
+]);
 
 const REQUEST_TIMEOUTS = {
   "/api/query": 120_000,
@@ -47,6 +51,11 @@ function normalizeUrl(url) {
   return String(url).trim().replace(/\/+$/, "");
 }
 
+function resolveApiBase(value) {
+  const normalized = normalizeUrl(value);
+  return RETIRED_API_BASES.has(normalized) ? normalizeUrl(DEPLOYED_API_BASE) : normalized;
+}
+
 function isValidHttpUrl(s) {
   try {
     const u = new URL(s);
@@ -58,7 +67,7 @@ function isValidHttpUrl(s) {
 
 (function initApiBase() {
   const params = new URLSearchParams(location.search);
-  const fromQuery = normalizeUrl(params.get("api"));
+  const fromQuery = resolveApiBase(params.get("api"));
   if (fromQuery) {
     if (fromQuery === "local" || fromQuery === "same-origin") {
       try { localStorage.removeItem(API_BASE_STORAGE); } catch {}
@@ -74,14 +83,20 @@ function isValidHttpUrl(s) {
 export function getApiBase() {
   try {
     const stored = localStorage.getItem(API_BASE_STORAGE);
-    if (stored) return normalizeUrl(stored);
+    if (stored) {
+      const resolved = resolveApiBase(stored);
+      if (resolved !== stored) {
+        try { localStorage.setItem(API_BASE_STORAGE, resolved); } catch {}
+      }
+      return resolved;
+    }
   } catch {}
-  // 缓存为空时用默认 URL（避免历史缓存导致访问孤儿 service）
+  // 未配置自定义后端时使用默认地址。
   return normalizeUrl(DEFAULT_API_BASE);
 }
 
 export function setApiBase(value) {
-  const normalized = normalizeUrl(value);
+  const normalized = resolveApiBase(value);
   if (normalized && !isValidHttpUrl(normalized)) {
     throw new Error("后端地址必须是合法的 http(s) URL");
   }
@@ -384,7 +399,7 @@ export async function postJson(path, payload, options = {}) {
 
 // 连接检测不发送密钥，也不调用收费的数据接口。
 export async function checkConnection(base = getApiBase(), { signal, timeoutMs = 60_000 } = {}) {
-  const normalized = normalizeUrl(base || DEFAULT_API_BASE);
+  const normalized = resolveApiBase(base || DEFAULT_API_BASE);
   if (normalized && !isValidHttpUrl(normalized)) throw new Error("后端地址必须是合法的 http(s) URL");
   if (location.protocol === "https:" && normalized.startsWith("http:")) {
     throw new Error("HTTPS 页面需要使用 HTTPS 后端地址");

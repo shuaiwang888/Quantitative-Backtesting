@@ -73,3 +73,37 @@ test("站点密钥和问财密钥分开传递", async () => {
   };
   await postJson("/api/query", { query: "test" });
 });
+
+test("旧默认后端缓存自动迁移，实际请求发向当前运行的服务", async () => {
+  localStorage.setItem("quant_api_base", "https://quant-backtest.onrender.com/");
+  globalThis.fetch = async (url) => {
+    assert.equal(url, "https://quant-backtest-wj92.onrender.com/api/query");
+    return Response.json({ success: true, datas: [] });
+  };
+  await postJson("/api/query", { query: "test" });
+  assert.equal(localStorage.getItem("quant_api_base"), "https://quant-backtest-wj92.onrender.com");
+});
+
+test("旧书签地址也会迁移", async () => {
+  const previousSearch = location.search;
+  location.search = "?api=https%3A%2F%2Fquant-backtest.onrender.com";
+  try {
+    const api = await import("../src/api.js?legacy-bookmark");
+    assert.equal(api.getApiBase(), "https://quant-backtest-wj92.onrender.com");
+  } finally { location.search = previousSearch; }
+});
+
+test("连接检测和保存配置使用迁移后的地址", async () => {
+  setApiBase("https://quant-backtest.onrender.com");
+  assert.equal(getApiBase(), "https://quant-backtest-wj92.onrender.com");
+  globalThis.fetch = async (url) => {
+    assert.equal(url, "https://quant-backtest-wj92.onrender.com/api/health");
+    return Response.json({ success: true, status: "ok" });
+  };
+  await checkConnection("https://quant-backtest.onrender.com");
+});
+
+test("其他自定义服务不被迁移", () => {
+  setApiBase("https://my-backtest.onrender.com");
+  assert.equal(getApiBase(), "https://my-backtest.onrender.com");
+});
